@@ -531,8 +531,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       User Request: "${userRequest}"
       Existing Events: ${JSON.stringify(currentEvents)}
       
-      Task: Based on the existing events, suggest a date, time, and room that doesn't clash. 
-      Also, provide a brief "Smart Tip" for the event.
+      Task: Based on the existing events, suggest a date, time, and room that doesn't clash.
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
@@ -540,17 +539,21 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const response = await result.response;
     const rawText = response.text();
 
-    // --- FIX STARTS HERE ---
-    // This removes ```json and ``` backticks if Gemini includes them
+    // --- CRITICAL FIX: CLEANING THE STRING ---
+    // This removes markdown code blocks like ```json ... ``` that Gemini often adds
     const cleanJson = rawText.replace(/```json|```/g, "").trim();
     
-    // Now parse the cleaned string
-    res.json(JSON.parse(cleanJson));
-    // --- FIX ENDS HERE ---
+    try {
+      const parsedData = JSON.parse(cleanJson);
+      res.json(parsedData);
+    } catch (parseError) {
+      console.error("Failed to parse AI response. Raw output was:", rawText);
+      res.status(500).json({ error: "AI sent invalid data format" });
+    }
 
   } catch (err) {
     console.error("AI Assistant Error:", err);
-    res.status(500).json({ error: "AI Assistant failed to parse response" });
+    res.status(500).json({ error: "AI Assistant connection failed" });
   }
 });
 
