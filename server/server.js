@@ -533,7 +533,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
     
-    // Ensure the model is initialized correctly
+    // Use the model instance defined at the top of your file
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
@@ -550,16 +550,16 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const rawText = response.text();
 
     // --- THE FIX ---
-    // This regex finds the first '{' and the last '}' 
-    // It extracts only the JSON part, even if there are backticks or "json" text around it
+    // This regex looks for the first '{' and the last '}' 
+    // It captures everything in between and ignores backticks or "json" labels.
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     
     if (!jsonMatch) {
-      console.error("Raw AI Response:", rawText);
+      console.error("AI sent text without JSON:", rawText);
       throw new Error("AI response did not contain a valid JSON object");
     }
 
-    // Parse the extracted match
+    // Parse ONLY the matched JSON string
     const parsedData = JSON.parse(jsonMatch[0]);
     res.json(parsedData);
 
