@@ -531,27 +531,21 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       User Request: "${userRequest}"
       Existing Events: ${JSON.stringify(currentEvents)}
       
-      Task: Based on the existing events, suggest a date, time, and room that doesn't clash.
+      Task: Based on the existing events, suggest a date, time, and room that doesn't clash. 
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
     const result = await model.generateContent(prompt);
-const response = await result.response;
-const rawText = response.text();
-
+    const response = await result.response;
+    const rawText = response.text();
     const cleanJson = rawText.replace(/```json|```/g, "").trim();
     
-    try {
-  const parsedData = JSON.parse(cleanJson);
-  res.json(parsedData);
-} catch (parseError) {
-  console.error("AI sent bad format. Raw text was:", rawText);
-  res.status(500).json({ error: "AI response formatting error" });
-}
+    const parsedData = JSON.parse(cleanJson);
+    res.json(parsedData);
 
   } catch (err) {
     console.error("AI Assistant Error:", err);
-    res.status(500).json({ error: "AI Assistant connection failed" });
+    res.status(500).json({ error: "AI Assistant failed to parse response" });
   }
 });
 
