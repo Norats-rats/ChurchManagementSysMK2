@@ -545,7 +545,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
 
   } catch (err) {
     console.error("AI Assistant Error:", err);
-    res.status(500).json({ error: "AI Assistant failed to parse response" });
+    res.status(500).json({ error: "Failed to process AI response" });
   }
 });
 
