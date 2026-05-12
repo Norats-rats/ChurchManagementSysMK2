@@ -536,20 +536,18 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     `;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const rawText = response.text();
+const response = await result.response;
+const rawText = response.text();
 
-    // --- CRITICAL FIX: CLEANING THE STRING ---
-    // This removes markdown code blocks like ```json ... ``` that Gemini often adds
     const cleanJson = rawText.replace(/```json|```/g, "").trim();
     
     try {
-      const parsedData = JSON.parse(cleanJson);
-      res.json(parsedData);
-    } catch (parseError) {
-      console.error("Failed to parse AI response. Raw output was:", rawText);
-      res.status(500).json({ error: "AI sent invalid data format" });
-    }
+  const parsedData = JSON.parse(cleanJson);
+  res.json(parsedData);
+} catch (parseError) {
+  console.error("AI sent bad format. Raw text was:", rawText);
+  res.status(500).json({ error: "AI response formatting error" });
+}
 
   } catch (err) {
     console.error("AI Assistant Error:", err);
