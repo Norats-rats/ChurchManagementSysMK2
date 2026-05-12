@@ -4,17 +4,17 @@ const cors = require('cors');
 const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
-
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Force 'v1' instead of 'v1beta' to avoid the 404 mapping errors
+// --- STABLE AI INITIALIZATION ---
+// Force 'v1' instead of 'v1beta' to avoid the 404 mapping errors seen in some regions
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel(
   { model: "gemini-1.5-flash" }, 
-  { apiVersion: 'v1' } 
+  { apiVersion: 'v1' }
 );
-const app = express();
 
+const app = express();
 app.use(express.json());
 
 app.use(cors({
@@ -67,11 +67,11 @@ const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
   }
 };
 
-
 mongoose.connect(mongoURI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
+// --- SCHEMAS & MODELS ---
 const Member = mongoose.model('members', new mongoose.Schema({
   firstName: String,
   lastName: String,
@@ -138,12 +138,11 @@ const Transaction = mongoose.model('transactions', new mongoose.Schema({
   userId: { type: String }
 }, { timestamps: true }));
 
-
 app.get('/', (req, res) => {
   res.send('Church Management API is Online and Running');
 });
 
-// AUTH ROUTES
+// --- AUTH ROUTES ---
 app.post('/register', async (req, res) => {
   try {
     const { firstName, lastName, email, password } = req.body;
@@ -168,21 +167,14 @@ app.post('/register', async (req, res) => {
 }
 });
 
-
-
 app.post('/verify-otp', async (req, res) => {
   const { email, otp } = req.body;
   try {
     const user = await Member.findOne({ email: email.trim(), otp: otp.trim() });
-
-    if (!user) {
-      return res.status(400).json({ success: false, message: "Invalid OTP code" });
-    }
-
+    if (!user) return res.status(400).json({ success: false, message: "Invalid OTP code" });
     user.isVerified = true;
     user.status = 'Active';
     await user.save();
-
     res.json({ success: true, message: "Account verified successfully" });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -193,18 +185,11 @@ app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await Member.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
-    }
+    if (!user) return res.status(401).json({ success: false, message: "Invalid credentials" });
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
-    }
+    if (!isMatch) return res.status(401).json({ success: false, message: "Invalid credentials" });
     if (user.status === 'Deactivated' || !user.isVerified) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Your account is deactivated or not yet verified." 
-      });
+      return res.status(403).json({ success: false, message: "Your account is deactivated or not yet verified." });
     }
     res.json({ success: true, role: user.role, user });
   } catch (error) {
@@ -217,11 +202,9 @@ app.post('/forgot-password', async (req, res) => {
   try {
     const user = await Member.findOne({ email });
     if (!user) return res.status(404).json({ message: "Email not found" });
-
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.otp = otp;
     await user.save();
-
     await sendOTPEmail(email, otp, user.firstName, true);
     res.json({ success: true });
   } catch (err) {
@@ -244,7 +227,7 @@ app.post('/reset-password', async (req, res) => {
   }
 });
 
-// MINISTRY ROUTES
+// --- MINISTRY ROUTES ---
 app.post('/api/ministries', async (req, res) => {
   try {
     const newMin = new Ministry(req.body);
@@ -274,7 +257,7 @@ app.delete('/api/ministries/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// FINANCE ROUTES
+// --- FINANCE ROUTES ---
 app.get('/api/finances', async (req, res) => {
   try {
     const transactions = await Transaction.find().sort({ date: -1 });
@@ -297,7 +280,6 @@ app.post('/api/finances', async (req, res) => {
 
 app.post('/api/paymongo/create-session', async (req, res) => {
   const { amount, description, userId } = req.body;
-
   try {
     const options = {
       method: 'POST',
@@ -329,7 +311,6 @@ app.post('/api/paymongo/create-session', async (req, res) => {
         }
       }
     };
-
     const response = await axios.request(options);
     res.json(response.data);
   } catch (error) {
@@ -341,7 +322,6 @@ app.post('/api/paymongo/create-session', async (req, res) => {
 app.post('/api/paymongo/webhook', async (req, res) => {
   const event = req.body.data.attributes;
   const type = req.body.data.type;
-
   if (type === 'checkout_session.payment.paid') {
     const { amount, description, metadata } = event.data.attributes;
     const newTransaction = new Transaction({
@@ -351,15 +331,12 @@ app.post('/api/paymongo/webhook', async (req, res) => {
       userId: metadata.userId,
       date: new Date()
     });
-
     await newTransaction.save();
-    console.log("Donation saved to database!");
   }
-
   res.status(200).send('Webhook received');
 });
 
-// MEMBER ROUTES
+// --- MEMBER ROUTES ---
 app.get('/api/members', async (req, res) => {
   try {
     const members = await Member.find().sort({ date: -1 });
@@ -395,7 +372,7 @@ app.delete('/api/members/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Failed to delete" }); }
 });
 
-// ATTENDANCE & EVENTS
+// --- ATTENDANCE & EVENT ROUTES ---
 app.get('/api/attendance', async (req, res) => {
   try {
     const records = await Attendance.find().sort({ createdAt: -1 });
@@ -415,9 +392,7 @@ app.post('/api/events/:id/toggle-attendance', async (req, res) => {
   try {
     const { userId } = req.body;
     const event = await Event.findById(req.params.id);
-    
     if (!event) return res.status(404).send("Event not found");
-
     const index = event.attendees.indexOf(userId);
     if (index === -1) {
       event.attendees.push(userId);
@@ -435,14 +410,11 @@ app.post('/api/events', async (req, res) => {
   try {
     const { date, time, room } = req.body;
     const clash = await Event.findOne({ date, time, room });
-
     if (clash) {
       const standardSlots = ["08:00 AM", "10:00 AM", "01:00 PM", "03:00 PM", "05:00 PM"];
       const bookedEvents = await Event.find({ date, room });
       const bookedTimes = bookedEvents.map(e => e.time);
-      
       const suggestions = standardSlots.filter(slot => !bookedTimes.includes(slot));
-
       return res.status(409).json({ 
         error: "Schedule Conflict", 
         message: `The ${room} is already booked at ${time}.`,
@@ -452,32 +424,22 @@ app.post('/api/events', async (req, res) => {
     const newEvent = new Event(req.body);
     await newEvent.save();
     res.status(201).json(newEvent);
-  } catch (err) {
-    res.status(400).json({ error: "Failed to create event" });
-  }
+  } catch (err) { res.status(400).json({ error: "Failed to create event" }); }
 });
 
 app.get('/api/events', async (req, res) => {
   try {
     const events = await Event.find().sort({ createdAt: -1 });
     res.json(events);
-  } catch (err) {
-    console.error("Fetch Events Error:", err);
-    res.status(500).json({ error: "Failed to fetch events" });
-  }
+  } catch (err) { res.status(500).json({ error: "Failed to fetch events" }); }
 });
+
 app.put('/api/events/:id', async (req, res) => {
   try {
-    const updatedEvent = await Event.findByIdAndUpdate(
-      req.params.id, 
-      req.body, 
-      { new: true } 
-    );
+    const updatedEvent = await Event.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!updatedEvent) return res.status(404).send("Event not found");
     res.json(updatedEvent);
-  } catch (err) {
-    res.status(400).send("Error updating event: " + err.message);
-  }
+  } catch (err) { res.status(400).send("Error updating event: " + err.message); }
 });
 
 app.delete('/api/events/:id', async (req, res) => {
@@ -485,12 +447,10 @@ app.delete('/api/events/:id', async (req, res) => {
     const deletedEvent = await Event.findByIdAndDelete(req.params.id);
     if (!deletedEvent) return res.status(404).send("Event not found");
     res.json({ message: "Event deleted successfully" });
-  } catch (err) {
-    res.status(500).send("Error deleting event: " + err.message);
-  }
+  } catch (err) { res.status(500).send("Error deleting event: " + err.message); }
 });
 
-// PRAYER ROUTES
+// --- PRAYER ROUTES ---
 app.get('/api/prayers', async (req, res) => { 
   try {
     const prayers = await Prayer.find().sort({ date: -1 });
@@ -500,42 +460,31 @@ app.get('/api/prayers', async (req, res) => {
 
 app.post('/api/prayers', async (req, res) => {
   try {
-    const { name, initial, text, userId, tags } = req.body;
-    const newPrayer = new Prayer({ name, initial, text, userId, tags });
+    const newPrayer = new Prayer(req.body);
     await newPrayer.save();
     res.status(201).json(newPrayer);
   } catch (err) { res.status(400).json({ error: "Error" }); }
 });
+
 app.patch('/api/prayers/:id/pray', async (req, res) => {
   try {
-    const updated = await Prayer.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { prayingCount: 1 } },
-      { new: true }
-    );
+    const updated = await Prayer.findByIdAndUpdate(req.params.id, { $inc: { prayingCount: 1 } }, { new: true });
     res.json(updated);
   } catch (err) { res.status(400).json({ error: "Failed" }); }
 });
 
 app.patch('/api/prayers/:id/answer', async (req, res) => {
   try {
-    const updated = await Prayer.findByIdAndUpdate(
-      req.params.id,
-      { $set: { status: "Answered" } },
-      { new: true }
-    );
+    const updated = await Prayer.findByIdAndUpdate(req.params.id, { $set: { status: "Answered" } }, { new: true });
     res.json(updated);
   } catch (err) { res.status(400).json({ error: "Failed" }); }
 });
 
-// --- AI ROUTE WITH FIX FOR 404 ---
+// --- FINAL STABLE AI ROUTE ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
     
-    // Use the model instance defined at the top of your file
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
     const prompt = `
       You are a Church Event Assistant. 
       User Request: "${userRequest}"
@@ -545,21 +494,17 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
+    // Uses the model instance defined at the top forced to the stable 'v1' endpoint
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
 
-    // --- THE FIX ---
-    // This regex looks for the first '{' and the last '}' 
-    // It captures everything in between and ignores backticks or "json" labels.
+    // REGEX: Extracts only the JSON object between { and } to bypass markdown backticks
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    
     if (!jsonMatch) {
-      console.error("AI sent text without JSON:", rawText);
       throw new Error("AI response did not contain a valid JSON object");
     }
 
-    // Parse ONLY the matched JSON string
     const parsedData = JSON.parse(jsonMatch[0]);
     res.json(parsedData);
 
@@ -571,7 +516,6 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     });
   }
 });
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
