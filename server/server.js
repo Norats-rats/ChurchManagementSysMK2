@@ -6,8 +6,11 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Initialize Gemini - Ensure GEMINI_API_KEY is in your Railway Variables
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel(
+  { model: "gemini-1.5-flash" }, 
+  { apiVersion: 'v1' }
+);
 const app = express();
 
 app.use(express.json());
@@ -531,7 +534,8 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not defined" });
     }
-const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
+    
+    const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
 
     const prompt = `
       You are a Church Event Assistant. 
