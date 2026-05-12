@@ -482,38 +482,52 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
     
-    // Check if key is available
+    // Check if API Key is actually loaded
     if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "AI Key missing in Environment Variables" });
+      console.error("CRITICAL: GEMINI_API_KEY is missing from process.env");
+      return res.status(500).json({ error: "Server configuration error: Missing API Key" });
     }
 
-    // Using gemini-1.5-flash-latest to resolve 404/v1beta issues
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    // STABLE MODEL FIX: Use "gemini-1.5-flash" or "gemini-pro"
+    // Remove "-latest" if it's causing 404s in your specific region/version
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
       You are a Church Event Assistant. 
       User Request: "${userRequest}"
       Existing Events: ${JSON.stringify(currentEvents)}
       
-      Task: Based on the existing events, suggest a date, time, and room that doesn't clash. 
+      Task: Suggest a date, time, and room that doesn't clash with existing events. 
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
+    console.log("Sending request to Google AI...");
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
 
+    // REGEX CLEANER: More reliable than .replace for finding JSON inside markdown
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error("Invalid AI response format");
+      console.error("AI Response was not JSON:", rawText);
+      throw new Error("AI did not return a valid JSON object");
     }
 
     const parsedData = JSON.parse(jsonMatch[0]);
     res.json(parsedData);
 
   } catch (err) {
-    console.error("AI Assistant Error:", err.message);
-    res.status(500).json({ error: "AI Assistant failed to connect or format response." });
+    console.error("AI Assistant Error Detail:", err);
+    
+    // Check specifically for the 404 mapping error
+    if (err.message.includes("404")) {
+      return res.status(404).json({ 
+        error: "Model mapping error", 
+        details: "The API could not find the model. Try changing the model name to 'gemini-pro' in server.js." 
+      });
+    }
+
+    res.status(500).json({ error: "AI Assistant failed to process the request." });
   }
 });
 
