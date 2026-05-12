@@ -531,8 +531,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not defined" });
     }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
 
     const prompt = `
       You are a Church Event Assistant. 
