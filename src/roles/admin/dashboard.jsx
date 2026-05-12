@@ -14,6 +14,8 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [stats, setStats] = useState({
     memberCount: 0,
+    attendanceCount: 0,
+    monthlyContributions: 0,
     upcomingEventsCount: 0
   });
   const [loadingStats, setLoadingStats] = useState(true);
@@ -78,19 +80,23 @@ const fetchDailyVerse = async () => {
   const fetchDashboardStats = async () => {
     setLoadingStats(true);
     try {
-      const [membersRes, financeRes, eventsRes] = await Promise.all([
+      const [membersRes, financeRes, eventsRes, attendanceRes] = await Promise.all([
         api.getMembers(),
         api.getFinances(),
         api.getEvents(),
+        api.getAttendance()
       ]);
 
       const members = membersRes.data;
       const financeData = financeRes.data;
       const events = eventsRes.data;
+      const attendance = attendanceRes.data;
 
       setStats({
-
+        memberCount: Array.isArray(members) ? members.length : 0,
+        monthlyContributions: financeData.stats?.totalIncome || 0,
         upcomingEventsCount: Array.isArray(events) ? events.length : 0,
+        attendanceCount: Array.isArray(attendance) ? attendance.length : 0
       });
     } catch (err) {
       console.error("Dashboard synchronization error:", err);
@@ -150,6 +156,8 @@ const fetchDailyVerse = async () => {
                 {(role === 'Admin' || role === 'Ministry Leader') && (
                   <StatCard label="Total Members" value={stats.memberCount} icon="👥" color="blue" />
                 )}
+                
+                <StatCard label="Live Attendance" value={stats.attendanceCount} icon="📋" color="green" />
                 <StatCard label="Scheduled Events" value={stats.upcomingEventsCount} icon="📅" color="orange" />
               </div>
 
