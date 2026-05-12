@@ -6,6 +6,10 @@ const EventTab = ({ role, userId }) => {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   
+  // AI State Management
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState(null);
+
   const [formData, setFormData] = useState({
     titleSelection: 'Worship Service', 
     reservationName: '',              
@@ -36,36 +40,61 @@ const EventTab = ({ role, userId }) => {
     }
   };
 
-const handleCreateOrUpdate = async (e) => {
-  e.preventDefault();
-  
-  const combinedTitle = `${formData.titleSelection} for ${formData.reservationName}`;
-  const submissionData = { ...formData, title: combinedTitle };
+  // GEMINI INTEGRATION FUNCTION
+  const handleAiSuggest = async () => {
+    if (!formData.reservationName) {
+      alert("Please enter a Booking/Reservation Name first so the AI has context!");
+      return;
+    }
 
-  try {
-    if (editingId) {
-      await api.updateEvent(editingId, submissionData); 
-    } else {
-      await api.createEvent(submissionData); 
+    setAiLoading(true);
+    setAiSuggestion(null);
+
+    try {
+      // Calls the new backend endpoint created in your server.js
+      const response = await api.analyzeSchedule({
+        userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
+        currentEvents: events 
+      });
+      
+      setAiSuggestion(response.data);
+    } catch (err) {
+      console.error("AI Assistant Error:", err);
+      alert("AI Assistant is currently unavailable. Check your server connection.");
+    } finally {
+      setAiLoading(false);
     }
-    setEditingId(null);
-    setFormData({ 
-      titleSelection: 'Worship Service', reservationName: '', 
-      category: 'Worship', date: '', time: '08:00 AM', 
-      room: '', expected: 0, type: 'Once', role: '' 
-    });
-    fetchEvents();
-    
-  } catch (err) {
-    if (err.response && err.response.status === 409) {
-      const { message, suggestions } = err.response.data;
-      const suggestionList = suggestions.join(", ");
-      alert(`${message}\n\nSuggested available times for this room:\n${suggestionList}`);
-    } else {
-      alert("Error saving event: " + (err.response?.data?.error || "Server error"));
+  };
+
+  const handleCreateOrUpdate = async (e) => {
+    e.preventDefault();
+    const combinedTitle = `${formData.titleSelection} for ${formData.reservationName}`;
+    const submissionData = { ...formData, title: combinedTitle };
+
+    try {
+      if (editingId) {
+        await api.updateEvent(editingId, submissionData); 
+      } else {
+        await api.createEvent(submissionData); 
+      }
+      setEditingId(null);
+      setAiSuggestion(null); // Clear suggestion after saving
+      setFormData({ 
+        titleSelection: 'Worship Service', reservationName: '', 
+        category: 'Worship', date: '', time: '08:00 AM', 
+        room: '', expected: 0, type: 'Once', role: '' 
+      });
+      fetchEvents();
+    } catch (err) {
+      if (err.response && err.response.status === 409) {
+        const { message, suggestions } = err.response.data;
+        alert(`${message}\n\nAvailable slots:\n${suggestions.join(", ")}`);
+      } else {
+        alert("Error saving event: " + (err.response?.data?.error || "Server error"));
+      }
     }
-  }
-};
+  };
+
   const handleToggleAttendance = async (eventId) => {
     try {
       const response = await api.toggleEventAttendance(eventId, userId);
@@ -101,16 +130,18 @@ const handleCreateOrUpdate = async (e) => {
     footer: { marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #edf2f7', display: 'flex', gap: '10px' },
     actionBtn: { border: 'none', background: 'none', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', padding: '5px' },
     submitBtn: { width: '100%', padding: '12px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '15px' },
+    aiBtn: { width: '100%', padding: '12px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '15px', flex: '0.4' },
     attendBtn: (isAttending) => ({ 
       width: '100%', padding: '10px', backgroundColor: isAttending ? '#ef4444' : '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' 
-    })
+    }),
+    aiBox: { marginTop: '15px', padding: '15px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', animation: 'fadeIn 0.3s ease-in' }
   };
 
   return (
     <div style={styles.container}>
       <div style={{ marginBottom: '20px' }}>
         <h2 style={{ margin: 0, color: '#2d3748' }}>Church Events & Scheduling</h2>
-        <p style={{ color: '#718096', margin: '5px 0 0 0' }}>{canManage ? "Manage and schedule church activities" : "View and join upcoming activities"}</p>
+        <p style={{ color: '#718096', margin: '5px 0 0 0' }}>{canManage ? "Manage activities with AI assistance" : "View upcoming church events"}</p>
       </div>
 
       {canManage && (
@@ -123,17 +154,16 @@ const handleCreateOrUpdate = async (e) => {
                 value={formData.titleSelection} 
                 onChange={e => setFormData({...formData, titleSelection: e.target.value})}
               >
-                <option value="Jail Preaching">Jail Preaching </option>
+                <option value="Jail Preaching">Jail Preaching</option>
                 <option value="Wedding">Wedding</option>
                 <option value="Dedication">Dedication</option>
                 <option value="Anniversary">Anniversary</option>
-                <option value="Healing Crusade ">Healing Crusade </option>
-                <option value="Feeding Program">Feeding Program </option>
+                <option value="Healing Crusade">Healing Crusade</option>
+                <option value="Feeding Program">Feeding Program</option>
                 <option value="Baptism">Baptism</option>
                 <option value="Bible Study">Bible Study</option>
-                <option value="Prayer Meeting ">Prayer Meeting </option>
-                <option value="Youth Camp">Youth Camp </option>
-
+                <option value="Prayer Meeting">Prayer Meeting</option>
+                <option value="Youth Camp">Youth Camp</option>
               </select>
 
               <input 
@@ -156,15 +186,48 @@ const handleCreateOrUpdate = async (e) => {
               
               <input 
                 style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} 
-                placeholder="List down location" 
+                placeholder="Location (Room/Hall)" 
                 value={formData.room} 
                 onChange={e => setFormData({...formData, room: e.target.value})} 
               />
               
               <input style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} placeholder="Lead Person" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
             </div>
-            <button type="submit" style={styles.submitBtn}>{editingId ? "Update Event" : "Create Event"}</button>
-            {editingId && <button type="button" onClick={() => setEditingId(null)} style={{ ...styles.submitBtn, backgroundColor: '#cbd5e0', color: '#4a5568' }}>Cancel Edit</button>}
+
+            {/* AI SUGGESTION FEEDBACK BOX */}
+            {aiSuggestion && (
+              <div style={styles.aiBox}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <strong style={{ color: '#166534' }}>✨ Gemini Smart Suggestion</strong>
+                  <button type="button" onClick={() => setAiSuggestion(null)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>✕</button>
+                </div>
+                <p style={{ margin: '5px 0', fontSize: '14px', color: '#14532d' }}>{aiSuggestion.suggestion}</p>
+                <small style={{ color: '#15803d', fontStyle: 'italic' }}>Note: {aiSuggestion.reason}</small>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="submit" style={styles.submitBtn}>
+                {editingId ? "Update Event" : "Create Event"}
+              </button>
+              
+              {!editingId && (
+                <button 
+                  type="button" 
+                  onClick={handleAiSuggest} 
+                  disabled={aiLoading}
+                  style={styles.aiBtn}
+                >
+                  {aiLoading ? "Thinking..." : "✨ AI Suggest Slot"}
+                </button>
+              )}
+            </div>
+
+            {editingId && (
+              <button type="button" onClick={() => setEditingId(null)} style={{ ...styles.submitBtn, backgroundColor: '#cbd5e0', color: '#4a5568' }}>
+                Cancel Edit
+              </button>
+            )}
           </form>
         </div>
       )}

@@ -10,6 +10,9 @@ const apiClient = axios.create({
 });
 
 export const api = {
+
+  analyzeSchedule: (data) => apiClient.post('/api/ai/analyze-schedule', data),
+
   // Authentication
   login: (credentials) => apiClient.post('/login', credentials),
   register: (formData) => apiClient.post('/register', formData),

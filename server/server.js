@@ -4,7 +4,8 @@ const cors = require('cors');
 const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
-
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const app = express();
 
 app.use(express.json());
@@ -518,6 +519,29 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
     );
     res.json(updated);
   } catch (err) { res.status(400).json({ error: "Failed" }); }
+});
+
+app.post('/api/ai/analyze-schedule', async (req, res) => {
+  try {
+    const { userRequest, currentEvents } = req.body;
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `
+      You are a Church Event Assistant. 
+      User Request: "${userRequest}"
+      Existing Events: ${JSON.stringify(currentEvents)}
+      
+      Task: Based on the existing events, suggest a date, time, and room that doesn't clash. 
+      Also, provide a brief "Smart Tip" for the event.
+      Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    res.json(JSON.parse(response.text()));
+  } catch (err) {
+    res.status(500).json({ error: "AI Assistant failed" });
+  }
 });
 
 
