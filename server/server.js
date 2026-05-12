@@ -534,8 +534,10 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not defined" });
     }
-    
-    const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
+
+    // STABILITY FIX: Use the 'gemini-pro' string without 'models/' 
+    // This is often mapped more reliably in v1beta/v1 environments
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `
       You are a Church Event Assistant. 
@@ -546,28 +548,32 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
-    console.log("Requesting analysis from Gemini Pro...");
+    console.log("Attempting generation with gemini-pro...");
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
 
-    // Robust JSON extraction to handle any markdown formatting (like ```json blocks)
+    // Regular expression to extract JSON from the response text
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error("AI response did not contain valid JSON");
+      throw new Error("AI response did not contain valid JSON formatting");
     }
 
     const parsedData = JSON.parse(jsonMatch[0]);
     res.json(parsedData);
 
   } catch (err) {
-    console.error("AI Assistant Error:", err.message);
+    console.error("AI Assistant Route Error:", err.message);
     
-    // Fallback for UI if the model still has issues
-    res.status(err.message.includes("404") ? 404 : 500).json({ 
-      error: "AI Assistant unavailable",
-      details: err.message 
-    });
+    // Detailed feedback for the 404 error seen in your Railway logs
+    if (err.message.includes("404")) {
+      return res.status(404).json({ 
+        error: "Model mapping error", 
+        details: "The Google AI service cannot find this model version in your region. Check Google AI Studio for available models." 
+      });
+    }
+
+    res.status(500).json({ error: "AI Assistant failed to process request." });
   }
 });
 
