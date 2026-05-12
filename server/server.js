@@ -16,7 +16,8 @@ app.use(cors({
     "https://churchmanagementsys.pages.dev",
     "http://localhost:5173",
     "https://church-management-app.lancemanemail.workers.dev",
-    "https://www.ecclsync.org/"
+    "https://www.ecclsync.org",
+    "https://ecclsync.org"
   ],
   credentials: true
 }));
@@ -26,30 +27,35 @@ const mongoURI = process.env.MONGODB_URI;
 const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const sendOTPEmail = async (email, otp, firstName) => {
+const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
   try {
+    const subject = isPasswordReset ? 'Password Reset Code' : 'Verify Your Church Account';
+    const title = isPasswordReset ? 'Reset Your Password' : `Welcome, ${firstName}!`;
+    const message = isPasswordReset ? 'Use the code below to reset your password:' : 'Please use the code below to activate your account:';
+
     const { data, error } = await resend.emails.send({
       from: `FBCF Church <${process.env.EMAIL_FROM}>`,
       to: [email],
-      subject: 'Verify Your Church Account',
+      subject: subject,
       html: `
         <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #1e40af;">Welcome, ${firstName}!</h2>
-          <p>Please use the code below to activate your account:</p>
+          <h2 style="color: #1e40af;">${title}</h2>
+          <p>${message}</p>
           <div style="background: #f3f4f6; padding: 15px; text-align: center; border-radius: 8px;">
             <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #2563eb;">${otp}</span>
           </div>
-          <p style="font-size: 12px; color: #666; margin-top: 20px;">If you didn't create an account, you can safely ignore this email.</p>
         </div>
       `,
     });
 
     if (error) {
-      return console.error({ error });
+      console.error("Resend API Error:", error);
+      return { success: false, error };
     }
-    console.log({ data });
+    return { success: true, data };
   } catch (err) {
-    console.error("Resend Error:", err);
+    console.error("Resend System Error:", err);
+    return { success: false, error: err.message };
   }
 };
 
@@ -61,20 +67,15 @@ mongoose.connect(mongoURI)
 const Member = mongoose.model('members', new mongoose.Schema({
   firstName: String,
   lastName: String,
-  name: String, 
-  email: { type: String, unique: true },
-  password: { type: String },
+  email: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
   contact: String,
   address: String,
-  category: { type: String, default: 'Member' }, 
-  ministry: { type: String, default: 'None' },
   role: { type: String, default: 'Member' },
-  status: { type: String, default: 'Active' },
   otp: { type: String },
   isVerified: { type: Boolean, default: false },
-  status: { type: String, default: 'Inactive' },
+  status: { type: String, default: 'Inactive' }, 
   date: { type: Date, default: Date.now }
-  
 }));
 
 const Event = mongoose.model('events', new mongoose.Schema({
@@ -205,20 +206,19 @@ app.post('/login', async (req, res) => {
 
 app.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
-  const user = await Member.findOne({ email });
-  if (!user) return res.status(404).json({ message: "Email not found" });
+  try {
+    const user = await Member.findOne({ email });
+    if (!user) return res.status(404).json({ message: "Email not found" });
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  user.otp = otp;
-  await user.save();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    await user.save();
 
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM,
-    to: email, 
-    subject: 'Password Reset Code',
-    html: `<p>Your reset code is: <strong>${otp}</strong></p>`
-  });
-  res.json({ success: true });
+    await sendOTPEmail(email, otp, user.firstName, true);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/reset-password', async (req, res) => {
