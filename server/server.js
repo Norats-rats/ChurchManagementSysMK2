@@ -5,6 +5,7 @@ const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const app = express();
 
@@ -524,6 +525,11 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY is missing from .env");
+      return res.status(500).json({ error: "Internal Server Error: AI Key missing" });
+    }
+
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
@@ -538,18 +544,19 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
-
-    // --- THE CRITICAL FIX ---
-    // This removes ```json and ``` blocks so JSON.parse doesn't crash
     const cleanJson = rawText.replace(/```json|```/g, "").trim();
     
-    // Parse the cleaned string
-    const parsedData = JSON.parse(cleanJson);
-    res.json(parsedData);
+    try {
+      const parsedData = JSON.parse(cleanJson);
+      res.json(parsedData);
+    } catch (parseErr) {
+      console.error("AI returned invalid JSON format. Raw output:", rawText);
+      res.status(500).json({ error: "AI Assistant sent an invalid response format" });
+    }
 
   } catch (err) {
     console.error("AI Assistant Error:", err);
-    res.status(500).json({ error: "AI Assistant failed to parse response" });
+    res.status(500).json({ error: "AI Assistant failed to connect" });
   }
 });
 
