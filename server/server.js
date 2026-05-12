@@ -7,9 +7,10 @@ require('dotenv').config();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 const model = genAI.getGenerativeModel(
   { model: "gemini-1.5-flash" }, 
-  { apiVersion: 'v1' }
+  { apiVersion: 'v1' } 
 );
 const app = express();
 
@@ -535,10 +536,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       return res.status(500).json({ error: "GEMINI_API_KEY is not defined" });
     }
 
-    // STABILITY FIX: Use the 'gemini-pro' string without 'models/' 
-    // This is often mapped more reliably in v1beta/v1 environments
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
+    // Attempting generation using the stable model reference defined above
+    console.log("Attempting AI Generation via V1 Stable Endpoint...");
+    
     const prompt = `
       You are a Church Event Assistant. 
       User Request: "${userRequest}"
@@ -548,15 +548,14 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
-    console.log("Attempting generation with gemini-pro...");
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
 
-    // Regular expression to extract JSON from the response text
+    // Clean JSON extraction
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error("AI response did not contain valid JSON formatting");
+      throw new Error("AI response did not contain valid JSON");
     }
 
     const parsedData = JSON.parse(jsonMatch[0]);
@@ -565,15 +564,15 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   } catch (err) {
     console.error("AI Assistant Route Error:", err.message);
     
-    // Detailed feedback for the 404 error seen in your Railway logs
+    // Check if it's still a 404 to provide a specific error message in logs
     if (err.message.includes("404")) {
-      return res.status(404).json({ 
-        error: "Model mapping error", 
-        details: "The Google AI service cannot find this model version in your region. Check Google AI Studio for available models." 
-      });
+      console.log("CRITICAL: v1 endpoint also returned 404. Check API Key permissions.");
     }
 
-    res.status(500).json({ error: "AI Assistant failed to process request." });
+    res.status(500).json({ 
+      error: "AI Assistant failed", 
+      details: err.message 
+    });
   }
 });
 
