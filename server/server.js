@@ -16,7 +16,7 @@ app.use(cors({
     "https://churchmanagementsys.pages.dev",
     "http://localhost:5173",
     "https://church-management-app.lancemanemail.workers.dev",
-    "https://ecclsync.org/"
+    "https://www.ecclsync.org/"
   ],
   credentials: true
 }));
