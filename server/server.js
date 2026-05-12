@@ -8,7 +8,10 @@ require('dotenv').config();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel(
+  { model: "gemini-1.5-flash-001" }, // Try this or the Pro version below
+  { apiVersion: 'v1' }
+);
 
 const app = express();
 
@@ -529,8 +532,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
     
+    // Safety check for the key
     if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "GEMINI_API_KEY is not defined" });
+      return res.status(500).json({ error: "GEMINI_API_KEY is missing" });
     }
 
     const prompt = `
@@ -542,31 +546,49 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
-    // Trigger generation
+    // Attempt generation
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
 
-    // REGEX: Extracts the JSON object to bypass markdown backticks
+    // REGEX: Extracts only the JSON object between { and }
+    // This stops "```json" backticks from crashing the JSON.parse
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    
     if (!jsonMatch) {
-      throw new Error("AI response did not contain a valid JSON object");
+      throw new Error("AI did not return a valid JSON block");
     }
 
     const parsedData = JSON.parse(jsonMatch[0]);
     res.json(parsedData);
 
   } catch (err) {
-    console.error("AI Assistant Route Error:", err.message);
+    console.error("AI Route Error:", err.message);
     
-    // If even gemini-pro 404s, it confirms an API Key restriction
+    // Fallback message for the user interface
     res.status(500).json({ 
-      error: "AI Assistant failed", 
+      error: "The AI Assistant is currently reconfiguring. Please try again in a moment.",
       details: err.message 
     });
   }
 });
 
+async function listAvailableModels() {
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const result = await genAI.listModels();
+    console.log("--- YOUR KEY'S AVAILABLE MODELS ---");
+    result.models.forEach(m => {
+      if (m.supportedGenerationMethods.includes("generateContent")) {
+        console.log(`Model ID: ${m.name}`);
+      }
+    });
+    console.log("------------------------------------");
+  } catch (err) {
+    console.error("Error listing models:", err.message);
+  }
+}
+listAvailableModels();
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
