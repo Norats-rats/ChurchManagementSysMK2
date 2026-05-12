@@ -4,10 +4,11 @@ const cors = require('cors');
 const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+// Force 'v1' instead of 'v1beta' to avoid the 404 mapping errors
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 const model = genAI.getGenerativeModel(
   { model: "gemini-1.5-flash" }, 
   { apiVersion: 'v1' } 
@@ -529,6 +530,7 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
 
 // --- AI ROUTE WITH FIX FOR 404 ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
+  console.log("Attempting AI Generation via V1 Stable Endpoint..."); // Logs to Railway
   try {
     const { userRequest, currentEvents } = req.body;
     
@@ -536,9 +538,6 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       return res.status(500).json({ error: "GEMINI_API_KEY is not defined" });
     }
 
-    // Attempting generation using the stable model reference defined above
-    console.log("Attempting AI Generation via V1 Stable Endpoint...");
-    
     const prompt = `
       You are a Church Event Assistant. 
       User Request: "${userRequest}"
@@ -548,14 +547,15 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
+    // Use the model instance defined at the top of the file
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
 
-    // Clean JSON extraction
+    // REGEX: More reliable for extracting JSON if the AI adds markdown backticks
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error("AI response did not contain valid JSON");
+      throw new Error("AI response did not contain valid JSON formatting");
     }
 
     const parsedData = JSON.parse(jsonMatch[0]);
@@ -564,11 +564,6 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   } catch (err) {
     console.error("AI Assistant Route Error:", err.message);
     
-    // Check if it's still a 404 to provide a specific error message in logs
-    if (err.message.includes("404")) {
-      console.log("CRITICAL: v1 endpoint also returned 404. Check API Key permissions.");
-    }
-
     res.status(500).json({ 
       error: "AI Assistant failed", 
       details: err.message 
