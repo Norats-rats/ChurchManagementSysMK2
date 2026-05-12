@@ -530,13 +530,11 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
 
 // --- AI ROUTE WITH FIX FOR 404 ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
-  console.log("Attempting AI Generation via V1 Stable Endpoint..."); // Logs to Railway
   try {
     const { userRequest, currentEvents } = req.body;
     
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "GEMINI_API_KEY is not defined" });
-    }
+    // Ensure the model is initialized correctly
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
       You are a Church Event Assistant. 
@@ -547,25 +545,28 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
-    // Use the model instance defined at the top of the file
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
 
-    // REGEX: More reliable for extracting JSON if the AI adds markdown backticks
+    // --- THE FIX ---
+    // This regex finds the first '{' and the last '}' 
+    // It extracts only the JSON part, even if there are backticks or "json" text around it
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    
     if (!jsonMatch) {
-      throw new Error("AI response did not contain valid JSON formatting");
+      console.error("Raw AI Response:", rawText);
+      throw new Error("AI response did not contain a valid JSON object");
     }
 
+    // Parse the extracted match
     const parsedData = JSON.parse(jsonMatch[0]);
     res.json(parsedData);
 
   } catch (err) {
-    console.error("AI Assistant Route Error:", err.message);
-    
+    console.error("AI Assistant Error:", err.message);
     res.status(500).json({ 
-      error: "AI Assistant failed", 
+      error: "AI Assistant failed to process request",
       details: err.message 
     });
   }
