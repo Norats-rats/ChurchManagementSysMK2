@@ -528,15 +528,11 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
 
-    // Safety log to verify key presence in Railway
-    console.log("Checking API Key availability...");
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not defined in environment variables");
-    }
+    console.log("Attempting AI Generation...");
 
-    // Explicitly use the model string. If 1.5-flash fails, it might be a regional issue.
-    // Ensure you are using the latest @google/generative-ai package.
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // FIX 1: Try using 'gemini-1.5-flash-latest' which often resolves 404s on v1beta
+    // Or 'gemini-1.5-pro' if flash continues to 404
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
     const prompt = `
       You are a Church Event Assistant. 
@@ -547,33 +543,31 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
-    // The generateContent call
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
 
-    // Cleaning logic to handle potential markdown
-    const firstBrace = rawText.indexOf('{');
-    const lastBrace = rawText.lastIndexOf('}');
-    
-    if (firstBrace === -1 || lastBrace === -1) {
-      throw new Error("AI response did not contain a valid JSON object.");
+    // FIX 2: More robust JSON extraction to handle markdown blocks
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No valid JSON found in AI response");
     }
 
-    const cleanJson = rawText.substring(firstBrace, lastBrace + 1);
-    const parsedData = JSON.parse(cleanJson);
-    
+    const parsedData = JSON.parse(jsonMatch[0]);
     res.json(parsedData);
 
   } catch (err) {
-    // This will help you see the specific cause in Railway logs
     console.error("AI Assistant Route Error:", err.message);
     
+    // Detailed error logging for Railway
     if (err.message.includes("404")) {
-       res.status(404).json({ error: "Model not found. Please check your API key permissions or model name." });
-    } else {
-       res.status(500).json({ error: "AI Assistant failed to process request" });
+       return res.status(404).json({ 
+         error: "Model mapping error", 
+         details: "The API endpoint gemini-1.5-flash-latest was not found. Check SDK version." 
+       });
     }
+    
+    res.status(500).json({ error: "AI Assistant failed to process request" });
   }
 });
 
