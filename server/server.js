@@ -521,15 +521,9 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
     res.json(updated);
   } catch (err) { res.status(400).json({ error: "Failed" }); }
 });
-
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
-    if (!process.env.GEMINI_API_KEY) {
-      console.error("GEMINI_API_KEY is missing from .env");
-      return res.status(500).json({ error: "Internal Server Error: AI Key missing" });
-    }
-
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
@@ -543,23 +537,25 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const rawText = response.text();
-    const cleanJson = rawText.replace(/```json|```/g, "").trim();
+    let rawText = response.text();
+
+    const firstBrace = rawText.indexOf('{');
+    const lastBrace = rawText.lastIndexOf('}');
     
-    try {
-      const parsedData = JSON.parse(cleanJson);
-      res.json(parsedData);
-    } catch (parseErr) {
-      console.error("AI returned invalid JSON format. Raw output:", rawText);
-      res.status(500).json({ error: "AI Assistant sent an invalid response format" });
+    if (firstBrace === -1 || lastBrace === -1) {
+      throw new Error("No valid JSON object found in AI response");
     }
+
+    const cleanJson = rawText.substring(firstBrace, lastBrace + 1);
+    
+    const parsedData = JSON.parse(cleanJson);
+    res.json(parsedData);
 
   } catch (err) {
     console.error("AI Assistant Error:", err);
-    res.status(500).json({ error: "AI Assistant failed to connect" });
+    res.status(500).json({ error: "AI Assistant failed to parse response" });
   }
 });
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
