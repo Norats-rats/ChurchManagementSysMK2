@@ -14,8 +14,6 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [stats, setStats] = useState({
     memberCount: 0,
-    attendanceCount: 0,
-    monthlyContributions: 0,
     upcomingEventsCount: 0
   });
   const [loadingStats, setLoadingStats] = useState(true);
