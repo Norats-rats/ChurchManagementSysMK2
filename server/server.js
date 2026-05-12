@@ -527,12 +527,12 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
+    
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY is not defined" });
+    }
 
-    console.log("Attempting AI Generation...");
-
-    // FIX 1: Try using 'gemini-1.5-flash-latest' which often resolves 404s on v1beta
-    // Or 'gemini-1.5-pro' if flash continues to 404
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `
       You are a Church Event Assistant. 
@@ -543,31 +543,28 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
+    console.log("Requesting analysis from Gemini Pro...");
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
 
-    // FIX 2: More robust JSON extraction to handle markdown blocks
+    // Robust JSON extraction to handle any markdown formatting (like ```json blocks)
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error("No valid JSON found in AI response");
+      throw new Error("AI response did not contain valid JSON");
     }
 
     const parsedData = JSON.parse(jsonMatch[0]);
     res.json(parsedData);
 
   } catch (err) {
-    console.error("AI Assistant Route Error:", err.message);
+    console.error("AI Assistant Error:", err.message);
     
-    // Detailed error logging for Railway
-    if (err.message.includes("404")) {
-       return res.status(404).json({ 
-         error: "Model mapping error", 
-         details: "The API endpoint gemini-1.5-flash-latest was not found. Check SDK version." 
-       });
-    }
-    
-    res.status(500).json({ error: "AI Assistant failed to process request" });
+    // Fallback for UI if the model still has issues
+    res.status(err.message.includes("404") ? 404 : 500).json({ 
+      error: "AI Assistant unavailable",
+      details: err.message 
+    });
   }
 });
 
