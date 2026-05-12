@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+// Initialize Gemini - Ensure GEMINI_API_KEY is in your Railway Variables
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const app = express();
 
@@ -521,9 +522,20 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
     res.json(updated);
   } catch (err) { res.status(400).json({ error: "Failed" }); }
 });
+
+// --- AI ROUTE WITH FIX FOR 404 ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
+
+    // Safety log to verify key presence in Railway
+    console.log("Checking API Key availability...");
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not defined in environment variables");
+    }
+
+    // Explicitly use the model string. If 1.5-flash fails, it might be a regional issue.
+    // Ensure you are using the latest @google/generative-ai package.
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
@@ -535,27 +547,36 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
+    // The generateContent call
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    let rawText = response.text();
+    const rawText = response.text();
 
+    // Cleaning logic to handle potential markdown
     const firstBrace = rawText.indexOf('{');
     const lastBrace = rawText.lastIndexOf('}');
     
     if (firstBrace === -1 || lastBrace === -1) {
-      throw new Error("No valid JSON object found in AI response");
+      throw new Error("AI response did not contain a valid JSON object.");
     }
 
     const cleanJson = rawText.substring(firstBrace, lastBrace + 1);
-    
     const parsedData = JSON.parse(cleanJson);
+    
     res.json(parsedData);
 
   } catch (err) {
-    console.error("AI Assistant Error:", err);
-    res.status(500).json({ error: "AI Assistant failed to parse response" });
+    // This will help you see the specific cause in Railway logs
+    console.error("AI Assistant Route Error:", err.message);
+    
+    if (err.message.includes("404")) {
+       res.status(404).json({ error: "Model not found. Please check your API key permissions or model name." });
+    } else {
+       res.status(500).json({ error: "AI Assistant failed to process request" });
+    }
   }
 });
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
