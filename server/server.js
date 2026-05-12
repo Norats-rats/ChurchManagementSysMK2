@@ -538,14 +538,18 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
+
+    // --- THE CRITICAL FIX ---
+    // This removes ```json and ``` blocks so JSON.parse doesn't crash
     const cleanJson = rawText.replace(/```json|```/g, "").trim();
     
+    // Parse the cleaned string
     const parsedData = JSON.parse(cleanJson);
     res.json(parsedData);
 
   } catch (err) {
     console.error("AI Assistant Error:", err);
-    res.status(500).json({ error: "Failed to process AI response" });
+    res.status(500).json({ error: "AI Assistant failed to parse response" });
   }
 });
 
