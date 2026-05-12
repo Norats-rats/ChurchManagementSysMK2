@@ -5,13 +5,28 @@ const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel(
-  { model: "gemini-1.5-flash-001" }, // Try this or the Pro version below
-  { apiVersion: 'v1' }
-);
+
+// We will define a helper to get a working model dynamically
+async function getWorkingModel() {
+    try {
+        const result = await genAI.listModels();
+        // Finds the first model that supports content generation (usually gemini-pro or 1.5-flash)
+        const usableModel = result.models.find(m => m.supportedGenerationMethods.includes("generateContent"));
+        
+        if (!usableModel) throw new Error("No usable models found for this API key.");
+        
+        console.log(`✅ Using Model: ${usableModel.name}`);
+        return genAI.getGenerativeModel({ model: usableModel.name });
+    } catch (err) {
+        console.error("Model Discovery Error:", err.message);
+        // Last resort fallback string
+        return genAI.getGenerativeModel({ model: "gemini-pro" });
+    }
+}
 
 const app = express();
 
@@ -532,10 +547,8 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
     
-    // Safety check for the key
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "GEMINI_API_KEY is missing" });
-    }
+    // Dynamically get the model that your API key is allowed to use
+    const activeModel = await getWorkingModel();
 
     const prompt = `
       You are a Church Event Assistant. 
@@ -546,49 +559,29 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
     `;
 
-    // Attempt generation
-    const result = await model.generateContent(prompt);
+    const result = await activeModel.generateContent(prompt);
     const response = await result.response;
     const rawText = response.text();
 
-    // REGEX: Extracts only the JSON object between { and }
-    // This stops "```json" backticks from crashing the JSON.parse
+    // REGEX: Still required to handle markdown backticks
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    
     if (!jsonMatch) {
-      throw new Error("AI did not return a valid JSON block");
+      throw new Error("AI response did not contain a valid JSON object");
     }
 
     const parsedData = JSON.parse(jsonMatch[0]);
     res.json(parsedData);
 
   } catch (err) {
-    console.error("AI Route Error:", err.message);
-    
-    // Fallback message for the user interface
+    console.error("AI Assistant Route Error:", err.message);
     res.status(500).json({ 
-      error: "The AI Assistant is currently reconfiguring. Please try again in a moment.",
+      error: "AI Assistant failed", 
       details: err.message 
     });
   }
 });
 
-async function listAvailableModels() {
-  try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const result = await genAI.listModels();
-    console.log("--- YOUR KEY'S AVAILABLE MODELS ---");
-    result.models.forEach(m => {
-      if (m.supportedGenerationMethods.includes("generateContent")) {
-        console.log(`Model ID: ${m.name}`);
-      }
-    });
-    console.log("------------------------------------");
-  } catch (err) {
-    console.error("Error listing models:", err.message);
-  }
-}
-listAvailableModels();
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
