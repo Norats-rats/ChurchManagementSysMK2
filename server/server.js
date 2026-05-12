@@ -540,13 +540,17 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const response = await result.response;
     const rawText = response.text();
 
-    // FIX: Remove potential markdown backticks so JSON.parse doesn't crash
+    // --- FIX STARTS HERE ---
+    // This removes ```json and ``` backticks if Gemini includes them
     const cleanJson = rawText.replace(/```json|```/g, "").trim();
     
+    // Now parse the cleaned string
     res.json(JSON.parse(cleanJson));
+    // --- FIX ENDS HERE ---
+
   } catch (err) {
     console.error("AI Assistant Error:", err);
-    res.status(500).json({ error: "AI Assistant failed" });
+    res.status(500).json({ error: "AI Assistant failed to parse response" });
   }
 });
 
