@@ -39,29 +39,34 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
     }
   }, [currentTab]);
 
-  const fetchBulletinData = async () => {
-    try {
-      const [membersRes, eventsRes, attendanceRes, announceRes] = await Promise.all([
-        api.getMembers(), 
-        api.getEvents(), 
-        api.getAttendance(),
-        api.getAnnouncement().catch(() => ({ data: { text: "Welcome to our Fellowship!" } })) 
-      ]);
+const fetchBulletinData = async () => {
+  try {
+    const [membersRes, eventsRes, attendanceRes, announceRes] = await Promise.all([
+      api.getMembers(), 
+      api.getEvents(), 
+      api.getAttendance(),
+      api.getAnnouncement().catch(() => ({ data: { text: "Welcome to our Fellowship!" } })) 
+    ]);
 
-      const futureEvents = (eventsRes.data || [])
-        .filter(e => new Date(e.date) >= new Date())
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-      setStats({
-        memberCount: membersRes.data?.length || 0,
-        attendanceCount: attendanceRes.data?.length || 0,
-      });
-      setNextEvent(futureEvents[0]);
-      setAnnouncement(announceRes.data?.text || "Peace be with you!");
-    } catch (err) {
-      console.error("Data fetch error:", err);
-    }
-  };
+    const allEvents = eventsRes.data || [];
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const futureEvents = allEvents
+      .filter(e => {
+        const eventDate = new Date(e.date);
+        return eventDate >= now;
+      })
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    setStats({
+      memberCount: Array.isArray(membersRes.data) ? membersRes.data.length : 0,
+      attendanceCount: Array.isArray(attendanceRes.data) ? attendanceRes.data.length : 0,
+    });
+    setNextEvent(futureEvents[0] || null);
+    setAnnouncement(announceRes.data?.text || "Peace be with you!");
+  } catch (err) {
+    console.error("Data fetch error:", err);
+  }
+};
 
   const postAnnouncement = async () => {
     if (!newAnnouncement.trim()) return;
