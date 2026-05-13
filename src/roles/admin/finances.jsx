@@ -9,11 +9,9 @@ const Finances = ({ role, userId }) => {
     netBalance: 0
   });
   const [loading, setLoading] = useState(true);
-  const [donationAmount, setDonationAmount] = useState("500"); 
   const [newDesc, setNewDesc] = useState("");
   const [newAmount, setNewAmount] = useState("");
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     fetchFinances();
@@ -37,29 +35,6 @@ const Finances = ({ role, userId }) => {
     } catch (err) {
       console.error("Error fetching finances:", err);
       setLoading(false);
-    }
-  };
-
-  const handlePayMongoCheckout = async (amount, description) => {
-    if (!amount || parseFloat(amount) <= 0) {
-      return alert("Please enter a valid donation amount.");
-    }
-
-    setIsProcessing(true);
-    try {
-      const res = await api.createCheckoutSession({ 
-        amount: parseFloat(amount), 
-        description, 
-        userId 
-      });
-      if (res.data?.data?.attributes?.checkout_url) {
-        window.location.href = res.data.data.attributes.checkout_url;
-      }
-    } catch (err) {
-      console.error("Payment Error:", err);
-      alert("Could not initialize payment. Please try again.");
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -91,34 +66,10 @@ const Finances = ({ role, userId }) => {
     card: { background: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' },
     label: { color: '#64748b', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', marginBottom: '8px', display: 'block' },
     amount: { fontSize: '28px', fontWeight: '800', color: '#1e293b' },
-    actionCard: { padding: '30px', borderRadius: '16px', background: 'white', border: '2px solid #e2e8f0', textAlign: 'center', transition: 'all 0.2s' },
     tableWrapper: { background: 'white', borderRadius: '16px', overflow: 'hidden', border: '1px solid #e2e8f0' },
     table: { width: '100%', borderCollapse: 'collapse' },
     th: { backgroundColor: '#f1f5f9', padding: '15px', textAlign: 'left', fontSize: '12px', color: '#475569' },
     td: { padding: '15px', borderBottom: '1px solid #f1f5f9', fontSize: '14px' },
-    donationInput: {
-      padding: '12px',
-      fontSize: '18px',
-      borderRadius: '8px',
-      border: '2px solid #e2e8f0',
-      width: '100%',
-      maxWidth: '200px',
-      marginBottom: '15px',
-      textAlign: 'center',
-      fontWeight: '700',
-      color: '#053476'
-    },
-    donateButton: {
-      padding: '12px 24px',
-      backgroundColor: '#2563eb',
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      width: '100%',
-      maxWidth: '240px'
-    }
   };
 
   if (loading) return <div style={styles.container}>Loading finances...</div>;
@@ -127,10 +78,10 @@ const Finances = ({ role, userId }) => {
     <div style={styles.container}>
       <header style={{ marginBottom: '30px' }}>
         <h2 style={{ margin: 0, color: '#053476' }}>
-          {role === 'Member' ? 'Donation' : 'Financial Records'}
+          {role === 'Member' ? 'My Contributions' : 'Financial Records'}
         </h2>
         <p style={{ color: '#053476' }}>
-          {role === 'Member' ? 'Support the church mission' : 'Tracking church financial health'}
+          {role === 'Member' ? 'Your history of support for the church' : 'Tracking church financial health'}
         </p>
       </header>
 
@@ -150,45 +101,6 @@ const Finances = ({ role, userId }) => {
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {role === 'Member' && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px' }}>
-          <div style={{ ...styles.actionCard, width: '100%', maxWidth: '400px' }}>
-            <div style={{ fontSize: '40px', marginBottom: '10px' }}>📱</div>
-            <h3 style={{ margin: '0 0 10px' }}>Online Donation</h3>
-            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>
-              Enter amount to donate via GCash, Maya, or Card
-            </p>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ position: 'relative', display: 'inline-block' }}>
-                <span style={{ position: 'absolute', left: '10px', top: '12px', fontWeight: 'bold' }}>₱</span>
-                <input 
-                  type="number"
-                  style={{ ...styles.donationInput, paddingLeft: '25px' }}
-                  value={donationAmount}
-                  onChange={(e) => setDonationAmount(e.target.value)}
-                  placeholder="500"
-                />
-              </div>
-
-              <button 
-                style={{ 
-                  ...styles.donateButton, 
-                  opacity: isProcessing ? 0.7 : 1 
-                }}
-                disabled={isProcessing}
-                onClick={() => handlePayMongoCheckout(donationAmount, "Church Donation")}
-              >
-                {isProcessing ? "Connecting..." : "Proceed to Payment"}
-              </button>
-            </div>
-            <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '15px' }}>
-              Powered by PayMongo Secure Checkout
-            </p>
-          </div>
         </div>
       )}
 
@@ -255,6 +167,11 @@ const Finances = ({ role, userId }) => {
               ))}
             </tbody>
           </table>
+          {transactions.length === 0 && (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+              No transactions found.
+            </div>
+          )}
         </div>
       )}
     </div>
