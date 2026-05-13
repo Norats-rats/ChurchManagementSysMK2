@@ -15,6 +15,10 @@ export const api = {
 getAnnouncement: () => apiClient.get('/api/settings/announcement'),
   updateAnnouncement: (text) => apiClient.post('/api/settings/announcement', { text }),
 
+  //qr thing
+  recordAttendance: (checkInData) => apiClient.post('/api/attendance', checkInData),
+  
+
   // Authentication
   login: (credentials) => apiClient.post('/login', credentials),
   register: (formData) => apiClient.post('/register', formData),
