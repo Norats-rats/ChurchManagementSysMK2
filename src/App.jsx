@@ -45,29 +45,29 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
         <form onSubmit={step === 1 ? handleRequestReset : handleResetSubmit}>
           <input 
             type="email" 
+            className="input-field"
             placeholder="Email Address" 
             value={email} 
             onChange={(e) => setEmail(e.target.value)} 
             required 
-            style={{width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ddd'}}
           />
           {step === 2 && (
             <>
               <input 
                 type="text" 
+                className="input-field"
                 placeholder="OTP Code" 
                 value={otp} 
                 onChange={(e) => setOtp(e.target.value)} 
                 required 
-                style={{width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ddd'}}
               />
               <input 
                 type="password" 
+                className="input-field"
                 placeholder="New Password" 
                 value={newPassword} 
                 onChange={(e) => setNewPassword(e.target.value)} 
                 required 
-                style={{width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ddd'}}
               />
             </>
           )}
@@ -77,9 +77,9 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
         </form>
         <button 
           onClick={onGoToLogin} 
-          style={{marginTop: '10px', background: 'none', border: 'none', color: '#666', cursor: 'pointer', textDecoration: 'underline'}}
+          style={{marginTop: '20px', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '14px', fontWeight: '500'}}
         >
-          Back to Login
+          ← Back to Login
         </button>
       </div>
     </div>
@@ -104,37 +104,41 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
     <div className="main-container">
       <div className="login-card">
         <h2 className="welcome-text">Welcome Back</h2>
+        <p className="instruction-text">Please enter your details to sign in</p>
         <form onSubmit={handleLogin}>
           <input 
             type="email" 
-            placeholder="Email" 
+            className="input-field"
+            placeholder="Email Address" 
             value={email} 
             onChange={(e) => setEmail(e.target.value)} 
             required 
-            style={{width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ddd'}}
           />
           <input 
             type="password" 
+            className="input-field"
             placeholder="Password" 
             value={password} 
             onChange={(e) => setPassword(e.target.value)} 
             required 
-            style={{width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ddd'}}
           />
+          <div style={{ textAlign: 'right', marginBottom: '20px' }}>
+            <button 
+              type="button"
+              onClick={onGoToForgot} 
+              style={{background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '13px', fontWeight: '600'}}
+            >
+              Forgot Password?
+            </button>
+          </div>
           <button type="submit" className="login-btn">Login</button>
         </form>
-        <div style={{marginTop: '15px', textAlign: 'center'}}>
-          <button 
-            onClick={onGoToForgot} 
-            style={{background: 'none', border: 'none', color: '#1e40af', cursor: 'pointer', fontSize: '14px'}}
-          >
-            Forgot Password?
-          </button>
-          <p style={{marginTop: '10px'}}>
+        <div style={{marginTop: '25px', textAlign: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '20px'}}>
+          <p style={{ color: '#64748b', fontSize: '14px' }}>
             Don't have an account? 
             <button 
               onClick={onGoToSignup} 
-              style={{background:'none', border:'none', color:'#1e40af', cursor:'pointer', fontWeight:'bold', textDecoration:'underline'}}
+              style={{background:'none', border:'none', color:'#2563eb', cursor:'pointer', fontWeight:'700', marginLeft: '5px'}}
             >
               Sign up
             </button>
