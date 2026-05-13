@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import api from './api';
+import { useEffect, useState } from 'react';
+import { api } from './api';
 import './App.css';
 import Signup from './components/shared/signup';
 import Dashboard from './roles/admin/dashboard';
@@ -40,51 +40,42 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
       <div className="login-card">
         <h3 className="welcome-text">{step === 1 ? "Forgot Password" : "Reset Password"}</h3>
         <p className="instruction-text">
-          {step === 1 ? "Enter your email to receive a code" : "Enter the code and your new password"}
+          {step === 1 ? "Enter your email to receive a code" : "Enter the code sent to your email"}
         </p>
-
-        {step === 1 ? (
-          <form onSubmit={handleRequestReset}>
-            <div className="input-group">
-              <label>Email Address</label>
-              <input 
-                type="email" 
-                placeholder="Enter your email"
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required 
-              />
-            </div>
-            <button type="submit" className="signin-button">Send Reset Code</button>
-          </form>
-        ) : (
-          <form onSubmit={handleResetSubmit}>
-            <div className="input-group">
-              <label>Reset Code</label>
+        <form onSubmit={step === 1 ? handleRequestReset : handleResetSubmit}>
+          <input 
+            type="email" 
+            placeholder="Email Address" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            required 
+            className="login-input"
+          />
+          {step === 2 && (
+            <>
               <input 
                 type="text" 
-                placeholder="000000" 
+                placeholder="OTP Code" 
+                value={otp} 
                 onChange={(e) => setOtp(e.target.value)} 
                 required 
+                className="login-input"
               />
-            </div>
-            <div className="input-group">
-              <label>New Password</label>
               <input 
                 type="password" 
-                placeholder="Min. 6 characters" 
+                placeholder="New Password" 
+                value={newPassword} 
                 onChange={(e) => setNewPassword(e.target.value)} 
                 required 
+                className="login-input"
               />
-            </div>
-            <button type="submit" className="signin-button">Update Password</button>
-          </form>
-        )}
-        <button 
-          onClick={onGoToLogin} 
-          className="forgot-link" 
-          style={{marginTop: '15px', border: 'none', background: 'none', cursor: 'pointer'}}
-        >
+            </>
+          )}
+          <button type="submit" className="login-btn">
+            {step === 1 ? "Send Code" : "Reset Password"}
+          </button>
+        </form>
+        <button onClick={onGoToLogin} className="back-to-login">
           Back to Login
         </button>
       </div>
@@ -93,98 +84,48 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
 };
 
 const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
-  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.login({ email, password });
-      const data = response.data;
-
-      if (data.success) {
-        onLoginSuccess(data.role, data.user);
-      }
+      const res = await api.login({ email, password });
+      onLoginSuccess(res.data.user.role, res.data.user);
     } catch (err) {
-      const msg = err.response?.data?.message || "Connection error";
-      alert(msg);
+      alert("Login failed. Please check your credentials.");
     }
   };
 
   return (
     <div className="main-container">
-      <div className="header-section">
-        <div className="logo-circle"><span className="church-icon">⛪</span></div>
-        <h1>Free Believers in Christ</h1>
-        <h2>Fellowship Inc.</h2>
-        <p className="subtitle">CHURCH MANAGEMENT SYSTEM</p>
-      </div>
-
       <div className="login-card">
-        <h3 className="welcome-text">Welcome Back</h3>
-        <p className="instruction-text">Sign in to access the church dashboard</p>
-
+        <h2 className="welcome-text">Welcome Back</h2>
         <form onSubmit={handleLogin}>
-          <div className="input-group">
-            <label>Email Address</label>
-            <div className="input-wrapper">
-              <span className="input-icon">✉</span>
-              <input 
-                type="email" 
-                placeholder="Enter your email"
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required 
-              />
-            </div>
-          </div>
-
-          <div className="input-group">
-            <label>Password</label>
-            <div className="input-wrapper">
-              <span className="input-icon">🔒</span>
-              <input 
-                type={showPassword ? "text" : "password"} 
-                placeholder="Enter your password"
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required 
-              />
-              <button 
-                type="button" 
-                className="toggle-password"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? '👁️‍🗨️' : '👁️'}
-              </button>
-            </div>
-          </div>
-
-          <div className="form-options">
-            <label className="remember-me">
-              <input type="checkbox" /> Remember me
-            </label>
-            <button 
-              type="button" 
-              className="forgot-link" 
-              onClick={onGoToForgot} 
-              style={{border:'none', background:'none', cursor:'pointer'}}
-            >
-              Forgot password?
-            </button>
-          </div>
-          <button type="submit" className="signin-button">Sign In</button>
+          <input 
+            type="email" 
+            placeholder="Email" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            required 
+            className="login-input"
+          />
+          <input 
+            type="password" 
+            placeholder="Password" 
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            required 
+            className="login-input"
+          />
+          <button type="submit" className="login-btn">Login</button>
         </form>
-        
+        <div className="login-footer">
+          <button onClick={onGoToForgot} className="forgot-link">Forgot Password?</button>
+        </div>
         <p className="signup-text">
           Don't have an account? 
-          <button 
-            onClick={onGoToSignup} 
-            style={{background:'none', border:'none', color:'#1e40af', cursor:'pointer', fontWeight:'bold', textDecoration:'underline'}}
-          >
-            Sign up
-          </button>
+          <button onClick={onGoToSignup} className="signup-link">Sign up</button>
         </p>
       </div>
     </div>
@@ -195,6 +136,34 @@ export default function App() {
   const [view, setView] = useState('login');
   const [userRole, setUserRole] = useState(null);
   const [userData, setUserData] = useState(null);
+
+  // --- FIX: QR AUTO-CHECKIN LISTENER ---
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get('eventId');
+    const eventTitle = params.get('title');
+
+    if (userData && eventId && eventTitle) {
+      const processQRCheckIn = async () => {
+        try {
+          await api.recordAttendance({
+            userId: userData._id,
+            name: `${userData.firstName} ${userData.lastName}`,
+            service: eventTitle,
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+            status: 'Present'
+          });
+          alert(`Check-in confirmed for: ${eventTitle}`);
+          // Clear URL parameters to prevent duplicate check-ins on refresh
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (err) {
+          console.error("QR processing error:", err);
+        }
+      };
+      processQRCheckIn();
+    }
+  }, [userData]); 
 
   const handleLoginSuccess = (role, user) => {
     setUserRole(role);
@@ -232,9 +201,5 @@ export default function App() {
     }
   };
 
-  return (
-    <div className="App">
-      {renderView()}
-    </div>
-  );
+  return <div className="App">{renderView()}</div>;
 }
