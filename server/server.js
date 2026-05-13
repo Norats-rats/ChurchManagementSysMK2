@@ -78,9 +78,8 @@ const Member = mongoose.model('members', new mongoose.Schema({
   lastName: String,
   email: { type: String, unique: true, required: true },
   password: { type: String, required: true },
-  contact: String,
-  address: String,
   role: { type: String, default: 'Member' },
+  ministry:{ type: String, default: 'None' },
   otp: { type: String },
   isVerified: { type: Boolean, default: false },
   status: { type: String, default: 'Inactive' }, 
@@ -326,7 +325,9 @@ app.post('/api/attendance', async (req, res) => {
     const newRecord = new Attendance(req.body);
     await newRecord.save();
     res.status(201).json(newRecord);
-  } catch (err) { res.status(500).json({ error: "Internal Server Error" }); }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/events/:id/toggle-attendance', async (req, res) => {
