@@ -12,8 +12,8 @@ const apiClient = axios.create({
 export const api = {
 
   //announcement
-  getAnnouncement: () => axios.get(`${API_URL}/settings/announcement`),
-  updateAnnouncement: (text) => axios.post(`${API_URL}/settings/announcement`, { text }),
+getAnnouncement: () => apiClient.get('/api/settings/announcement'),
+  updateAnnouncement: (text) => apiClient.post('/api/settings/announcement', { text }),
 
   // Authentication
   login: (credentials) => apiClient.post('/login', credentials),

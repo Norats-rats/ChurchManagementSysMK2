@@ -6,28 +6,6 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 
-
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// We will define a helper to get a working model dynamically
-async function getWorkingModel() {
-    try {
-        const result = await genAI.listModels();
-        // Finds the first model that supports content generation (usually gemini-pro or 1.5-flash)
-        const usableModel = result.models.find(m => m.supportedGenerationMethods.includes("generateContent"));
-        
-        if (!usableModel) throw new Error("No usable models found for this API key.");
-        
-        console.log(`✅ Using Model: ${usableModel.name}`);
-        return genAI.getGenerativeModel({ model: usableModel.name });
-    } catch (err) {
-        console.error("Model Discovery Error:", err.message);
-        // Last resort fallback string
-        return genAI.getGenerativeModel({ model: "gemini-pro" });
-    }
-}
-
 const app = express();
 
 app.use(express.json());
@@ -49,6 +27,14 @@ const mongoURI = process.env.MONGODB_URI;
 
 const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const SettingSchema = new mongoose.Schema({
+  key: String,
+  value: String
+});
+
+const Setting = mongoose.model('Setting', SettingSchema);
+
 
 const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
   try {
@@ -460,42 +446,20 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
   } catch (err) { res.status(400).json({ error: "Failed" }); }
 });
 
-app.post('/api/ai/analyze-schedule', async (req, res) => {
-  try {
-    const { userRequest, currentEvents } = req.body;
-    
-    // Dynamically get the model that your API key is allowed to use
-    const activeModel = await getWorkingModel();
 
-    const prompt = `
-      You are a Church Event Assistant. 
-      User Request: "${userRequest}"
-      Existing Events: ${JSON.stringify(currentEvents)}
-      
-      Task: Based on the existing events, suggest a date, time, and room that doesn't clash. 
-      Return ONLY a JSON object: { "suggestion": "string", "reason": "string" }
-    `;
 
-    const result = await activeModel.generateContent(prompt);
-    const response = await result.response;
-    const rawText = response.text();
+app.get('/api/settings/announcement', async (req, res) => {
+  const ann = await Setting.findOne({ key: 'announcement' });
+  res.json({ text: ann ? ann.value : "Welcome to the Fellowship!" });
+});
 
-    // REGEX: Still required to handle markdown backticks
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("AI response did not contain a valid JSON object");
-    }
-
-    const parsedData = JSON.parse(jsonMatch[0]);
-    res.json(parsedData);
-
-  } catch (err) {
-    console.error("AI Assistant Route Error:", err.message);
-    res.status(500).json({ 
-      error: "AI Assistant failed", 
-      details: err.message 
-    });
-  }
+app.post('/api/settings/announcement', async (req, res) => {
+  await Setting.findOneAndUpdate(
+    { key: 'announcement' },
+    { value: req.body.text },
+    { upsert: true }
+  );
+  res.json({ success: true });
 });
 
 
