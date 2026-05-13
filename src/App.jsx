@@ -196,14 +196,15 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const eventTitle = params.get('checkin');
+    const eventTitle = params.get('title') || params.get('checkin');
+    const eventId = params.get('eventId');
 
     if (eventTitle && userData) {
       const processQRCheckIn = async () => {
         try {
           await api.recordAttendance({
             userId: userData._id,
-            userName: `${userData.firstName} ${userData.lastName}`,
+            name: `${userData.firstName} ${userData.lastName}`,
             service: eventTitle,
             date: new Date().toISOString().split('T')[0],
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
