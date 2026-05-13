@@ -11,7 +11,9 @@ const apiClient = axios.create({
 
 export const api = {
 
-  analyzeSchedule: (data) => apiClient.post('/api/ai/analyze-schedule', data),
+  //announcement
+  getAnnouncement: () => axios.get(`${API_URL}/settings/announcement`),
+  updateAnnouncement: (text) => axios.post(`${API_URL}/settings/announcement`, { text }),
 
   // Authentication
   login: (credentials) => apiClient.post('/login', credentials),
@@ -37,11 +39,6 @@ export const api = {
   // Attendance
   getAttendance: () => apiClient.get('/api/attendance'),
   recordAttendance: (checkInData) => apiClient.post('/api/attendance', checkInData),
-
-  // Finances
-  getFinances: () => apiClient.get('/api/finances'),
-  addFinanceRecord: (transactionData) => apiClient.post('/api/finances', transactionData),
-  createCheckoutSession: (data) => apiClient.post('/api/paymongo/create-session', data),
 
   // Ministries
   getMinistries: () => apiClient.get('/api/ministries'),
