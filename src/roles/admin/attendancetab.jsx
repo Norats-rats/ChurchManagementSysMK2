@@ -28,7 +28,6 @@ const AttendanceTab = ({ role, userId, user }) => {
       setCheckIns(attData);
       setUpcomingEvents(eventsRes.data || []);
 
-      // Check if current user already checked in today
       setHasCheckedInToday(attData.some(log => log.userId === String(userId) && log.date === todayStr));
     } catch (err) {
       console.error("Fetch error:", err);
@@ -37,7 +36,6 @@ const AttendanceTab = ({ role, userId, user }) => {
     }
   };
 
-  // Find today's event for the QR Code
   const todaysEvent = upcomingEvents.find(event => event.date === todayStr);
 
   const exportToExcel = () => {
@@ -51,7 +49,6 @@ const AttendanceTab = ({ role, userId, user }) => {
 
   return (
     <div style={styles.container}>
-      {/* FIX: QR STATION FOR LEADERS */}
       {canManage && (
         <div style={styles.qrSection}>
           <h2 style={styles.headerText}>Service QR Station</h2>
@@ -77,14 +74,15 @@ const AttendanceTab = ({ role, userId, user }) => {
         </div>
       )}
 
-      {/* MEMBER STATUS */}
       {!canManage && (
         <div style={styles.statusCard(hasCheckedInToday)}>
-          <div style={{ fontSize: '50px', marginBottom: '10px' }}>
+          <div style={{ fontSize: '64px', marginBottom: '15px' }}>
             {hasCheckedInToday ? '✅' : '📲'}
           </div>
-          <h2>{hasCheckedInToday ? "Attendance Recorded" : "Ready to Check-in?"}</h2>
-          <p>
+          <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '10px' }}>
+            {hasCheckedInToday ? "Attendance Recorded" : "Ready to Check-in?"}
+          </h2>
+          <p style={{ fontSize: '16px', fontWeight: '500', opacity: 0.9 }}>
             {hasCheckedInToday 
               ? `You are checked in for today's service. Thank you!` 
               : "Scan the QR code on the leader's screen with your camera to check in."}
@@ -92,7 +90,6 @@ const AttendanceTab = ({ role, userId, user }) => {
         </div>
       )}
 
-      {/* EXISTING ATTENDANCE LOGS */}
       {canManage && (
         <div style={styles.logSection}>
           <div style={styles.logHeader}>
@@ -140,8 +137,16 @@ const styles = {
   eventDetail: { color: '#64748b', fontSize: '14px' },
   noEventCard: { padding: '40px', background: '#f1f5f9', borderRadius: '20px', color: '#475569', border: '2px dashed #cbd5e1' },
   statusCard: (done) => ({
-    background: done ? '#ecfdf5' : '#eff6ff', color: done ? '#065f46' : '#1e40af',
-    padding: '60px 20px', borderRadius: '24px', textAlign: 'center', border: `2px solid ${done ? '#a7f3d0' : '#bfdbfe'}`
+    background: done ? '#059669' : '#2563eb', // Solid bold background
+    color: '#ffffff', // White text for high contrast
+    padding: '60px 30px', 
+    borderRadius: '32px', 
+    textAlign: 'center', 
+    boxShadow: done 
+        ? '0 20px 25px -5px rgba(5, 150, 105, 0.2)' 
+        : '0 20px 25px -5px rgba(37, 99, 235, 0.2)',
+    border: `4px solid ${done ? '#047857' : '#1d4ed8'}`,
+    transition: 'all 0.3s ease'
   }),
   logSection: { marginTop: '20px' },
   logHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },

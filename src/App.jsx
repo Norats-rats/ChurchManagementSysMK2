@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from './api';
+import api from './api';
 import './App.css';
 import Signup from './components/shared/signup';
 import Dashboard from './roles/admin/dashboard';
@@ -8,7 +8,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [step, setStep] = useState(1); 
+  const [step, setStep] = useState(1);
 
   const handleRequestReset = async (e) => {
     e.preventDefault();
@@ -49,7 +49,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
             value={email} 
             onChange={(e) => setEmail(e.target.value)} 
             required 
-            className="login-input"
+            style={{width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ddd'}}
           />
           {step === 2 && (
             <>
@@ -59,7 +59,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
                 value={otp} 
                 onChange={(e) => setOtp(e.target.value)} 
                 required 
-                className="login-input"
+                style={{width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ddd'}}
               />
               <input 
                 type="password" 
@@ -67,7 +67,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
                 value={newPassword} 
                 onChange={(e) => setNewPassword(e.target.value)} 
                 required 
-                className="login-input"
+                style={{width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ddd'}}
               />
             </>
           )}
@@ -75,7 +75,10 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
             {step === 1 ? "Send Code" : "Reset Password"}
           </button>
         </form>
-        <button onClick={onGoToLogin} className="back-to-login">
+        <button 
+          onClick={onGoToLogin} 
+          style={{marginTop: '10px', background: 'none', border: 'none', color: '#666', cursor: 'pointer', textDecoration: 'underline'}}
+        >
           Back to Login
         </button>
       </div>
@@ -108,7 +111,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
             value={email} 
             onChange={(e) => setEmail(e.target.value)} 
             required 
-            className="login-input"
+            style={{width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ddd'}}
           />
           <input 
             type="password" 
@@ -116,17 +119,27 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
             value={password} 
             onChange={(e) => setPassword(e.target.value)} 
             required 
-            className="login-input"
+            style={{width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ddd'}}
           />
           <button type="submit" className="login-btn">Login</button>
         </form>
-        <div className="login-footer">
-          <button onClick={onGoToForgot} className="forgot-link">Forgot Password?</button>
+        <div style={{marginTop: '15px', textAlign: 'center'}}>
+          <button 
+            onClick={onGoToForgot} 
+            style={{background: 'none', border: 'none', color: '#1e40af', cursor: 'pointer', fontSize: '14px'}}
+          >
+            Forgot Password?
+          </button>
+          <p style={{marginTop: '10px'}}>
+            Don't have an account? 
+            <button 
+              onClick={onGoToSignup} 
+              style={{background:'none', border:'none', color:'#1e40af', cursor:'pointer', fontWeight:'bold', textDecoration:'underline'}}
+            >
+              Sign up
+            </button>
+          </p>
         </div>
-        <p className="signup-text">
-          Don't have an account? 
-          <button onClick={onGoToSignup} className="signup-link">Sign up</button>
-        </p>
       </div>
     </div>
   );
@@ -137,7 +150,6 @@ export default function App() {
   const [userRole, setUserRole] = useState(null);
   const [userData, setUserData] = useState(null);
 
-  // --- FIX: QR AUTO-CHECKIN LISTENER ---
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const eventId = params.get('eventId');
@@ -155,7 +167,6 @@ export default function App() {
             status: 'Present'
           });
           alert(`Check-in confirmed for: ${eventTitle}`);
-          // Clear URL parameters to prevent duplicate check-ins on refresh
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (err) {
           console.error("QR processing error:", err);
