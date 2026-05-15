@@ -16,7 +16,7 @@ const EventTab = ({ role, userId }) => {
     category: 'Worship', 
     date: '', 
     time: '08:00 AM', 
-    room: '',                      
+    room: '',                         
     type: 'Once', 
     role: ''
   });
@@ -79,7 +79,8 @@ const EventTab = ({ role, userId }) => {
   const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
     const combinedTitle = `${formData.titleSelection} for ${formData.reservationName}`;
-    const submissionData = { ...formData, title: combinedTitle };
+    // Ensure status is active when creating/updating
+    const submissionData = { ...formData, title: combinedTitle, status: 'active' };
 
     try {
       if (editingId) {
@@ -109,13 +110,14 @@ const EventTab = ({ role, userId }) => {
     }
   };
 
-  const deleteEvent = async (id) => {
-    if (!window.confirm("Delete this event?")) return;
+  // UPDATED: Tweak to set event status to 'archived' instead of deleting
+  const archiveEvent = async (id) => {
+    if (!window.confirm("Archive this event? It will no longer be editable.")) return;
     try {
-      await api.deleteEvent(id); 
+      await api.updateEvent(id, { status: 'archived' }); 
       fetchEvents();
     } catch (err) {
-      alert("Error deleting event");
+      alert("Error archiving event");
     }
   };
 
@@ -125,11 +127,21 @@ const EventTab = ({ role, userId }) => {
     monthHeader: { color: '#4a5568', fontSize: '18px', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', marginTop: '25px', marginBottom: '12px' },
     formCard: { background: 'white', padding: '15px', borderRadius: '10px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' },
-    card: { background: 'white', padding: '15px', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', borderLeft: '4px solid #6366f1' },
-    badge: (cat) => ({
+    card: (isArchived) => ({ 
+      background: 'white', 
+      padding: '15px', 
+      borderRadius: '10px', 
+      boxShadow: '0 1px 3px rgba(0,0,0,0.05)', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      borderLeft: isArchived ? '4px solid #94a3b8' : '4px solid #6366f1',
+      opacity: isArchived ? 0.6 : 1,
+      filter: isArchived ? 'grayscale(0.5)' : 'none'
+    }),
+    badge: (cat, isArchived) => ({
       padding: '3px 8px', borderRadius: '15px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase',
-      backgroundColor: cat === 'Worship' ? '#e0e7ff' : '#fef3c7',
-      color: cat === 'Worship' ? '#4338ca' : '#92400e'
+      backgroundColor: isArchived ? '#e2e8f0' : (cat === 'Worship' ? '#e0e7ff' : '#fef3c7'),
+      color: isArchived ? '#475569' : (cat === 'Worship' ? '#4338ca' : '#92400e')
     }),
     dateBox: { textAlign: 'center', backgroundColor: '#f8fafc', padding: '8px', borderRadius: '6px', minWidth: '55px' },
     infoGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: '5px', marginTop: '10px', fontSize: '12px', color: '#4a5568' },
@@ -210,10 +222,11 @@ const EventTab = ({ role, userId }) => {
             <div style={styles.grid}>
               {monthEvents.map((event) => {
                 const isAttending = event.attendees?.includes(userId);
+                const isArchived = event.status === 'archived';
                 const eventDate = new Date(event.date);
                 
                 return (
-                  <div key={event._id} style={styles.card}>
+                  <div key={event._id} style={styles.card(isArchived)}>
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <div style={styles.dateBox}>
                         <div style={{ fontSize: '10px', color: '#6366f1', fontWeight: 'bold' }}>
@@ -226,7 +239,9 @@ const EventTab = ({ role, userId }) => {
                       
                       <div style={{ flex: 1 }}>
                         <div style={{ marginBottom: '5px' }}>
-                          <span style={styles.badge(event.category)}>{event.category}</span>
+                          <span style={styles.badge(event.category, isArchived)}>
+                            {isArchived ? "Archived" : event.category}
+                          </span>
                         </div>
                         <h4 style={{ margin: '0 0 3px 0', fontSize: '15px', color: '#1a202c' }}>{event.title}</h4>
                         <p style={{ fontSize: '11px', color: '#718096', margin: 0 }}>Lead: {event.role || "N/A"}</p>
@@ -240,15 +255,19 @@ const EventTab = ({ role, userId }) => {
                     </div>
 
                     <div style={styles.footer}>
-                      {canManage ? (
-                        <>
-                          <button style={{ border: 'none', background: '#f1f9f8', color:'#047715' , padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }} onClick={() => { setEditingId(event._id); setFormData(event); }}>Edit</button>
-                          <button style={{ border: 'none', background: '#fee2e2', color: '#dc2626', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }} onClick={() => deleteEvent(event._id)}>Archive</button>
-                        </>
+                      {isArchived ? (
+                         <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>Archived Record</span>
                       ) : (
-                        <button style={styles.attendBtn(isAttending)} onClick={() => handleToggleAttendance(event._id)}>
-                          {isAttending ? '✕ Cancel' : '✓ Attend'}
-                        </button>
+                        canManage ? (
+                          <>
+                            <button style={{ border: 'none', background: '#f1f9f8', color:'#047715' , padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }} onClick={() => { setEditingId(event._id); setFormData(event); }}>Edit</button>
+                            <button style={{ border: 'none', background: '#fee2e2', color: '#dc2626', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }} onClick={() => archiveEvent(event._id)}>Archive</button>
+                          </>
+                        ) : (
+                          <button style={styles.attendBtn(isAttending)} onClick={() => handleToggleAttendance(event._id)}>
+                            {isAttending ? '✕ Cancel' : '✓ Attend'}
+                          </button>
+                        )
                       )}
                     </div>
                   </div>
