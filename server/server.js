@@ -97,7 +97,8 @@ const Event = mongoose.model('events', new mongoose.Schema({
   expected: { type: Number, default: 0 },
   attendees: [{ type: String }], 
   type: String,     
-  role: String      
+  role: String,      
+  status: { type: String, default: 'active' }
 }, { timestamps: true }));
 
 const Attendance = mongoose.model('attendance', new mongoose.Schema({

@@ -18,7 +18,8 @@ const EventTab = ({ role, userId }) => {
     time: '08:00 AM', 
     room: '',                         
     type: 'Once', 
-    role: ''
+    role: '',
+    status: 'active'
   });
 
   const canManage = role === 'Admin' || role === 'Ministry Leader';
@@ -79,8 +80,12 @@ const EventTab = ({ role, userId }) => {
   const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
     const combinedTitle = `${formData.titleSelection} for ${formData.reservationName}`;
-    // Ensure status is active when creating/updating
-    const submissionData = { ...formData, title: combinedTitle, status: 'active' };
+    
+    const submissionData = { 
+        ...formData, 
+        title: combinedTitle, 
+        status: editingId ? formData.status : 'active' 
+    };
 
     try {
       if (editingId) {
@@ -93,7 +98,7 @@ const EventTab = ({ role, userId }) => {
       setFormData({ 
         titleSelection: 'Worship Service', reservationName: '', 
         category: 'Worship', date: '', time: '08:00 AM', 
-        room: '', role: '' 
+        room: '', role: '', status: 'active'
       });
       fetchEvents();
     } catch (err) {
@@ -110,13 +115,13 @@ const EventTab = ({ role, userId }) => {
     }
   };
 
-  // UPDATED: Tweak to set event status to 'archived' instead of deleting
   const archiveEvent = async (id) => {
     if (!window.confirm("Archive this event? It will no longer be editable.")) return;
     try {
-      await api.updateEvent(id, { status: 'archived' }); 
+      await api.archiveEvent(id); 
       fetchEvents();
     } catch (err) {
+      console.error(err);
       alert("Error archiving event");
     }
   };
@@ -154,7 +159,8 @@ const EventTab = ({ role, userId }) => {
     }),
   };
 
-  const groupedEvents = groupEventsByMonth(getSortedEvents());
+  const sortedEvents = getSortedEvents();
+  const groupedEvents = groupEventsByMonth(sortedEvents);
 
   return (
     <div style={styles.container}>
