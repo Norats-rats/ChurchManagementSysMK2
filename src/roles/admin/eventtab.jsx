@@ -185,14 +185,6 @@ const EventTab = ({ role, userId }) => {
               <input type="time" style={styles.input} value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} required />
               <input style={styles.input} placeholder="Location (Room/Hall)" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} />
               
-              <input type="number" style={styles.input} placeholder="Expected Attendees" value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} />
-              
-              <select style={styles.input} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-                <option value="Once">Once</option>
-                <option value="Weekly">Weekly</option>
-                <option value="Monthly">Monthly</option>
-              </select>
-
               <input style={styles.input} placeholder="Lead Person" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
             </div>
 
