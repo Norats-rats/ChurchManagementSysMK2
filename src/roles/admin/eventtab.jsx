@@ -8,7 +8,6 @@ const EventTab = ({ role, userId }) => {
   const [sortOrder, setSortOrder] = useState('nearest'); 
   
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState(null);
 
   const [formData, setFormData] = useState({
     titleSelection: 'Worship Service', 
@@ -16,7 +15,8 @@ const EventTab = ({ role, userId }) => {
     category: 'Worship', 
     date: '', 
     time: '08:00 AM', 
-    room: '',                      
+    room: '',                         
+    expected: 0,
     type: 'Once', 
     role: ''
   });
@@ -39,6 +39,17 @@ const EventTab = ({ role, userId }) => {
     }
   };
 
+  const archiveEvent = async (id) => {
+    if (!window.confirm("Move this event to Archive? It will become uneditable.")) return;
+    try {
+      // Sets status to archived so it stays in the DB but is 'deactivated' in the UI
+      await api.updateEvent(id, { status: 'archived' }); 
+      fetchEvents();
+    } catch (err) {
+      alert("Error archiving event");
+    }
+  };
+
   const getSortedEvents = () => {
     return [...events].sort((a, b) => {
       const dateA = new Date(`${a.date} ${a.time}`);
@@ -57,29 +68,10 @@ const EventTab = ({ role, userId }) => {
     return groups;
   };
 
-  const handleAiSuggest = async () => {
-    if (!formData.reservationName) {
-      alert("Please enter a Booking/Reservation Name first!");
-      return;
-    }
-    setAiLoading(true);
-    try {
-      const response = await api.analyzeSchedule({
-        userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
-        currentEvents: events 
-      });
-      setAiSuggestion(response.data);
-    } catch (err) {
-      alert("AI Assistant unavailable.");
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
   const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
     const combinedTitle = `${formData.titleSelection} for ${formData.reservationName}`;
-    const submissionData = { ...formData, title: combinedTitle };
+    const submissionData = { ...formData, title: combinedTitle, status: 'active' };
 
     try {
       if (editingId) {
@@ -88,11 +80,10 @@ const EventTab = ({ role, userId }) => {
         await api.createEvent(submissionData); 
       }
       setEditingId(null);
-      setAiSuggestion(null);
       setFormData({ 
         titleSelection: 'Worship Service', reservationName: '', 
         category: 'Worship', date: '', time: '08:00 AM', 
-        room: '', role: '' 
+        room: '', expected: 0, type: 'Once', role: '' 
       });
       fetchEvents();
     } catch (err) {
@@ -109,37 +100,37 @@ const EventTab = ({ role, userId }) => {
     }
   };
 
-  const deleteEvent = async (id) => {
-    if (!window.confirm("Delete this event?")) return;
-    try {
-      await api.deleteEvent(id); 
-      fetchEvents();
-    } catch (err) {
-      alert("Error deleting event");
-    }
-  };
-
   const styles = {
     container: { padding: '15px', backgroundColor: '#f7fafc', minHeight: '100vh' },
     filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
     monthHeader: { color: '#4a5568', fontSize: '18px', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', marginTop: '25px', marginBottom: '12px' },
     formCard: { background: 'white', padding: '15px', borderRadius: '10px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' },
-    card: { background: 'white', padding: '15px', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', borderLeft: '4px solid #6366f1' },
-    badge: (cat) => ({
+    card: (isArchived) => ({ 
+      background: 'white', padding: '15px', borderRadius: '10px', 
+      boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', 
+      flexDirection: 'column', borderLeft: isArchived ? '4px solid #94a3b8' : '4px solid #6366f1',
+      opacity: isArchived ? 0.7 : 1,
+    }),
+    badge: (cat, isArchived) => ({
       padding: '3px 8px', borderRadius: '15px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase',
-      backgroundColor: cat === 'Worship' ? '#e0e7ff' : '#fef3c7',
-      color: cat === 'Worship' ? '#4338ca' : '#92400e'
+      backgroundColor: isArchived ? '#e2e8f0' : (cat === 'Worship' ? '#e0e7ff' : '#fef3c7'),
+      color: isArchived ? '#475569' : (cat === 'Worship' ? '#4338ca' : '#92400e')
     }),
     dateBox: { textAlign: 'center', backgroundColor: '#f8fafc', padding: '8px', borderRadius: '6px', minWidth: '55px' },
     infoGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: '5px', marginTop: '10px', fontSize: '12px', color: '#4a5568' },
     footer: { marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #edf2f7', display: 'flex', gap: '8px' },
-    submitBtn: { padding: '10px 20px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
-    aiBtn: { padding: '10px 20px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
-    input: { padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none' },
+    
+    // Explicit Button Styles for Readability
+    submitBtn: { padding: '8px 16px', backgroundColor: '#6366f1', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
+    editBtn: { border: '1px solid #6366f1', background: '#ffffff', color: '#6366f1', padding: '5px 12px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: '600' },
+    archiveBtn: { border: 'none', background: '#fee2e2', color: '#dc2626', padding: '5px 12px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: '600' },
     attendBtn: (isAttending) => ({ 
-      width: '100%', padding: '8px', backgroundColor: isAttending ? '#ef4444' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px'
+      width: '100%', padding: '8px', backgroundColor: isAttending ? '#fecaca' : '#d1fae5', 
+      color: isAttending ? '#b91c1c' : '#065f46', border: 'none', borderRadius: '6px', 
+      fontWeight: 'bold', cursor: 'pointer', fontSize: '12px'
     }),
+    input: { padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px', color: '#1a202c', outline: 'none' },
   };
 
   const groupedEvents = groupEventsByMonth(getSortedEvents());
@@ -149,106 +140,93 @@ const EventTab = ({ role, userId }) => {
       <div style={styles.filterBar}>
         <div>
           <h2 style={{ margin: 0, color: '#2d3748', fontSize: '20px' }}>Church Calendar</h2>
-          <p style={{ color: '#718096', margin: 0, fontSize: '13px' }}>{events.length} Scheduled Activities</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '12px', color: '#4a5568' }}>Order:</span>
-          <select style={styles.input} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
-            <option value="nearest">Nearest First</option>
-            <option value="furthest">Furthest First</option>
-          </select>
-        </div>
+        <select style={styles.input} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+          <option value="nearest">Nearest First</option>
+          <option value="furthest">Furthest First</option>
+        </select>
       </div>
 
       {canManage && (
         <div style={styles.formCard}>
-          <h3 style={{ marginTop: 0, fontSize: '16px' }}>{editingId ? "Edit Event" : "Schedule New Event"}</h3>
+          <h3 style={{ marginTop: 0, fontSize: '15px', color: '#4a5568' }}>{editingId ? "Edit Event Details" : "New Event"}</h3>
           <form onSubmit={handleCreateOrUpdate}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
               <select style={styles.input} value={formData.titleSelection} onChange={e => setFormData({...formData, titleSelection: e.target.value})}>
-                <option value="Jail Preaching">Jail Preaching</option>
-                <option value="Wedding">Wedding</option>
-                <option value="Dedication">Dedication</option>
-                <option value="Anniversary">Anniversary</option>
-                <option value="Healing Crusade">Healing Crusade</option>
-                <option value="Feeding Program">Feeding Program</option>
-                <option value="Baptism">Baptism</option>
+                <option value="Worship Service">Worship Service</option>
                 <option value="Bible Study">Bible Study</option>
                 <option value="Prayer Meeting">Prayer Meeting</option>
                 <option value="Youth Camp">Youth Camp</option>
-                <option value="Worship Service">Worship Service</option>
+                <option value="Feeding Program">Feeding Program</option>
               </select>
-
-              <input style={styles.input} placeholder="Booking/Reservation Name" value={formData.reservationName} onChange={e => setFormData({...formData, reservationName: e.target.value})} required />
-              
+              <input style={styles.input} placeholder="Booking Name" value={formData.reservationName} onChange={e => setFormData({...formData, reservationName: e.target.value})} required />
+              <select style={styles.input} value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                <option value="Worship">Worship</option>
+                <option value="Ministry">Ministry</option>
+                <option value="Youth">Youth</option>
+              </select>
               <input type="date" style={styles.input} value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required />
               <input type="time" style={styles.input} value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} required />
-              <input style={styles.input} placeholder="Location (Room/Hall)" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} />
-              
+              <input style={styles.input} placeholder="Room/Hall" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} />
+              <input type="number" style={styles.input} placeholder="Expected" value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} />
               <input style={styles.input} placeholder="Lead Person" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
             </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-              <button type="submit" style={styles.submitBtn}>{editingId ? "Update Event" : "Create Event"}</button>
-              {!editingId && (
-                <button type="button" onClick={handleAiSuggest} disabled={aiLoading} style={styles.aiBtn}>
-                  {aiLoading ? "Thinking..." : "✨ AI Suggest"}
-                </button>
-              )}
-              {editingId && <button type="button" onClick={() => setEditingId(null)} style={{...styles.submitBtn, backgroundColor: '#a0aec0'}}>Cancel</button>}
+            <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
+              <button type="submit" style={styles.submitBtn}>{editingId ? "Save Changes" : "Create Event"}</button>
+              {editingId && <button type="button" onClick={() => setEditingId(null)} style={{...styles.submitBtn, backgroundColor: '#94a3b8'}}>Cancel</button>}
             </div>
           </form>
         </div>
       )}
 
       {loading ? (
-        <p style={{ fontSize: '14px' }}>Loading calendar...</p>
+        <p style={{ color: '#718096' }}>Loading schedule...</p>
       ) : (
         Object.entries(groupedEvents).map(([month, monthEvents]) => (
           <div key={month}>
             <h3 style={styles.monthHeader}>{month}</h3>
             <div style={styles.grid}>
               {monthEvents.map((event) => {
+                const isArchived = event.status === 'archived';
                 const isAttending = event.attendees?.includes(userId);
                 const eventDate = new Date(event.date);
                 
                 return (
-                  <div key={event._id} style={styles.card}>
+                  <div key={event._id} style={styles.card(isArchived)}>
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <div style={styles.dateBox}>
-                        <div style={{ fontSize: '10px', color: '#6366f1', fontWeight: 'bold' }}>
-                          {eventDate.toLocaleString('default', { month: 'short' }).toUpperCase()}
-                        </div>
-                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1a202c' }}>
-                          {eventDate.getDate()}
-                        </div>
+                        <div style={{ fontSize: '10px', color: '#6366f1', fontWeight: 'bold' }}>{eventDate.toLocaleString('default', { month: 'short' }).toUpperCase()}</div>
+                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1e293b' }}>{eventDate.getDate()}</div>
                       </div>
                       
                       <div style={{ flex: 1 }}>
                         <div style={{ marginBottom: '5px' }}>
-                          <span style={styles.badge(event.category)}>{event.category}</span>
+                          <span style={styles.badge(event.category, isArchived)}>
+                            {isArchived ? "🔒 Archived" : event.category}
+                          </span>
                         </div>
-                        <h4 style={{ margin: '0 0 3px 0', fontSize: '15px', color: '#1a202c' }}>{event.title}</h4>
-                        <p style={{ fontSize: '11px', color: '#718096', margin: 0 }}>Lead: {event.role || "N/A"}</p>
-                        
+                        <h4 style={{ margin: '0 0 3px 0', fontSize: '14px', color: '#1e293b' }}>{event.title}</h4>
                         <div style={styles.infoGrid}>
-                          <span>🕒 {event.time}</span>
-                          <span>📍 {event.room || "No location"}</span>
+                          <span style={{ color: '#475569' }}>🕒 {event.time} | 📍 {event.room || "N/A"}</span>
                           <span style={{ color: '#6366f1', fontWeight: '600' }}>👥 {event.attendees?.length || 0} Attending</span>
                         </div>
                       </div>
                     </div>
 
                     <div style={styles.footer}>
-                      {canManage ? (
-                        <>
-                          <button style={{ border: 'none', background: '#f1f5f9', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }} onClick={() => { setEditingId(event._id); setFormData(event); }}>Edit</button>
-                          <button style={{ border: 'none', background: '#fee2e2', color: '#dc2626', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }} onClick={() => deleteEvent(event._id)}>Delete</button>
-                        </>
+                      {isArchived ? (
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', padding: '5px 0' }}>This event is deactivated.</span>
                       ) : (
-                        <button style={styles.attendBtn(isAttending)} onClick={() => handleToggleAttendance(event._id)}>
-                          {isAttending ? '✕ Cancel' : '✓ Attend'}
-                        </button>
+                        canManage ? (
+                          <>
+                            <button style={styles.editBtn} onClick={() => { setEditingId(event._id); setFormData(event); }}>Edit</button>
+                            <button style={styles.archiveBtn} onClick={() => archiveEvent(event._id)}>Archive</button>
+                          </>
+                        ) : (
+                          <button style={styles.attendBtn(isAttending)} onClick={() => handleToggleAttendance(event._id)}>
+                            {isAttending ? '✕ Cancel' : '✓ Attend'}
+                          </button>
+                        )
                       )}
                     </div>
                   </div>
