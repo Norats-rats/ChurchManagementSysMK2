@@ -16,8 +16,7 @@ const EventTab = ({ role, userId }) => {
     category: 'Worship', 
     date: '', 
     time: '08:00 AM', 
-    room: '',                         
-    expected: 0, 
+    room: '',                      
     type: 'Once', 
     role: ''
   });
@@ -93,7 +92,7 @@ const EventTab = ({ role, userId }) => {
       setFormData({ 
         titleSelection: 'Worship Service', reservationName: '', 
         category: 'Worship', date: '', time: '08:00 AM', 
-        room: '', expected: 0, type: 'Once', role: '' 
+        room: '', role: '' 
       });
       fetchEvents();
     } catch (err) {
@@ -182,13 +181,6 @@ const EventTab = ({ role, userId }) => {
 
               <input style={styles.input} placeholder="Booking/Reservation Name" value={formData.reservationName} onChange={e => setFormData({...formData, reservationName: e.target.value})} required />
               
-              <select style={styles.input} value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                <option value="Worship">Worship</option>
-                <option value="Ministry">Ministry</option>
-                <option value="Youth">Youth</option>
-                <option value="Other">Special Event</option>
-              </select>
-
               <input type="date" style={styles.input} value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required />
               <input type="time" style={styles.input} value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} required />
               <input style={styles.input} placeholder="Location (Room/Hall)" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} />
