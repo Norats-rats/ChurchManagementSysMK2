@@ -134,7 +134,6 @@ const trivias = [
   "The full Bible has been translated into over 700 languages.",
   "The Bible contains about 773,692 words (KJV).",
   "The word 'Trinity' is not actually found in the Bible.",
-
   "God changed Abram's name to Abraham, meaning 'Father of many'.",
   "Sarah was 90 years old when Isaac was born.",
   "Jacob had 12 sons, who became the 12 tribes of Israel.",
@@ -233,7 +232,6 @@ const trivias = [
   "Mount Pisgah is where Moses saw the Promised Land before dying.",
   "Caleb and Joshua were the only two spies who gave a good report.",
   "The Jordan River stopped flowing when the priests' feet touched it.",
-
   "The Gospel of Matthew was written primarily for a Jewish audience.",
   "The Gospel of Mark is the shortest of the four Gospels.",
   "The Gospel of Luke was written by a physician.",
@@ -434,7 +432,6 @@ const trivias = [
   "The 'Dead Sea Scrolls' confirmed the accuracy of the Old Testament text.",
   "The Bible mentions the 'Book of Jashar', which is now lost.",
   "The 'Book of the Wars of the Lord' is another lost book mentioned.",
-
   "Mount Sinai is also known as Mount Horeb.",
   "The 'Wilderness of Sin' is a geographical location, not a state of being.",
   "The 'Valley of Elah' is where David fought Goliath.",
@@ -470,12 +467,11 @@ const trivias = [
   "The 'Cornelius' centurion was noted for his prayers and alms.",
   "The 'Berean' Christians were more noble for checking the Word.",
   "The phrase 'Fear not' appears 365 times, one for every day of the year."
-];
+    ];
       return trivias[dayOfYear % trivias.length];
     };
-
+    
   if (!user) return <div className="loading-screen">Authenticating...</div>;
-
   return (
     <div className="dashboard-wrapper">
       <nav className="top-nav">
