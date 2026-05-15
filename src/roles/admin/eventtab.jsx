@@ -5,8 +5,8 @@ const EventTab = ({ role, userId }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
-  const [sortOrder, setSortOrder] = useState('nearest'); // 'nearest' or 'furthest'
   
+  // AI State Management
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState(null);
 
@@ -40,39 +40,27 @@ const EventTab = ({ role, userId }) => {
     }
   };
 
-  // Helper to sort and group events
-  const getSortedEvents = () => {
-    return [...events].sort((a, b) => {
-      const dateA = new Date(`${a.date} ${a.time}`);
-      const dateB = new Date(`${b.date} ${b.time}`);
-      return sortOrder === 'nearest' ? dateA - dateB : dateB - dateA;
-    });
-  };
-
-  const groupEventsByMonth = (sortedEvents) => {
-    const groups = {};
-    sortedEvents.forEach(event => {
-      const month = new Date(event.date).toLocaleString('default', { month: 'long', year: 'numeric' });
-      if (!groups[month]) groups[month] = [];
-      groups[month].push(event);
-    });
-    return groups;
-  };
-
+  // GEMINI INTEGRATION FUNCTION
   const handleAiSuggest = async () => {
     if (!formData.reservationName) {
-      alert("Please enter a Booking/Reservation Name first!");
+      alert("Please enter a Booking/Reservation Name first so the AI has context!");
       return;
     }
+
     setAiLoading(true);
+    setAiSuggestion(null);
+
     try {
+      // Calls the new backend endpoint created in your server.js
       const response = await api.analyzeSchedule({
         userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
         currentEvents: events 
       });
+      
       setAiSuggestion(response.data);
     } catch (err) {
-      alert("AI Assistant unavailable.");
+      console.error("AI Assistant Error:", err);
+      alert("AI Assistant is currently unavailable. Check your server connection.");
     } finally {
       setAiLoading(false);
     }
@@ -90,7 +78,7 @@ const EventTab = ({ role, userId }) => {
         await api.createEvent(submissionData); 
       }
       setEditingId(null);
-      setAiSuggestion(null);
+      setAiSuggestion(null); // Clear suggestion after saving
       setFormData({ 
         titleSelection: 'Worship Service', reservationName: '', 
         category: 'Worship', date: '', time: '08:00 AM', 
@@ -98,14 +86,21 @@ const EventTab = ({ role, userId }) => {
       });
       fetchEvents();
     } catch (err) {
-      alert("Error saving event");
+      if (err.response && err.response.status === 409) {
+        const { message, suggestions } = err.response.data;
+        alert(`${message}\n\nAvailable slots:\n${suggestions.join(", ")}`);
+      } else {
+        alert("Error saving event: " + (err.response?.data?.error || "Server error"));
+      }
     }
   };
 
   const handleToggleAttendance = async (eventId) => {
     try {
-      await api.toggleEventAttendance(eventId, userId);
-      fetchEvents();
+      const response = await api.toggleEventAttendance(eventId, userId);
+      if (response.status === 200 || response.status === 204) {
+        fetchEvents();
+      }
     } catch (err) {
       console.error("Attendance toggle failed", err);
     }
@@ -123,8 +118,6 @@ const EventTab = ({ role, userId }) => {
 
   const styles = {
     container: { padding: '20px', backgroundColor: '#f7fafc', minHeight: '100vh' },
-    filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-    monthHeader: { color: '#4a5568', fontSize: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', marginTop: '30px', marginBottom: '15px' },
     formCard: { background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' },
     card: { background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: '5px solid #6366f1' },
@@ -133,140 +126,151 @@ const EventTab = ({ role, userId }) => {
       backgroundColor: cat === 'Worship' ? '#e0e7ff' : '#fef3c7',
       color: cat === 'Worship' ? '#4338ca' : '#92400e'
     }),
-    dateBox: { textAlign: 'center', backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', minWidth: '60px' },
-    infoGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginTop: '15px', fontSize: '13px', color: '#4a5568' },
+    infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '15px', fontSize: '13px', color: '#4a5568' },
     footer: { marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #edf2f7', display: 'flex', gap: '10px' },
-    submitBtn: { padding: '12px 24px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
-    select: { padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', outline: 'none' },
+    actionBtn: { border: 'none', background: 'none', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', padding: '5px' },
+    submitBtn: { width: '100%', padding: '12px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '15px' },
+    aiBtn: { width: '100%', padding: '12px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '15px', flex: '0.4' },
     attendBtn: (isAttending) => ({ 
       width: '100%', padding: '10px', backgroundColor: isAttending ? '#ef4444' : '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' 
     }),
+    aiBox: { marginTop: '15px', padding: '15px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', animation: 'fadeIn 0.3s ease-in' }
   };
-
-  const groupedEvents = groupEventsByMonth(getSortedEvents());
 
   return (
     <div style={styles.container}>
-      <div style={styles.filterBar}>
-        <div>
-          <h2 style={{ margin: 0, color: '#2d3748' }}>Church Calendar</h2>
-          <p style={{ color: '#718096', margin: 0 }}>{events.length} Upcoming Events</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '14px', color: '#4a5568' }}>Sort by:</span>
-          <select 
-            style={styles.select} 
-            value={sortOrder} 
-            onChange={(e) => setSortOrder(e.target.value)}
-          >
-            <option value="nearest">Nearest Date</option>
-            <option value="furthest">Furthest Date</option>
-          </select>
-        </div>
+      <div style={{ marginBottom: '20px' }}>
+        <h2 style={{ margin: 0, color: '#2d3748' }}>Church Events & Scheduling</h2>
+        <p style={{ color: '#718096', margin: '5px 0 0 0' }}>{canManage ? "Manage activities with AI assistance" : "View upcoming church events"}</p>
       </div>
 
       {canManage && (
         <div style={styles.formCard}>
           <h3 style={{ marginTop: 0 }}>{editingId ? "Edit Event" : "Schedule New Event"}</h3>
           <form onSubmit={handleCreateOrUpdate}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
               <select 
-                style={styles.select} 
+                style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} 
                 value={formData.titleSelection} 
                 onChange={e => setFormData({...formData, titleSelection: e.target.value})}
               >
-                <option value="Worship Service">Worship Service</option>
-                <option value="Bible Study">Bible Study</option>
-                <option value="Youth Camp">Youth Camp</option>
+                <option value="Jail Preaching">Jail Preaching</option>
                 <option value="Wedding">Wedding</option>
+                <option value="Dedication">Dedication</option>
+                <option value="Anniversary">Anniversary</option>
+                <option value="Healing Crusade">Healing Crusade</option>
+                <option value="Feeding Program">Feeding Program</option>
                 <option value="Baptism">Baptism</option>
-                {/* ... other options */}
+                <option value="Bible Study">Bible Study</option>
+                <option value="Prayer Meeting">Prayer Meeting</option>
+                <option value="Youth Camp">Youth Camp</option>
               </select>
 
               <input 
-                style={styles.select} 
-                placeholder="Reservation Name" 
+                style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} 
+                placeholder="Booking/Reservation Name" 
                 value={formData.reservationName} 
                 onChange={e => setFormData({...formData, reservationName: e.target.value})} 
                 required 
               />
+
+              <select style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                <option value="Worship">Worship</option>
+                <option value="Ministry">Ministry</option>
+                <option value="Youth">Youth</option>
+                <option value="Other">Special Event</option>
+              </select>
               
-              <input type="date" style={styles.select} value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required />
-              <input type="time" style={styles.select} value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} required />
-              <input style={styles.select} placeholder="Location" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} />
+              <input type="date" style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required />
+              <input type="time" style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} required />
+              
+              <input 
+                style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} 
+                placeholder="Location (Room/Hall)" 
+                value={formData.room} 
+                onChange={e => setFormData({...formData, room: e.target.value})} 
+              />
+              
+              <input style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} placeholder="Lead Person" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-              <button type="submit" style={styles.submitBtn}>{editingId ? "Update" : "Create"}</button>
-              {editingId && <button type="button" onClick={() => setEditingId(null)} style={{...styles.submitBtn, backgroundColor: '#a0aec0'}}>Cancel</button>}
+            {/* AI SUGGESTION FEEDBACK BOX */}
+            {aiSuggestion && (
+              <div style={styles.aiBox}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <strong style={{ color: '#166534' }}>✨ Gemini Smart Suggestion</strong>
+                  <button type="button" onClick={() => setAiSuggestion(null)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>✕</button>
+                </div>
+                <p style={{ margin: '5px 0', fontSize: '14px', color: '#14532d' }}>{aiSuggestion.suggestion}</p>
+                <small style={{ color: '#15803d', fontStyle: 'italic' }}>Note: {aiSuggestion.reason}</small>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="submit" style={styles.submitBtn}>
+                {editingId ? "Update Event" : "Create Event"}
+              </button>
+              
+              {!editingId && (
+                <button 
+                  type="button" 
+                  onClick={handleAiSuggest} 
+                  disabled={aiLoading}
+                  style={styles.aiBtn}
+                >
+                  {aiLoading ? "Thinking..." : "✨ AI Suggest Slot"}
+                </button>
+              )}
             </div>
+
+            {editingId && (
+              <button type="button" onClick={() => setEditingId(null)} style={{ ...styles.submitBtn, backgroundColor: '#cbd5e0', color: '#4a5568' }}>
+                Cancel Edit
+              </button>
+            )}
           </form>
         </div>
       )}
 
-      {loading ? (
-        <p>Loading your calendar...</p>
-      ) : Object.keys(groupedEvents).length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '50px', background: 'white', borderRadius: '12px' }}>
-          <p style={{ color: '#718096' }}>No events found for this selection.</p>
-        </div>
-      ) : (
-        Object.entries(groupedEvents).map(([month, monthEvents]) => (
-          <div key={month}>
-            <h3 style={styles.monthHeader}>{month}</h3>
-            <div style={styles.grid}>
-              {monthEvents.map((event) => {
-                const isAttending = event.attendees?.includes(userId);
-                const eventDate = new Date(event.date);
-                
-                return (
-                  <div key={event._id} style={styles.card}>
-                    <div style={{ display: 'flex', gap: '15px' }}>
-                      <div style={styles.dateBox}>
-                        <div style={{ fontSize: '12px', color: '#6366f1', fontWeight: 'bold' }}>
-                          {eventDate.toLocaleString('default', { month: 'short' }).toUpperCase()}
-                        </div>
-                        <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#1a202c' }}>
-                          {eventDate.getDate()}
-                        </div>
-                      </div>
-                      
-                      <div style={{ flex: 1 }}>
-                        <div style={{ marginBottom: '8px' }}>
-                          <span style={styles.badge(event.category)}>{event.category}</span>
-                        </div>
-                        <h4 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#1a202c' }}>{event.title}</h4>
-                        
-                        <div style={styles.infoGrid}>
-                          <span>🕒 {event.time}</span>
-                          <span>📍 {event.room || "Main Hall"}</span>
-                          <span style={{ color: '#6366f1', fontWeight: '600' }}>👥 {event.attendees?.length || 0} Attending</span>
-                        </div>
-                      </div>
-                    </div>
+      <div style={styles.grid}>
+        {loading ? <p>Loading events...</p> : events.map((event) => {
+          const isAttending = event.attendees?.includes(userId);
+          return (
+            <div key={event._id} style={styles.card}>
+              <div>
+                <div style={{ marginBottom: '12px' }}>
+                  <span style={styles.badge(event.category)}>{event.category}</span>
+                </div>
+                <h4 style={{ margin: '0 0 5px 0', fontSize: '18px', color: '#1a202c' }}>{event.title}</h4>
+                <p style={{ fontSize: '13px', color: '#718096', margin: 0 }}>Leader: <strong>{event.role}</strong></p>
 
-                    <div style={styles.footer}>
-                      {canManage ? (
-                        <>
-                          <button style={{ border: 'none', background: '#f1f5f9', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => { setEditingId(event._id); setFormData(event); }}>Edit</button>
-                          <button style={{ border: 'none', background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => deleteEvent(event._id)}>Delete</button>
-                        </>
-                      ) : (
-                        <button 
-                          style={styles.attendBtn(isAttending)} 
-                          onClick={() => handleToggleAttendance(event._id)}
-                        >
-                          {isAttending ? '✕ Cancel' : '✓ Attend'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                <div style={styles.infoGrid}>
+                  <span>📅 {event.date}</span>
+                  <span>🕒 {event.time}</span>
+                  <span>📍 {event.room || "No location set"}</span>
+                  <span style={{ fontWeight: 'bold', color: '#6366f1' }}>👥 Attending: {event.attendees?.length || 0}</span>
+                </div>
+              </div>
+
+              <div style={styles.footer}>
+                {canManage ? (
+                  <>
+                    <button style={{ ...styles.actionBtn, color: '#6366f1' }} onClick={() => { setEditingId(event._id); setFormData(event); }}>Edit Event</button>
+                    <button style={{ ...styles.actionBtn, color: '#e53e3e' }} onClick={() => deleteEvent(event._id)}>Delete</button>
+                  </>
+                ) : (
+                  <button 
+                    style={styles.attendBtn(isAttending)} 
+                    onClick={() => handleToggleAttendance(event._id)}
+                  >
+                    {isAttending ? '✕ Cancel Attendance' : '✓ I will be Attending'}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 };
