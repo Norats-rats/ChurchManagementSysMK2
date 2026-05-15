@@ -5,8 +5,8 @@ const EventTab = ({ role, userId }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
+  const [sortOrder, setSortOrder] = useState('nearest'); 
   
-  // AI State Management
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState(null);
 
@@ -40,27 +40,38 @@ const EventTab = ({ role, userId }) => {
     }
   };
 
-  // GEMINI INTEGRATION FUNCTION
+  const getSortedEvents = () => {
+    return [...events].sort((a, b) => {
+      const dateA = new Date(`${a.date} ${a.time}`);
+      const dateB = new Date(`${b.date} ${b.time}`);
+      return sortOrder === 'nearest' ? dateA - dateB : dateB - dateA;
+    });
+  };
+
+  const groupEventsByMonth = (sortedEvents) => {
+    const groups = {};
+    sortedEvents.forEach(event => {
+      const month = new Date(event.date).toLocaleString('default', { month: 'long', year: 'numeric' });
+      if (!groups[month]) groups[month] = [];
+      groups[month].push(event);
+    });
+    return groups;
+  };
+
   const handleAiSuggest = async () => {
     if (!formData.reservationName) {
-      alert("Please enter a Booking/Reservation Name first so the AI has context!");
+      alert("Please enter a Booking/Reservation Name first!");
       return;
     }
-
     setAiLoading(true);
-    setAiSuggestion(null);
-
     try {
-      // Calls the new backend endpoint created in your server.js
       const response = await api.analyzeSchedule({
         userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
         currentEvents: events 
       });
-      
       setAiSuggestion(response.data);
     } catch (err) {
-      console.error("AI Assistant Error:", err);
-      alert("AI Assistant is currently unavailable. Check your server connection.");
+      alert("AI Assistant unavailable.");
     } finally {
       setAiLoading(false);
     }
@@ -78,7 +89,7 @@ const EventTab = ({ role, userId }) => {
         await api.createEvent(submissionData); 
       }
       setEditingId(null);
-      setAiSuggestion(null); // Clear suggestion after saving
+      setAiSuggestion(null);
       setFormData({ 
         titleSelection: 'Worship Service', reservationName: '', 
         category: 'Worship', date: '', time: '08:00 AM', 
@@ -86,21 +97,14 @@ const EventTab = ({ role, userId }) => {
       });
       fetchEvents();
     } catch (err) {
-      if (err.response && err.response.status === 409) {
-        const { message, suggestions } = err.response.data;
-        alert(`${message}\n\nAvailable slots:\n${suggestions.join(", ")}`);
-      } else {
-        alert("Error saving event: " + (err.response?.data?.error || "Server error"));
-      }
+      alert("Error saving event");
     }
   };
 
   const handleToggleAttendance = async (eventId) => {
     try {
-      const response = await api.toggleEventAttendance(eventId, userId);
-      if (response.status === 200 || response.status === 204) {
-        fetchEvents();
-      }
+      await api.toggleEventAttendance(eventId, userId);
+      fetchEvents();
     } catch (err) {
       console.error("Attendance toggle failed", err);
     }
@@ -117,43 +121,52 @@ const EventTab = ({ role, userId }) => {
   };
 
   const styles = {
-    container: { padding: '20px', backgroundColor: '#f7fafc', minHeight: '100vh' },
-    formCard: { background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' },
-    card: { background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: '5px solid #6366f1' },
+    container: { padding: '15px', backgroundColor: '#f7fafc', minHeight: '100vh' },
+    filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
+    monthHeader: { color: '#4a5568', fontSize: '18px', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', marginTop: '25px', marginBottom: '12px' },
+    formCard: { background: 'white', padding: '15px', borderRadius: '10px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' },
+    card: { background: 'white', padding: '15px', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', borderLeft: '4px solid #6366f1' },
     badge: (cat) => ({
-      padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', marginRight: '10px',
+      padding: '3px 8px', borderRadius: '15px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase',
       backgroundColor: cat === 'Worship' ? '#e0e7ff' : '#fef3c7',
       color: cat === 'Worship' ? '#4338ca' : '#92400e'
     }),
-    infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '15px', fontSize: '13px', color: '#4a5568' },
-    footer: { marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #edf2f7', display: 'flex', gap: '10px' },
-    actionBtn: { border: 'none', background: 'none', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', padding: '5px' },
-    submitBtn: { width: '100%', padding: '12px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '15px' },
-    aiBtn: { width: '100%', padding: '12px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '15px', flex: '0.4' },
+    dateBox: { textAlign: 'center', backgroundColor: '#f8fafc', padding: '8px', borderRadius: '6px', minWidth: '55px' },
+    infoGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: '5px', marginTop: '10px', fontSize: '12px', color: '#4a5568' },
+    footer: { marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #edf2f7', display: 'flex', gap: '8px' },
+    submitBtn: { padding: '10px 20px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
+    aiBtn: { padding: '10px 20px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
+    input: { padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none' },
     attendBtn: (isAttending) => ({ 
-      width: '100%', padding: '10px', backgroundColor: isAttending ? '#ef4444' : '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' 
+      width: '100%', padding: '8px', backgroundColor: isAttending ? '#ef4444' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px'
     }),
-    aiBox: { marginTop: '15px', padding: '15px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', animation: 'fadeIn 0.3s ease-in' }
   };
+
+  const groupedEvents = groupEventsByMonth(getSortedEvents());
 
   return (
     <div style={styles.container}>
-      <div style={{ marginBottom: '20px' }}>
-        <h2 style={{ margin: 0, color: '#2d3748' }}>Church Events & Scheduling</h2>
-        <p style={{ color: '#718096', margin: '5px 0 0 0' }}>{canManage ? "Manage activities with AI assistance" : "View upcoming church events"}</p>
+      <div style={styles.filterBar}>
+        <div>
+          <h2 style={{ margin: 0, color: '#2d3748', fontSize: '20px' }}>Church Calendar</h2>
+          <p style={{ color: '#718096', margin: 0, fontSize: '13px' }}>{events.length} Scheduled Activities</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px', color: '#4a5568' }}>Order:</span>
+          <select style={styles.input} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+            <option value="nearest">Nearest First</option>
+            <option value="furthest">Furthest First</option>
+          </select>
+        </div>
       </div>
 
       {canManage && (
         <div style={styles.formCard}>
-          <h3 style={{ marginTop: 0 }}>{editingId ? "Edit Event" : "Schedule New Event"}</h3>
+          <h3 style={{ marginTop: 0, fontSize: '16px' }}>{editingId ? "Edit Event" : "Schedule New Event"}</h3>
           <form onSubmit={handleCreateOrUpdate}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <select 
-                style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} 
-                value={formData.titleSelection} 
-                onChange={e => setFormData({...formData, titleSelection: e.target.value})}
-              >
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+              <select style={styles.input} value={formData.titleSelection} onChange={e => setFormData({...formData, titleSelection: e.target.value})}>
                 <option value="Jail Preaching">Jail Preaching</option>
                 <option value="Wedding">Wedding</option>
                 <option value="Dedication">Dedication</option>
@@ -164,113 +177,103 @@ const EventTab = ({ role, userId }) => {
                 <option value="Bible Study">Bible Study</option>
                 <option value="Prayer Meeting">Prayer Meeting</option>
                 <option value="Youth Camp">Youth Camp</option>
+                <option value="Worship Service">Worship Service</option>
               </select>
 
-              <input 
-                style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} 
-                placeholder="Booking/Reservation Name" 
-                value={formData.reservationName} 
-                onChange={e => setFormData({...formData, reservationName: e.target.value})} 
-                required 
-              />
-
-              <select style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+              <input style={styles.input} placeholder="Booking/Reservation Name" value={formData.reservationName} onChange={e => setFormData({...formData, reservationName: e.target.value})} required />
+              
+              <select style={styles.input} value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
                 <option value="Worship">Worship</option>
                 <option value="Ministry">Ministry</option>
                 <option value="Youth">Youth</option>
                 <option value="Other">Special Event</option>
               </select>
+
+              <input type="date" style={styles.input} value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required />
+              <input type="time" style={styles.input} value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} required />
+              <input style={styles.input} placeholder="Location (Room/Hall)" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} />
               
-              <input type="date" style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required />
-              <input type="time" style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} required />
+              <input type="number" style={styles.input} placeholder="Expected Attendees" value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} />
               
-              <input 
-                style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} 
-                placeholder="Location (Room/Hall)" 
-                value={formData.room} 
-                onChange={e => setFormData({...formData, room: e.target.value})} 
-              />
-              
-              <input style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} placeholder="Lead Person" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
+              <select style={styles.input} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                <option value="Once">Once</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Monthly">Monthly</option>
+              </select>
+
+              <input style={styles.input} placeholder="Lead Person" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
             </div>
 
-            {/* AI SUGGESTION FEEDBACK BOX */}
-            {aiSuggestion && (
-              <div style={styles.aiBox}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <strong style={{ color: '#166534' }}>✨ Gemini Smart Suggestion</strong>
-                  <button type="button" onClick={() => setAiSuggestion(null)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>✕</button>
-                </div>
-                <p style={{ margin: '5px 0', fontSize: '14px', color: '#14532d' }}>{aiSuggestion.suggestion}</p>
-                <small style={{ color: '#15803d', fontStyle: 'italic' }}>Note: {aiSuggestion.reason}</small>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="submit" style={styles.submitBtn}>
-                {editingId ? "Update Event" : "Create Event"}
-              </button>
-              
+            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+              <button type="submit" style={styles.submitBtn}>{editingId ? "Update Event" : "Create Event"}</button>
               {!editingId && (
-                <button 
-                  type="button" 
-                  onClick={handleAiSuggest} 
-                  disabled={aiLoading}
-                  style={styles.aiBtn}
-                >
-                  {aiLoading ? "Thinking..." : "✨ AI Suggest Slot"}
+                <button type="button" onClick={handleAiSuggest} disabled={aiLoading} style={styles.aiBtn}>
+                  {aiLoading ? "Thinking..." : "✨ AI Suggest"}
                 </button>
               )}
+              {editingId && <button type="button" onClick={() => setEditingId(null)} style={{...styles.submitBtn, backgroundColor: '#a0aec0'}}>Cancel</button>}
             </div>
-
-            {editingId && (
-              <button type="button" onClick={() => setEditingId(null)} style={{ ...styles.submitBtn, backgroundColor: '#cbd5e0', color: '#4a5568' }}>
-                Cancel Edit
-              </button>
-            )}
           </form>
         </div>
       )}
 
-      <div style={styles.grid}>
-        {loading ? <p>Loading events...</p> : events.map((event) => {
-          const isAttending = event.attendees?.includes(userId);
-          return (
-            <div key={event._id} style={styles.card}>
-              <div>
-                <div style={{ marginBottom: '12px' }}>
-                  <span style={styles.badge(event.category)}>{event.category}</span>
-                </div>
-                <h4 style={{ margin: '0 0 5px 0', fontSize: '18px', color: '#1a202c' }}>{event.title}</h4>
-                <p style={{ fontSize: '13px', color: '#718096', margin: 0 }}>Leader: <strong>{event.role}</strong></p>
+      {loading ? (
+        <p style={{ fontSize: '14px' }}>Loading calendar...</p>
+      ) : (
+        Object.entries(groupedEvents).map(([month, monthEvents]) => (
+          <div key={month}>
+            <h3 style={styles.monthHeader}>{month}</h3>
+            <div style={styles.grid}>
+              {monthEvents.map((event) => {
+                const isAttending = event.attendees?.includes(userId);
+                const eventDate = new Date(event.date);
+                
+                return (
+                  <div key={event._id} style={styles.card}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div style={styles.dateBox}>
+                        <div style={{ fontSize: '10px', color: '#6366f1', fontWeight: 'bold' }}>
+                          {eventDate.toLocaleString('default', { month: 'short' }).toUpperCase()}
+                        </div>
+                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1a202c' }}>
+                          {eventDate.getDate()}
+                        </div>
+                      </div>
+                      
+                      <div style={{ flex: 1 }}>
+                        <div style={{ marginBottom: '5px' }}>
+                          <span style={styles.badge(event.category)}>{event.category}</span>
+                        </div>
+                        <h4 style={{ margin: '0 0 3px 0', fontSize: '15px', color: '#1a202c' }}>{event.title}</h4>
+                        <p style={{ fontSize: '11px', color: '#718096', margin: 0 }}>Lead: {event.role || "N/A"}</p>
+                        
+                        <div style={styles.infoGrid}>
+                          <span>🕒 {event.time}</span>
+                          <span>📍 {event.room || "No location"}</span>
+                          <span style={{ color: '#6366f1', fontWeight: '600' }}>👥 {event.attendees?.length || 0} Attending</span>
+                        </div>
+                      </div>
+                    </div>
 
-                <div style={styles.infoGrid}>
-                  <span>📅 {event.date}</span>
-                  <span>🕒 {event.time}</span>
-                  <span>📍 {event.room || "No location set"}</span>
-                  <span style={{ fontWeight: 'bold', color: '#6366f1' }}>👥 Attending: {event.attendees?.length || 0}</span>
-                </div>
-              </div>
-
-              <div style={styles.footer}>
-                {canManage ? (
-                  <>
-                    <button style={{ ...styles.actionBtn, color: '#6366f1' }} onClick={() => { setEditingId(event._id); setFormData(event); }}>Edit Event</button>
-                    <button style={{ ...styles.actionBtn, color: '#e53e3e' }} onClick={() => deleteEvent(event._id)}>Delete</button>
-                  </>
-                ) : (
-                  <button 
-                    style={styles.attendBtn(isAttending)} 
-                    onClick={() => handleToggleAttendance(event._id)}
-                  >
-                    {isAttending ? '✕ Cancel Attendance' : '✓ I will be Attending'}
-                  </button>
-                )}
-              </div>
+                    <div style={styles.footer}>
+                      {canManage ? (
+                        <>
+                          <button style={{ border: 'none', background: '#f1f5f9', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }} onClick={() => { setEditingId(event._id); setFormData(event); }}>Edit</button>
+                          <button style={{ border: 'none', background: '#fee2e2', color: '#dc2626', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }} onClick={() => deleteEvent(event._id)}>Delete</button>
+                        </>
+                      ) : (
+                        <button style={styles.attendBtn(isAttending)} onClick={() => handleToggleAttendance(event._id)}>
+                          {isAttending ? '✕ Cancel' : '✓ Attend'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        ))
+      )}
     </div>
   );
 };
