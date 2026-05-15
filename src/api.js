@@ -36,7 +36,7 @@ getAnnouncement: () => apiClient.get('/api/settings/announcement'),
   getEvents: () => apiClient.get('/api/events'), 
   createEvent: (eventData) => apiClient.post('/api/events', eventData), 
   updateEvent: (id, eventData) => apiClient.put(`/api/events/${id}`, eventData), 
-  deleteEvent: (id) => apiClient.delete(`/api/events/${id}`),
+  archiveEvent: (id) => apiClient.patch(`/api/events/${id}/archive`),
   toggleEventAttendance: (eventId, userId) => 
     apiClient.post(`/api/events/${eventId}/toggle-attendance`, { userId }),
 

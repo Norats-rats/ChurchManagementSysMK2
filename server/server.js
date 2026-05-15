@@ -399,13 +399,16 @@ app.put('/api/events/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/events/:id', async (req, res) => {
+app.patch('/api/events/:id/archive', async (req, res) => {
   try {
-    const deletedEvent = await Event.findByIdAndDelete(req.params.id);
-    if (!deletedEvent) return res.status(404).send("Event not found");
-    res.json({ message: "Event deleted successfully" });
+    const updatedEvent = await Event.findByIdAndUpdate(
+      req.params.id,
+      { $set: { status: 'archived' } },
+      { new: true }
+    );
+    res.json(updatedEvent);
   } catch (err) {
-    res.status(500).send("Error deleting event: " + err.message);
+    res.status(400).json({ error: "Failed to archive event" });
   }
 });
 
