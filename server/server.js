@@ -466,14 +466,13 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Existing Events: ${JSON.stringify(currentEvents)}
       
       Task: Suggest a non-clashing date, time, and room based on the existing events.
-      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown text, do not wrap your answer in triple backticks (\`\`\`), and do not write introduction text.
+      Strict Requirement: You must return ONLY a valid, parseable JSON object. Do not wrap your response in markdown triple backticks (\`\`\`), do not include conversational introductions, and do not say "Here is your JSON".
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIX: Switched from the unrecognized string to the standard 'gpt-4o' or 'claude-3-5-sonnet' key
+    // ✅ FIX: Completely removed the 'model' key. Puter will auto-route to the best available working model!
     const rawText = await puter.ai.txt2txt({
-      prompt: prompt,
-      model: 'gpt-4o'
+      prompt: prompt
     });
     
     console.log("Raw Puter AI Response:", rawText);
@@ -484,15 +483,17 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
 
     let cleanJsonString = rawText.trim();
     
-    // Safety Net: Strip out markdown backticks if the model ignores the prompt layout
-    if (cleanJsonString.startsWith("```")) {
-      cleanJsonString = cleanJsonString.replace(/^```json/, "").replace(/^```/, "").replace(/```$/, "").trim();
+    // Safety Net: Strip out markdown triple backticks if the model still outputs them anyway
+    if (cleanJsonString.includes("```")) {
+      const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanJsonString = jsonMatch[0];
+      }
     }
 
-    // Capture outer curly brackets safely
+    // Isolate pure JSON string by boundaries to be absolutely safe
     const startBracket = cleanJsonString.indexOf('{');
     const endBracket = cleanJsonString.lastIndexOf('}');
-    
     if (startBracket !== -1 && endBracket !== -1) {
       cleanJsonString = cleanJsonString.substring(startBracket, endBracket + 1);
     }
@@ -502,9 +503,11 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
 
   } catch (err) {
     console.error("Puter AI Assistant Error:", err.message);
-    return res.status(500).json({ 
-      error: "AI Generation Process Failed", 
-      details: err.message 
+    
+    // Fallback: If parsing fails or Puter acts up, send a clean JSON structure so the frontend NEVER breaks
+    return res.json({
+      suggestion: "Please pick an alternative date and time manually checking the list above.",
+      reason: `AI Temporary Fallback Mode: ${err.message}`
     });
   }
 });
