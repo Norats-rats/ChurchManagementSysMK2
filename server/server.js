@@ -453,7 +453,6 @@ app.post('/api/settings/announcement', async (req, res) => {
 
 // --- AI ROUTE ---
 // --- AI ROUTE ---
-// --- AI ROUTE ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
@@ -462,31 +461,35 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable on Railway." });
     }
 
+    // Explicit instruction to ensure the AI behaves nicely
     const prompt = `
       You are a Church Event Assistant. 
       User Request: "${userRequest}"
       Existing Events: ${JSON.stringify(currentEvents)}
       
-      Task: Suggest a non-clashing date, time, and room.
-      Strict Requirement: You must return ONLY a raw JSON block. No markdown, no triple backticks (\`\`\`), no conversational intro text.
+      Task: Suggest a non-clashing date, time, and room based on the existing events.
+      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown text, do not wrap your answer in triple backticks (\`\`\`), and do not write introduction text.
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Calling Puter SDK
-    const rawText = await puter.ai.txt2txt({
-      prompt: prompt,
-      model: 'claude-3-5-sonnet' 
-    });
+    // ✅ FIX: Puter Node.js SDK expects the direct namespace execution format 
+    // This safely circumvents any version matching differences with puter.ai.txt2txt
+    const rawText = await puter.ai.chat(prompt, 'claude-3-5-sonnet');
     
     console.log("Raw Puter AI Response:", rawText);
 
-    if (!rawText) {
+    if (!rawText || !rawText.toString()) {
       return res.status(500).json({ error: "No text returned from the AI platform." });
     }
 
-    // Advanced cleaning block to extract ONLY the JSON structure out of text strings
-    let cleanJsonString = rawText.trim();
+    let cleanJsonString = rawText.toString().trim();
     
+    // Safety Net: Strip out backticks if the model accidentally emits them anyway
+    if (cleanJsonString.startsWith("```")) {
+      cleanJsonString = cleanJsonString.replace(/^```json/, "").replace(/^```/, "").replace(/```$/, "").trim();
+    }
+
+    // Find the boundary bounds of the JSON object manually to isolate it from stray characters
     const startBracket = cleanJsonString.indexOf('{');
     const endBracket = cleanJsonString.lastIndexOf('}');
     
@@ -494,13 +497,11 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       cleanJsonString = cleanJsonString.substring(startBracket, endBracket + 1);
     }
 
-    // Send it back as genuine, raw JSON
     const parsedData = JSON.parse(cleanJsonString);
     return res.json(parsedData);
 
   } catch (err) {
     console.error("Puter AI Assistant Error:", err.message);
-    // ✅ CRITICAL SAFETY: Ensuring an error ALWAYS returns a formal JSON response structure instead of an unhandled string crash
     return res.status(500).json({ 
       error: "AI Generation Process Failed", 
       details: err.message 
