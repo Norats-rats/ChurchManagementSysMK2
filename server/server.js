@@ -452,6 +452,9 @@ app.post('/api/settings/announcement', async (req, res) => {
  });
 
 // --- AI ROUTE ---
+// ==========================================================
+// 🚀 PRODUCTION AI ROUTE: OPENAI CLIENT + PUTER API ROUTING
+// ==========================================================
 const { OpenAI } = require('openai');
 
 app.post('/api/ai/analyze-schedule', async (req, res) => {
@@ -459,7 +462,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      console.error("Missing PUTER_AUTH_TOKEN inside your environment variables.");
+      console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN environment variable.");
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
     }
 
@@ -479,7 +482,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Make a stable, non-crashing completion request through Puter's proxy gateway
+    // Execute completion through the robust OpenAI client interface wrapper
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'user', content: prompt }],
@@ -488,10 +491,10 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     let rawText = response.choices[0]?.message?.content?.trim() || "";
 
     if (!rawText) {
-      throw new Error("No response payload text returned from Puter AI engine.");
+      throw new Error("No response text payload returned from Puter AI gateway.");
     }
     
-    // Clean up fallback markdown code blocks if the model ignores string constraints
+    // Clean up fallback markdown code blocks if the model ignores string parameters
     if (rawText.includes("```")) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) rawText = jsonMatch[0];
@@ -508,7 +511,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    console.error("Puter AI Assistant proxy failed:", err.message);
+    console.error("❌ Puter AI Gateway Execution Failed:", err.message);
     
     // Fallback block layout to guarantee frontend mapping loops never break
     return res.json({
