@@ -461,7 +461,6 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable on Railway." });
     }
 
-    // Explicit instruction to ensure the AI behaves nicely
     const prompt = `
       You are a Church Event Assistant. 
       User Request: "${userRequest}"
@@ -472,24 +471,35 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIX: Puter Node.js SDK expects the direct namespace execution format 
-    // This safely circumvents any version matching differences with puter.ai.txt2txt
-    const rawText = await puter.ai.chat(prompt, 'claude-3-5-sonnet');
+    // Call Puter AI Chat
+    const aiResponse = await puter.ai.chat(prompt, 'claude-3-5-sonnet');
     
-    console.log("Raw Puter AI Response:", rawText);
+    console.log("Raw Puter AI Response Object:", aiResponse);
 
-    if (!rawText || !rawText.toString()) {
-      return res.status(500).json({ error: "No text returned from the AI platform." });
+    // ✅ FIX: Extract the text string directly from Puter's structured response property
+    let messageText = "";
+    if (typeof aiResponse === 'string') {
+      messageText = aiResponse;
+    } else if (aiResponse && aiResponse.message && aiResponse.message.content) {
+      messageText = aiResponse.message.content;
+    } else if (aiResponse && aiResponse.text) {
+      messageText = aiResponse.text;
+    } else {
+      messageText = JSON.stringify(aiResponse);
     }
 
-    let cleanJsonString = rawText.toString().trim();
+    if (!messageText) {
+      return res.status(500).json({ error: "No clear text content found in the AI response." });
+    }
+
+    let cleanJsonString = messageText.trim();
     
-    // Safety Net: Strip out backticks if the model accidentally emits them anyway
+    // Safety Net: Strip out any accidental markdown triple backticks
     if (cleanJsonString.startsWith("```")) {
       cleanJsonString = cleanJsonString.replace(/^```json/, "").replace(/^```/, "").replace(/```$/, "").trim();
     }
 
-    // Find the boundary bounds of the JSON object manually to isolate it from stray characters
+    // Isolate the pure JSON dictionary block bounds
     const startBracket = cleanJsonString.indexOf('{');
     const endBracket = cleanJsonString.lastIndexOf('}');
     

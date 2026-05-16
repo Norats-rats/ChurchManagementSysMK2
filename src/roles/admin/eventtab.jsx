@@ -59,7 +59,6 @@ const EventTab = ({ role, userId }) => {
     return groups;
   };
 
-  // --- 1. HANDLE AI SUGGESTION ROUTING ---
 // --- 1. HANDLE AI SUGGESTION ROUTING ---
   const handleAIRecommendation = async () => {
     if (!formData.reservationName) {
@@ -70,7 +69,7 @@ const EventTab = ({ role, userId }) => {
     setAiLoading(true);
     setAiSuggestion(null);
     try {
-      // ✅ FIX: Get the API base URL from your environment variables cleanly 
+      // ✅ Dynamically pulls your base URL configurations cleanly
       const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       
       const response = await axios.post(`${baseUrl}/api/ai/analyze-schedule`, {
@@ -81,7 +80,6 @@ const EventTab = ({ role, userId }) => {
       setAiSuggestion(response.data);
     } catch (e) {
       console.error('AI Integration Error:', e);
-      // Access the exact backend error message if available
       const errMsg = e.response?.data?.error || 'AI Assistant unavailable right now.';
       alert(`AI Error: ${errMsg}`);
     } finally {
