@@ -246,6 +246,7 @@ const EventTab = ({ role, userId }) => {
             <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
               <button type="submit" style={styles.submitBtn}>{editingId ? "Update Event" : "Create Event"}</button>
               {!editingId && (
+                /* ✅ FIX: Corrected to call handleAIRecommendation */
                 <button type="button" onClick={handleAIRecommendation} disabled={aiLoading} style={styles.aiBtn}>
                   {aiLoading ? "Thinking..." : "✨ AI Suggest"}
                 </button>
