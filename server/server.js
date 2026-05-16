@@ -452,12 +452,13 @@ app.post('/api/settings/announcement', async (req, res) => {
  });
 
 // --- AI ROUTE ---
+// --- AI ROUTE ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      throw new Error("Missing PUTER_AUTH_TOKEN environment variable.");
+      return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
     }
 
     const prompt = `
@@ -467,29 +468,36 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       
       Task: Based on the existing events, suggest a date, time, and room that doesn't clash. 
       Return ONLY a clean JSON object without markdown formatting wrappers or backticks.
-      Expected format: { "suggestion": "string", "reason": "string" }
+      Expected format exactly: { "suggestion": "string", "reason": "string" }
     `;
 
-    // ✅ FIX: Use options object for txt2txt schema requirement
+    // ✅ FIX: Use the baseline accepted 'claude-3-5-sonnet' or 'gpt-4o' models natively optimized on Puter's core stack
     const rawText = await puter.ai.txt2txt({
       prompt: prompt,
-      model: 'google/gemini-2.5-flash'
+      model: 'claude-3-5-sonnet' 
     });
     
     console.log("Raw Puter AI Response:", rawText);
 
+    if (!rawText) {
+      return res.status(500).json({ error: "Empty response received from AI model." });
+    }
+
     let cleanJsonString = rawText.trim();
+    
+    // Clean up any stray markdown wrappers if the model returns them
     if (cleanJsonString.includes("```")) {
       const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
       if (jsonMatch) cleanJsonString = jsonMatch[0];
     }
 
     const parsedData = JSON.parse(cleanJsonString);
-    res.json(parsedData);
+    return res.json(parsedData);
 
   } catch (err) {
     console.error("Puter AI Assistant Error:", err.message);
-    res.status(500).json({ 
+    // ✅ FIX: Force the error catch block to ALWAYS return valid JSON format 
+    return res.status(500).json({ 
       error: "AI Assistant failed to generate recommendation", 
       details: err.message 
     });
