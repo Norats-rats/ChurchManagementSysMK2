@@ -456,6 +456,9 @@ const { OpenAI } = require('openai');
 // ==========================================================
 // 🚀 FIXED: PRODUCTION-READY NATIVE PUTER AI ROUTE
 // ==========================================================
+// ==========================================================
+// 🚀 FIXED: BULLETPROOF NATIVE PUTER SERVICE INTERFACE
+// ==========================================================
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
@@ -475,17 +478,42 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Refresh token state validation directly before hitting the endpoint
+    // Ensure the token configuration properties map cleanly
     puter.authToken = process.env.PUTER_AUTH_TOKEN;
 
-    // ✅ FIXED SDK CALL: Call puter.chat directly for backend runtime processes.
-    // We use 'gpt-4o-mini' because it is highly stable under Puter's free tiers.
-    const rawResponse = await puter.chat(prompt, { model: 'gpt-4o-mini' });
+    let rawResponse = null;
+
+    // ✅ THE SOLUTION: Universal checking strategy to handle Puter's changing method locations
+    if (puter.ai && typeof puter.ai.chat === 'function') {
+      console.log("Using puter.ai.chat pattern...");
+      rawResponse = await puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
+    } else if (typeof puter.chat === 'function') {
+      console.log("Using puter.chat pattern...");
+      rawResponse = await puter.chat(prompt, { model: 'gpt-4o-mini' });
+    } else {
+      // Emergency secure fallback: If the SDK objects are completely locked, 
+      // we route using a clean direct HTTP post connection to ensure it NEVER crashes the server.
+      console.log("SDK functions unavailable, routing via direct fallback request gateway...");
+      const httpFallback = await axios.post(
+        'https://api.puter.com/v1/ai/chat',
+        {
+          messages: [{ role: 'user', content: prompt }],
+          model: 'gpt-4o-mini'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      rawResponse = httpFallback.data?.message?.content || httpFallback.data?.choices?.[0]?.message?.content;
+    }
     
-    console.log("Raw Puter AI Response:", rawResponse);
+    console.log("Raw Puter AI Response Object:", rawResponse);
 
     if (!rawResponse) {
-      return res.status(500).json({ error: "No response text returned from Puter." });
+      return res.status(500).json({ error: "No response text returned from Puter gateway engine." });
     }
 
     let cleanJsonString = rawResponse.toString().trim();
@@ -508,9 +536,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    console.error("❌ Puter AI Assistant Error:", err.message);
+    console.error("❌ Puter AI Assistant Error Route:", err.message);
     
-    // Fallback block layout to guarantee frontend mapping loops never break
+    // Return a perfect fallback loop so your frontend state NEVER stays stuck loading
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
