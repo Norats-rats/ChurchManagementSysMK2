@@ -5,8 +5,9 @@ const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-const PuterJS = require("@heyputer/puter.js");
-const puter = new PuterJS({ authToken: process.env.PUTER_AUTH_TOKEN });
+// ✅ FIX 1: Correct Puter Node.js SDK import (Removes the "not a constructor" error)
+const puter = require("@heyputer/puter.js");
+puter.authToken = process.env.PUTER_AUTH_TOKEN;
 
 const app = express();
 app.use(express.json());
@@ -129,14 +130,6 @@ const Ministry = mongoose.model('Ministry', new mongoose.Schema({
   color: { type: String, default: "#2563eb" },
   growth: { type: String, default: "+0%" },
   status: { type: String, default: "Active" } 
-}, { timestamps: true }));
-
-const Transaction = mongoose.model('transactions', new mongoose.Schema({
-  date: { type: Date, default: Date.now },
-  description: { type: String, required: true },
-  type: { type: String, enum: ['Income', 'Expense'], required: true },
-  amount: { type: Number, required: true },
-  userId: { type: String }
 }, { timestamps: true }));
 
 app.get('/', (req, res) => {
@@ -458,6 +451,7 @@ app.post('/api/settings/announcement', async (req, res) => {
   res.json({ success: true });
 });
 
+// --- AI ROUTE ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
@@ -476,9 +470,11 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Expected format: { "suggestion": "string", "reason": "string" }
     `;
 
-    // FIX: Using the robust fallback configuration mapping layout 
-    // to bypass internal object property reading issues
-    const rawText = await puter.ai.txt2txt(prompt, 'google/gemini-2.5-flash');
+    // ✅ FIX 2: Format the request into Puter's exact options format object
+    const rawText = await puter.ai.txt2txt({
+      prompt: prompt,
+      model: 'google/gemini-2.5-flash'
+    });
     
     console.log("Raw Puter AI Response:", rawText);
 
