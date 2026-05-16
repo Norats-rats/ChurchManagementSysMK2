@@ -462,15 +462,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN environment variable.");
+      console.error("Missing PUTER_AUTH_TOKEN inside your environment variables.");
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
     }
-
-    // Initialize the stable OpenAI engine pointed directly to Puter's official base URL gateway
-    const openai = new OpenAI({
-      apiKey: process.env.PUTER_AUTH_TOKEN,
-      baseURL: 'https://api.puter.com/v1/openai/v1'
-    });
 
     const prompt = `
       You are a Church Event Assistant. 
@@ -482,19 +476,30 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Execute completion through the robust OpenAI client interface wrapper
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-    });
+    // Direct HTTP call using Puter's exact chat completions endpoint
+    const puterResponse = await axios.post(
+      'https://api.puter.com/v1/openai/v1/chat/completions',
+      {
+        messages: [{ role: 'user', content: prompt }],
+        model: 'gpt-4o-mini', // Using gpt-4o-mini which is Puter's primary default model string
+        stream: false
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    let rawText = response.choices[0]?.message?.content?.trim() || "";
+    // Extract content from Puter's standard OpenAI structural output payload
+    let rawText = puterResponse.data?.choices?.[0]?.message?.content?.trim() || "";
 
     if (!rawText) {
       throw new Error("No response text payload returned from Puter AI gateway.");
     }
     
-    // Clean up fallback markdown code blocks if the model ignores string parameters
+    // Clean up fallback markdown code blocks if the model returns backticks anyway
     if (rawText.includes("```")) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) rawText = jsonMatch[0];
@@ -511,7 +516,8 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    console.error("❌ Puter AI Gateway Execution Failed:", err.message);
+    // This logs the exact server-side details into your Railway terminal window
+    console.error("❌ Puter AI Direct Integration Proxy Error:", err.response ? err.response.data : err.message);
     
     // Fallback block layout to guarantee frontend mapping loops never break
     return res.json({
