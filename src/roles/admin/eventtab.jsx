@@ -67,7 +67,7 @@ const handleAIRecommendation = async () => {
     setAiLoading(true);
     setAiSuggestion(null);
     try {
-      // ✅ FIX: Construct clean base url routes without introducing trailing multi-slash faults
+      // Clean up the base URL dynamically to eliminate any trailing slash typos
       let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       if (baseUrl.endsWith('/')) {
         baseUrl = baseUrl.slice(0, -1);
@@ -88,7 +88,6 @@ const handleAIRecommendation = async () => {
       setAiLoading(false);
     }
   };
-
   const applyAiValues = () => {
     if (!aiSuggestion || !aiSuggestion.suggestion) return;
 

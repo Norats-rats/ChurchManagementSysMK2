@@ -460,7 +460,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
 
     if (!process.env.PUTER_AUTH_TOKEN) {
       console.error("Missing PUTER_AUTH_TOKEN inside your environment variables.");
-      return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
+      return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable on Railway." });
     }
 
     const prompt = `
@@ -473,12 +473,12 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Direct HTTP request to Puter AI API to avoid broken SDK local runtime wrappers
+    // Direct HTTP request to Puter AI API to avoid broken WebSocket runtime wrappers
     const puterResponse = await axios.post(
       'https://api.puter.com/v1/ai/chat',
       {
         messages: [{ role: 'user', content: prompt }],
-        model: 'gpt-4o' // Official Puter-supported stable model string
+        model: 'gpt-4o' 
       },
       {
         headers: {
@@ -496,16 +496,16 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     }
 
     if (!rawText) {
-      throw new Error("No response payload returned from Puter AI services.");
+      throw new Error("No response text returned from Puter AI services.");
     }
     
-    // Clean up fallback markdown code blocks if the model ignores the prompt layout requirements
+    // Clean up markdown code blocks if the model appends them anyway
     if (rawText.includes("```")) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) rawText = jsonMatch[0];
     }
 
-    // Isolate structural boundaries to guarantee clean parsing
+    // Double check JSON boundaries to ensure a perfect parse
     const startBracket = rawText.indexOf('{');
     const endBracket = rawText.lastIndexOf('}');
     if (startBracket !== -1 && endBracket !== -1) {
@@ -516,9 +516,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    console.error("Puter AI Proxy Route Error:", err.message);
+    console.error("Puter AI Assistant Error:", err.message);
     
-    // Fallback object back to your UI form parsing logic to prevent alert popups
+    // Hardened Fallback: If anything fails, return a safe JSON layout so the UI never displays an empty layout
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
