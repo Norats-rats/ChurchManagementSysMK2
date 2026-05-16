@@ -58,7 +58,7 @@ const EventTab = ({ role, userId }) => {
     return groups;
   };
 
-const handleAIRecommendation = async () => {
+  const handleAIRecommendation = async () => {
     if (!formData.reservationName) {
       alert('Please enter a Booking/Reservation Name first!');
       return;
@@ -67,27 +67,28 @@ const handleAIRecommendation = async () => {
     setAiLoading(true);
     setAiSuggestion(null);
     try {
-      // ✅ FIXED: Using your centralized API service layer to prevent endpoint format typos
+      // Send optimization data payload using the centralized API client configurations
       const response = await api.analyzeSchedule({
         userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
         currentEvents: events
       });
       
-      // Axios requests passing through your centralized api helper provide the payload on response.data
+      // Map server response payload data safely to client layout structures
       setAiSuggestion(response.data);
     } catch (err) {
-  // 👇 ADD THESE LOGS TEMPORARILY TO SEE THE EXACT RAILWAY PRINTS:
-  if (err.response) {
-    console.error("❌ Puter Cloud API Rejected Request:", err.response.status, err.response.data);
-  } else {
-    console.error("❌ Network/System Error:", err.message);
-  }
-  
-  return res.json({
-    suggestion: "Please pick an alternative date, time, and room manually...",
-    reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
-  });
-}finally {
+      // ✅ FIXED: Safely handling errors in React without using backend Express objects
+      if (err.response) {
+        console.error("❌ Puter Cloud API Rejected Request:", err.response.status, err.response.data);
+      } else {
+        console.error("❌ Network/System Error:", err.message);
+      }
+      
+      // Render a fallback layout within the UI panel container gracefully
+      setAiSuggestion({
+        suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
+        reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
+      });
+    } finally {
       setAiLoading(false);
     }
   };

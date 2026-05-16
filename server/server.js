@@ -452,15 +452,22 @@ app.post('/api/settings/announcement', async (req, res) => {
  });
 
 // --- AI ROUTE ---
-// NOTE: If you are using a global Router prefix for /api, change this path to '/ai/analyze-schedule'
+const { OpenAI } = require('openai');
+
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN environment variable.");
+      console.error("Missing PUTER_AUTH_TOKEN inside your environment variables.");
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
     }
+
+    // Initialize the stable OpenAI engine pointed directly to Puter's official base URL gateway
+    const openai = new OpenAI({
+      apiKey: process.env.PUTER_AUTH_TOKEN,
+      baseURL: 'https://api.puter.com/v1/openai/v1'
+    });
 
     const prompt = `
       You are a Church Event Assistant. 
@@ -468,42 +475,29 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Existing Events: ${JSON.stringify(currentEvents)}
       
       Task: Suggest a non-clashing date, time, and room based on the existing events.
-      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown formatting or wrap your answer in triple backticks.
+      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown text, do not wrap your answer in triple backticks, and do not write introduction text.
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Direct isolated HTTP POST request bypasses flaky client SDK container wrappers entirely
-    const puterResponse = await axios.post(
-      'https://api.puter.com/v1/ai/chat',
-      {
-        messages: [{ role: 'user', content: prompt }],
-        model: 'gpt-4o' 
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    // Make a stable, non-crashing completion request through Puter's proxy gateway
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+    });
 
-    let rawText = "";
-    if (puterResponse.data?.message?.content) {
-      rawText = puterResponse.data.message.content.toString().trim();
-    } else if (puterResponse.data?.choices?.[0]?.message?.content) {
-      rawText = puterResponse.data.choices[0].message.content.toString().trim();
-    }
+    let rawText = response.choices[0]?.message?.content?.trim() || "";
 
     if (!rawText) {
-      throw new Error("Empty response payload payload from Puter cloud service.");
+      throw new Error("No response payload text returned from Puter AI engine.");
     }
     
-    // Scrape clean JSON data out of raw text blocks if markdown filters leak
+    // Clean up fallback markdown code blocks if the model ignores string constraints
     if (rawText.includes("```")) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) rawText = jsonMatch[0];
     }
 
+    // Isolate structural bracket boundaries to guarantee a clean JSON parse object
     const startBracket = rawText.indexOf('{');
     const endBracket = rawText.lastIndexOf('}');
     if (startBracket !== -1 && endBracket !== -1) {
@@ -514,9 +508,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    console.error("❌ Puter AI Direct Integration Proxy Error:", err.message);
+    console.error("Puter AI Assistant proxy failed:", err.message);
     
-    // Safe standard JSON response layout structure back to your form
+    // Fallback block layout to guarantee frontend mapping loops never break
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
