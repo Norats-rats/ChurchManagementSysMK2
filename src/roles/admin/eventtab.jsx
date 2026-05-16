@@ -75,11 +75,19 @@ const handleAIRecommendation = async () => {
       
       // Axios requests passing through your centralized api helper provide the payload on response.data
       setAiSuggestion(response.data);
-    } catch (e) {
-      console.error('AI Integration Error:', e);
-      const errMsg = e.response?.data?.error || 'AI Assistant unavailable right now.';
-      alert(`AI Error: ${errMsg}`);
-    } finally {
+    } catch (err) {
+  // 👇 ADD THESE LOGS TEMPORARILY TO SEE THE EXACT RAILWAY PRINTS:
+  if (err.response) {
+    console.error("❌ Puter Cloud API Rejected Request:", err.response.status, err.response.data);
+  } else {
+    console.error("❌ Network/System Error:", err.message);
+  }
+  
+  return res.json({
+    suggestion: "Please pick an alternative date, time, and room manually...",
+    reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
+  });
+}finally {
       setAiLoading(false);
     }
   };
