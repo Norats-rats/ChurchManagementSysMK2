@@ -451,8 +451,27 @@ app.post('/api/settings/announcement', async (req, res) => {
   res.json({ success: true });
  });
 
-// --- AI ROUTE ---
-// NOTE: If you are using a global Router prefix for /api, change this path to '/ai/analyze-schedule'
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const axios = require('axios');
+const bcrypt = require('bcryptjs');
+require('dotenv').config();
+
+// ==========================================
+// 🛠️ CORRECT PUTER NODE.JS INITIALIZATION
+// ==========================================
+const { init } = require("@heyputer/puter.js/src/init.cjs");
+const puter = init(process.env.PUTER_AUTH_TOKEN);
+
+const app = express();
+app.use(express.json());
+
+// ... Keep your existing app.use(cors({...})) and mongoose schemas exactly as they are ...
+
+// ==========================================
+// 🛠️ UPDATED AI ROUTE WITH CORRECT PARSING
+// ==========================================
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
@@ -471,33 +490,39 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Use Puter's standard chat generation with a reliably supported model
-    const rawResponse = await puter.ai.chat(prompt, { model: 'gpt-4o' });
+    // Using a fully available production model on Puter's free cluster
+    const response = await puter.ai.chat(prompt, { model: 'gpt-4o' });
     
-    console.log("Raw Puter AI Response:", rawResponse);
+    console.log("Raw Puter Object:", response);
 
-    if (!rawResponse || !rawResponse.toString()) {
-      return res.status(500).json({ error: "No response text returned from Puter." });
+    // Node SDK extracts text content out of the message object array
+    let rawText = "";
+    if (response && response.message && response.message.content) {
+      rawText = response.message.content.toString().trim();
+    } else if (typeof response === 'string') {
+      rawText = response.trim();
     }
 
-    let cleanJsonString = rawResponse.toString().trim();
-    
-    // Clean up markdown code blocks if the model appends them anyway
-    if (cleanJsonString.includes("```")) {
-      const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
-      if (jsonMatch) cleanJsonString = jsonMatch[0];
+    if (!rawText) {
+      throw new Error("Puter returned an empty content payload.");
     }
 
-    const parsedData = JSON.parse(cleanJsonString);
+    // Clean up fallback markdown wrapping if the LLM ignores instructions
+    if (rawText.includes("```")) {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) rawText = jsonMatch[0];
+    }
+
+    const parsedData = JSON.parse(rawText);
     return res.json(parsedData);
 
   } catch (err) {
     console.error("Puter AI Assistant Error:", err.message);
     
-    // Returning a safe JSON fallback so your frontend doesn't break if an API limit or parse error occurs
-    return res.status(200).json({
-      suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
-      reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
+    // Fallback message handles errors explicitly so you see exactly what's failing on screen
+    return res.status(500).json({
+      error: "AI Generation Failed",
+      details: err.message
     });
   }
 });
