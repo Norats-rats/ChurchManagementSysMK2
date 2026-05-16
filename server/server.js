@@ -5,8 +5,8 @@ const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-const puter = require("@heyputer/puter.js");
-puter.authToken = process.env.PUTER_AUTH_TOKEN;
+const PuterJS = require("@heyputer/puter.js");
+const puter = new PuterJS({ authToken: process.env.PUTER_AUTH_TOKEN });
 
 const app = express();
 app.use(express.json());
@@ -476,12 +476,14 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Expected format: { "suggestion": "string", "reason": "string" }
     `;
 
-    // Puter safely routes your prompt to the model without requiring separate Google accounts
-    const rawText = await puter.ai.chat(prompt, { model: 'google/gemini-2.5-flash' });
+    // Calling .chat directly on the fully constructed object instance
+    const rawText = await puter.ai.chat({
+      model: 'google/gemini-2.5-flash',
+      prompt: prompt
+    });
     
     console.log("Raw Puter AI Response:", rawText);
 
-    // Clean up response strings safely in case the model returns markdown backticks anyway
     let cleanJsonString = rawText.trim();
     if (cleanJsonString.includes("```")) {
       const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
