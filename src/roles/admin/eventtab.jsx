@@ -59,29 +59,30 @@ const EventTab = ({ role, userId }) => {
   };
 
 const handleAIRecommendation = async () => {
-  if (!formData.reservationName) {
-    alert('Please enter a Booking/Reservation Name first!');
-    return;
-  }
+    if (!formData.reservationName) {
+      alert('Please enter a Booking/Reservation Name first!');
+      return;
+    }
 
-  setAiLoading(true);
-  setAiSuggestion(null);
-  try {
-    // Using the structured API module prevents mismatching base URLs!
-    const response = await api.analyzeSchedule({
-      userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
-      currentEvents: events
-    });
-
-    setAiSuggestion(response.data);
-  } catch (e) {
-    console.error('AI Integration Error:', e);
-    const errMsg = e.response?.data?.error || 'AI Assistant unavailable right now.';
-    alert(`AI Error: ${errMsg}`);
-  } finally {
-    setAiLoading(false);
-  }
-};
+    setAiLoading(true);
+    setAiSuggestion(null);
+    try {
+      // ✅ FIXED: Using your centralized API service layer to prevent endpoint format typos
+      const response = await api.analyzeSchedule({
+        userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
+        currentEvents: events
+      });
+      
+      // Axios requests passing through your centralized api helper provide the payload on response.data
+      setAiSuggestion(response.data);
+    } catch (e) {
+      console.error('AI Integration Error:', e);
+      const errMsg = e.response?.data?.error || 'AI Assistant unavailable right now.';
+      alert(`AI Error: ${errMsg}`);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const applyAiValues = () => {
     if (!aiSuggestion || !aiSuggestion.suggestion) return;

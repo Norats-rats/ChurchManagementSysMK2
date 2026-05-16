@@ -458,8 +458,8 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      console.error("Missing PUTER_AUTH_TOKEN inside your environment variables.");
-      return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable on Railway." });
+      console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN environment variable.");
+      return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
     }
 
     const prompt = `
@@ -468,11 +468,11 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Existing Events: ${JSON.stringify(currentEvents)}
       
       Task: Suggest a non-clashing date, time, and room based on the existing events.
-      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown text, do not wrap your answer in triple backticks, and do not write introduction text.
+      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown formatting or wrap your answer in triple backticks.
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Direct HTTP request to avoid broken WebSocket/SDK local container wrappers
+    // Direct isolated HTTP POST request bypasses flaky client SDK container wrappers entirely
     const puterResponse = await axios.post(
       'https://api.puter.com/v1/ai/chat',
       {
@@ -495,16 +495,15 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     }
 
     if (!rawText) {
-      throw new Error("No response payload text returned from Puter AI services.");
+      throw new Error("Empty response payload payload from Puter cloud service.");
     }
     
-    // Clean up markdown code blocks if the model ignores strict formatting rules
+    // Scrape clean JSON data out of raw text blocks if markdown filters leak
     if (rawText.includes("```")) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) rawText = jsonMatch[0];
     }
 
-    // Isolate structural bracket boundaries to guarantee a clean JSON parse object
     const startBracket = rawText.indexOf('{');
     const endBracket = rawText.lastIndexOf('}');
     if (startBracket !== -1 && endBracket !== -1) {
@@ -515,9 +514,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    console.error("Puter AI Assistant Error:", err.message);
+    console.error("❌ Puter AI Direct Integration Proxy Error:", err.message);
     
-    // Fallback block layout to guarantee frontend mapping loops never break
+    // Safe standard JSON response layout structure back to your form
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
