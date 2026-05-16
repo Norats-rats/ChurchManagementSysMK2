@@ -38,7 +38,7 @@ getAnnouncement: () => apiClient.get('/api/settings/announcement'),
   updateEvent: (id, eventData) => apiClient.put(`/api/events/${id}`, eventData), 
   archiveEvent: (id) => apiClient.patch(`/api/events/${id}/archive`),
   toggleEventAttendance: (eventId, userId) => 
-    apiClient.post(`/api/events/${eventId}/toggle-attendance`, { userId }),
+  apiClient.post(`/api/events/${eventId}/toggle-attendance`, { userId }),
 
   // Attendance
   getAttendance: () => apiClient.get('/api/attendance'),

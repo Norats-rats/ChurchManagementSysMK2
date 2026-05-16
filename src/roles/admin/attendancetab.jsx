@@ -137,8 +137,8 @@ const styles = {
   eventDetail: { color: '#64748b', fontSize: '14px' },
   noEventCard: { padding: '40px', background: '#f1f5f9', borderRadius: '20px', color: '#475569', border: '2px dashed #cbd5e1' },
   statusCard: (done) => ({
-    background: done ? '#059669' : '#2563eb', // Solid bold background
-    color: '#ffffff', // White text for high contrast
+    background: done ? '#059669' : '#2563eb', 
+    color: '#ffffff', 
     padding: '60px 30px', 
     borderRadius: '32px', 
     textAlign: 'center', 

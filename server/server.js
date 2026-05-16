@@ -5,9 +5,12 @@ const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
+// --- 1. PUTER.JS INITIALIZATION ---
+// This initializes Puter using your secure token via CJS bindings for backend Node environments
+const { init } = require("@heyputer/puter.js/src/init.cjs");
+const puter = init(process.env.PUTER_AUTH_TOKEN);
 
 const app = express();
-
 app.use(express.json());
 
 app.use(cors({
@@ -34,7 +37,6 @@ const SettingSchema = new mongoose.Schema({
 });
 
 const Setting = mongoose.model('Setting', SettingSchema);
-
 
 const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
   try {
@@ -68,11 +70,11 @@ const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
   }
 };
 
-
 mongoose.connect(mongoURI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
+// --- SCHEMAS & MODELS ---
 const Member = mongoose.model('members', new mongoose.Schema({
   firstName: String,
   lastName: String,
@@ -139,12 +141,11 @@ const Transaction = mongoose.model('transactions', new mongoose.Schema({
   userId: { type: String }
 }, { timestamps: true }));
 
-
 app.get('/', (req, res) => {
   res.send('Church Management API is Online and Running');
 });
 
-// AUTH ROUTES
+// --- AUTH ROUTES ---
 app.post('/register', async (req, res) => {
   try {
     const { firstName, lastName, email, password } = req.body;
@@ -163,27 +164,22 @@ app.post('/register', async (req, res) => {
     await sendOTPEmail(email, generatedOtp, firstName);
 
     res.status(201).json({ message: "Verification code sent!" });
-} catch (err) {
+  } catch (err) {
     console.error("Detailed Register Error:", err);
     res.status(400).json({ error: err.message });
-}
+  }
 });
-
-
 
 app.post('/verify-otp', async (req, res) => {
   const { email, otp } = req.body;
   try {
     const user = await Member.findOne({ email: email.trim(), otp: otp.trim() });
-
     if (!user) {
       return res.status(400).json({ success: false, message: "Invalid OTP code" });
     }
-
     user.isVerified = true;
     user.status = 'Active';
     await user.save();
-
     res.json({ success: true, message: "Account verified successfully" });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -245,7 +241,7 @@ app.post('/reset-password', async (req, res) => {
   }
 });
 
-// MINISTRY ROUTES
+// --- MINISTRY ROUTES ---
 app.post('/api/ministries', async (req, res) => {
   try {
     const newMin = new Ministry(req.body);
@@ -275,9 +271,7 @@ app.delete('/api/ministries/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-
-
-// MEMBER ROUTES
+// --- MEMBER ROUTES ---
 app.get('/api/members', async (req, res) => {
   try {
     const members = await Member.find().sort({ date: -1 });
@@ -313,7 +307,7 @@ app.delete('/api/members/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Failed to delete" }); }
 });
 
-// ATTENDANCE & EVENTS
+// --- ATTENDANCE & EVENTS ---
 app.get('/api/attendance', async (req, res) => {
   try {
     const records = await Attendance.find().sort({ createdAt: -1 });
@@ -335,7 +329,6 @@ app.post('/api/events/:id/toggle-attendance', async (req, res) => {
   try {
     const { userId } = req.body;
     const event = await Event.findById(req.params.id);
-    
     if (!event) return res.status(404).send("Event not found");
 
     const index = event.attendees.indexOf(userId);
@@ -360,7 +353,6 @@ app.post('/api/events', async (req, res) => {
       const standardSlots = ["08:00 AM", "10:00 AM", "01:00 PM", "03:00 PM", "05:00 PM"];
       const bookedEvents = await Event.find({ date, room });
       const bookedTimes = bookedEvents.map(e => e.time);
-      
       const suggestions = standardSlots.filter(slot => !bookedTimes.includes(slot));
 
       return res.status(409).json({ 
@@ -386,6 +378,7 @@ app.get('/api/events', async (req, res) => {
     res.status(500).json({ error: "Failed to fetch events" });
   }
 });
+
 app.put('/api/events/:id', async (req, res) => {
   try {
     const updatedEvent = await Event.findByIdAndUpdate(
@@ -413,7 +406,7 @@ app.patch('/api/events/:id/archive', async (req, res) => {
   }
 });
 
-// PRAYER ROUTES
+// --- PRAYER ROUTES ---
 app.get('/api/prayers', async (req, res) => { 
   try {
     const prayers = await Prayer.find().sort({ date: -1 });
@@ -429,6 +422,7 @@ app.post('/api/prayers', async (req, res) => {
     res.status(201).json(newPrayer);
   } catch (err) { res.status(400).json({ error: "Error" }); }
 });
+
 app.patch('/api/prayers/:id/pray', async (req, res) => {
   try {
     const updated = await Prayer.findByIdAndUpdate(
@@ -451,8 +445,7 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
   } catch (err) { res.status(400).json({ error: "Failed" }); }
 });
 
-
-
+// --- SETTINGS ROUTES ---
 app.get('/api/settings/announcement', async (req, res) => {
   const ann = await Setting.findOne({ key: 'announcement' });
   res.json({ text: ann ? ann.value : "Welcome to the Fellowship!" });
@@ -467,7 +460,49 @@ app.post('/api/settings/announcement', async (req, res) => {
   res.json({ success: true });
 });
 
+// --- INTEGRATED PUTER.JS AI ROUTE ---
+app.post('/api/ai/analyze-schedule', async (req, res) => {
+  try {
+    const { userRequest, currentEvents } = req.body;
+    
+    if (!process.env.PUTER_AUTH_TOKEN) {
+      return res.status(500).json({ error: "PUTER_AUTH_TOKEN is not defined in environment variables." });
+    }
 
+    const prompt = `
+      You are a Church Event Assistant. 
+      User Request: "${userRequest}"
+      Existing Events: ${JSON.stringify(currentEvents)}
+      
+      Task: Based on the existing events, suggest a date, time, and room that doesn't clash. 
+      Return ONLY a JSON object format: { "suggestion": "string", "reason": "string" }
+    `;
+
+    console.log("Requesting schedule analysis from Puter AI (Gemini 2.5 Flash)...");
+    
+    // Puter manages the API routing securely, calling standard cloud models via your access token.
+    const response = await puter.ai.chat(prompt, { model: 'google/gemini-2.5-flash' });
+    
+    // Extract textual data safely from Puter's message content schema
+    const rawText = response.message.content.toString();
+
+    // REGEX protection: strips conversational text/markdown backticks and strictly captures the valid JSON payload
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("AI response did not contain a valid JSON block");
+    }
+
+    const parsedData = JSON.parse(jsonMatch[0]);
+    res.json(parsedData);
+
+  } catch (err) {
+    console.error("Puter AI Assistant Route Error:", err.message);
+    res.status(500).json({ 
+      error: "AI Assistant failed to process request", 
+      details: err.message 
+    });
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
