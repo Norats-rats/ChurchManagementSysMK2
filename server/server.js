@@ -452,7 +452,6 @@ app.post('/api/settings/announcement', async (req, res) => {
  });
 
 // --- AI ROUTE ---
-// --- AI ROUTE ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
@@ -471,10 +470,10 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIX: Use txt2txt with properties matching Puter's core schema
+    // ✅ FIX: Switched from the unrecognized string to the standard 'gpt-4o' or 'claude-3-5-sonnet' key
     const rawText = await puter.ai.txt2txt({
       prompt: prompt,
-      model: 'claude-3-5-sonnet'
+      model: 'gpt-4o'
     });
     
     console.log("Raw Puter AI Response:", rawText);
@@ -485,7 +484,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
 
     let cleanJsonString = rawText.trim();
     
-    // Clean up markdown code fence backticks if the model ignores instructions
+    // Safety Net: Strip out markdown backticks if the model ignores the prompt layout
     if (cleanJsonString.startsWith("```")) {
       cleanJsonString = cleanJsonString.replace(/^```json/, "").replace(/^```/, "").replace(/```$/, "").trim();
     }

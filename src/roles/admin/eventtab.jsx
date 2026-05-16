@@ -60,6 +60,7 @@ const EventTab = ({ role, userId }) => {
   };
 
   // --- 1. HANDLE AI SUGGESTION ROUTING ---
+// --- 1. HANDLE AI SUGGESTION ROUTING ---
   const handleAIRecommendation = async () => {
     if (!formData.reservationName) {
       alert('Please enter a Booking/Reservation Name first!');
@@ -79,8 +80,10 @@ const EventTab = ({ role, userId }) => {
       setAiSuggestion(response.data);
     } catch (e) {
       console.error('AI Integration Error:', e);
+      // Grabs detailed response message if your server catches an issue
       const errMsg = e.response?.data?.error || 'AI Assistant unavailable right now.';
-      alert(`AI Error: ${errMsg}`);
+      const details = e.response?.data?.details ? ` (${e.response.data.details})` : '';
+      alert(`AI Error: ${errMsg}${details}`);
     } finally {
       setAiLoading(false);
     }
