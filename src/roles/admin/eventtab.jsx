@@ -1,3 +1,4 @@
+import axios from 'axios'; // ✅ Added to support direct API routing
 import { useEffect, useState } from 'react';
 import api from '../../api';
 
@@ -8,7 +9,7 @@ const EventTab = ({ role, userId }) => {
   const [sortOrder, setSortOrder] = useState('nearest'); 
   
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState(null); // Will hold { suggestion: "...", reason: "..." }
+  const [aiSuggestion, setAiSuggestion] = useState(null); // Holds { suggestion: "...", reason: "..." }
 
   const [formData, setFormData] = useState({
     titleSelection: 'Worship Service', 
@@ -59,27 +60,27 @@ const EventTab = ({ role, userId }) => {
   };
 
   // --- 1. HANDLE AI SUGGESTION ROUTING ---
-const handleAIRecommendation = async () => {
-    if (!newEvent.reservationName) {
+  const handleAIRecommendation = async () => {
+    if (!formData.reservationName) {
       alert('Please enter a Booking/Reservation Name first!');
       return;
     }
 
-    setIsAiLoading(true);
-    setAiRecommendation(null);
+    setAiLoading(true);
+    setAiSuggestion(null);
     try {
-      // ✅ FIX: Call your actual backend route directly via Axios
-      const response = await axios.post('[https://church-management-app.lancemanemail.workers.dev/api/ai/analyze-schedule](https://church-management-app.lancemanemail.workers.dev/api/ai/analyze-schedule)', {
-        userRequest: `Schedule a ${newEvent.titleSelection || newEvent.title} for ${newEvent.reservationName}`,
+      // ✅ Hits your live production route securely via Axios
+      const response = await axios.post('https://church-management-app.lancemanemail.workers.dev/api/ai/analyze-schedule', {
+        userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
         currentEvents: events
       });
       
-      setAiRecommendation(response.data);
+      setAiSuggestion(response.data);
     } catch (e) {
       console.error('AI Integration Error:', e);
       alert('AI Assistant unavailable right now.');
     } finally {
-      setIsAiLoading(false);
+      setAiLoading(false);
     }
   };
 
@@ -87,7 +88,6 @@ const handleAIRecommendation = async () => {
     if (!aiSuggestion || !aiSuggestion.suggestion) return;
 
     const dateMatch = aiSuggestion.suggestion.match(/\d{4}-\d{2}-\d{2}/);
-    
     const timeMatch = aiSuggestion.suggestion.match(/(0\d|1[0-2]):[0-5]\d\s?(AM|PM)/i);
 
     const roomKeywords = ["Sanctuary", "Main Hall", "Room A", "Room B", "Fellowship Hall", "Youth Room", "Chapel"];
@@ -185,7 +185,6 @@ const handleAIRecommendation = async () => {
     attendBtn: (isAttending) => ({ 
       width: '100%', padding: '8px', backgroundColor: isAttending ? '#ef4444' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px'
     }),
-    // --- 3. STYLES FOR THE DISCOVERED SUGGESTIONS CONTAINER ---
     suggestionPanel: {
       marginTop: '15px',
       padding: '12px',
@@ -247,7 +246,7 @@ const handleAIRecommendation = async () => {
             <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
               <button type="submit" style={styles.submitBtn}>{editingId ? "Update Event" : "Create Event"}</button>
               {!editingId && (
-                <button type="button" onClick={handleAiSuggest} disabled={aiLoading} style={styles.aiBtn}>
+                <button type="button" onClick={handleAIRecommendation} disabled={aiLoading} style={styles.aiBtn}>
                   {aiLoading ? "Thinking..." : "✨ AI Suggest"}
                 </button>
               )}
@@ -255,7 +254,6 @@ const handleAIRecommendation = async () => {
             </div>
           </form>
 
-          {/* --- 4. DISPLAY PANEL FOR COMPLETED PUTER AI SUGGESTIONS --- */}
           {aiSuggestion && (
             <div style={styles.suggestionPanel}>
               <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>💡 AI Recommendation:</div>
