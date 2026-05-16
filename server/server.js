@@ -464,10 +464,6 @@ app.post('/api/settings/announcement', async (req, res) => {
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
-    
-    if (!process.env.PUTER_AUTH_TOKEN) {
-      return res.status(500).json({ error: "PUTER_AUTH_TOKEN is not defined in environment variables." });
-    }
 
     const prompt = `
       You are a Church Event Assistant. 
@@ -475,32 +471,21 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Existing Events: ${JSON.stringify(currentEvents)}
       
       Task: Based on the existing events, suggest a date, time, and room that doesn't clash. 
-      Return ONLY a JSON object format: { "suggestion": "string", "reason": "string" }
+      Return ONLY a clean JSON object. Do not include markdown backticks.
+      Expected format: { "suggestion": "string", "reason": "string" }
     `;
 
-    console.log("Requesting schedule analysis from Puter AI (Gemini 2.5 Flash)...");
+    // Puter routes this automatically to a model (like gemini-2.5-flash) safely!
+    const rawText = await puter.ai.chat(prompt, { model: 'google/gemini-2.5-flash' });
     
-    // Puter manages the API routing securely, calling standard cloud models via your access token.
-    const response = await puter.ai.chat(prompt, { model: 'google/gemini-2.5-flash' });
-    
-    // Extract textual data safely from Puter's message content schema
-    const rawText = response.message.content.toString();
-
-    // REGEX protection: strips conversational text/markdown backticks and strictly captures the valid JSON payload
+    // Clean up response strings safely 
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("AI response did not contain a valid JSON block");
-    }
-
-    const parsedData = JSON.parse(jsonMatch[0]);
+    const parsedData = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
+    
     res.json(parsedData);
-
   } catch (err) {
-    console.error("Puter AI Assistant Route Error:", err.message);
-    res.status(500).json({ 
-      error: "AI Assistant failed to process request", 
-      details: err.message 
-    });
+    console.error("Puter Error:", err.message);
+    res.status(500).json({ error: "AI Assistant failed" });
   }
 });
 
