@@ -453,12 +453,13 @@ app.post('/api/settings/announcement', async (req, res) => {
 
 // --- AI ROUTE ---
 // --- AI ROUTE ---
+// --- AI ROUTE ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
+      return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable on Railway." });
     }
 
     const prompt = `
@@ -466,12 +467,12 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       User Request: "${userRequest}"
       Existing Events: ${JSON.stringify(currentEvents)}
       
-      Task: Based on the existing events, suggest a date, time, and room that doesn't clash. 
-      Return ONLY a clean JSON object without markdown formatting wrappers or backticks.
-      Expected format exactly: { "suggestion": "string", "reason": "string" }
+      Task: Suggest a non-clashing date, time, and room.
+      Strict Requirement: You must return ONLY a raw JSON block. No markdown, no triple backticks (\`\`\`), no conversational intro text.
+      Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIX: Use the baseline accepted 'claude-3-5-sonnet' or 'gpt-4o' models natively optimized on Puter's core stack
+    // Calling Puter SDK
     const rawText = await puter.ai.txt2txt({
       prompt: prompt,
       model: 'claude-3-5-sonnet' 
@@ -480,25 +481,28 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     console.log("Raw Puter AI Response:", rawText);
 
     if (!rawText) {
-      return res.status(500).json({ error: "Empty response received from AI model." });
+      return res.status(500).json({ error: "No text returned from the AI platform." });
     }
 
+    // Advanced cleaning block to extract ONLY the JSON structure out of text strings
     let cleanJsonString = rawText.trim();
     
-    // Clean up any stray markdown wrappers if the model returns them
-    if (cleanJsonString.includes("```")) {
-      const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
-      if (jsonMatch) cleanJsonString = jsonMatch[0];
+    const startBracket = cleanJsonString.indexOf('{');
+    const endBracket = cleanJsonString.lastIndexOf('}');
+    
+    if (startBracket !== -1 && endBracket !== -1) {
+      cleanJsonString = cleanJsonString.substring(startBracket, endBracket + 1);
     }
 
+    // Send it back as genuine, raw JSON
     const parsedData = JSON.parse(cleanJsonString);
     return res.json(parsedData);
 
   } catch (err) {
     console.error("Puter AI Assistant Error:", err.message);
-    // ✅ FIX: Force the error catch block to ALWAYS return valid JSON format 
+    // ✅ CRITICAL SAFETY: Ensuring an error ALWAYS returns a formal JSON response structure instead of an unhandled string crash
     return res.status(500).json({ 
-      error: "AI Assistant failed to generate recommendation", 
+      error: "AI Generation Process Failed", 
       details: err.message 
     });
   }

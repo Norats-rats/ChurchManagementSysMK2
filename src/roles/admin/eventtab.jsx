@@ -60,6 +60,7 @@ const EventTab = ({ role, userId }) => {
   };
 
   // --- 1. HANDLE AI SUGGESTION ROUTING ---
+// --- 1. HANDLE AI SUGGESTION ROUTING ---
   const handleAIRecommendation = async () => {
     if (!formData.reservationName) {
       alert('Please enter a Booking/Reservation Name first!');
@@ -69,8 +70,10 @@ const EventTab = ({ role, userId }) => {
     setAiLoading(true);
     setAiSuggestion(null);
     try {
-      // ✅ Hits your live production route securely via Axios
-      const response = await axios.post('https://church-management-app.lancemanemail.workers.dev/api/ai/analyze-schedule', {
+      // ✅ FIX: Get the API base URL from your environment variables cleanly 
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      
+      const response = await axios.post(`${baseUrl}/api/ai/analyze-schedule`, {
         userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
         currentEvents: events
       });
@@ -78,7 +81,9 @@ const EventTab = ({ role, userId }) => {
       setAiSuggestion(response.data);
     } catch (e) {
       console.error('AI Integration Error:', e);
-      alert('AI Assistant unavailable right now.');
+      // Access the exact backend error message if available
+      const errMsg = e.response?.data?.error || 'AI Assistant unavailable right now.';
+      alert(`AI Error: ${errMsg}`);
     } finally {
       setAiLoading(false);
     }
