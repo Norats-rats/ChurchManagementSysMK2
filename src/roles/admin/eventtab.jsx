@@ -59,35 +59,30 @@ const EventTab = ({ role, userId }) => {
   };
 
 const handleAIRecommendation = async () => {
-    if (!formData.reservationName) {
-      alert('Please enter a Booking/Reservation Name first!');
-      return;
-    }
+  if (!formData.reservationName) {
+    alert('Please enter a Booking/Reservation Name first!');
+    return;
+  }
 
-    setAiLoading(true);
-    setAiSuggestion(null);
-    try {
-      // Clean up the base URL dynamically to eliminate any trailing slash typos
-      let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      if (baseUrl.endsWith('/')) {
-        baseUrl = baseUrl.slice(0, -1);
-      }
-      
-      const response = await axios.post(`${baseUrl}/api/ai/analyze-schedule`, {
-        userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
-        currentEvents: events
-      });
-      
-      setAiSuggestion(response.data);
-    } catch (e) {
-      console.error('AI Integration Error:', e);
-      const errMsg = e.response?.data?.error || 'AI Assistant unavailable right now.';
-      const details = e.response?.data?.message ? ` (${e.response.data.message})` : '';
-      alert(`AI Error: ${errMsg}${details}`);
-    } finally {
-      setAiLoading(false);
-    }
-  };
+  setAiLoading(true);
+  setAiSuggestion(null);
+  try {
+    // Using the structured API module prevents mismatching base URLs!
+    const response = await api.analyzeSchedule({
+      userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
+      currentEvents: events
+    });
+
+    setAiSuggestion(response.data);
+  } catch (e) {
+    console.error('AI Integration Error:', e);
+    const errMsg = e.response?.data?.error || 'AI Assistant unavailable right now.';
+    alert(`AI Error: ${errMsg}`);
+  } finally {
+    setAiLoading(false);
+  }
+};
+
   const applyAiValues = () => {
     if (!aiSuggestion || !aiSuggestion.suggestion) return;
 
