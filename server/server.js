@@ -5,7 +5,6 @@ const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-// ✅ FIX: Correct Puter Node.js SDK initialization
 const puter = require("@heyputer/puter.js");
 puter.authToken = process.env.PUTER_AUTH_TOKEN;
 
@@ -452,9 +451,6 @@ app.post('/api/settings/announcement', async (req, res) => {
  });
 
 // --- AI ROUTE ---
-// ==========================================================
-// 🚀 PRODUCTION AI ROUTE: OPENAI CLIENT + PUTER API ROUTING
-// ==========================================================
 const { OpenAI } = require('openai');
 
 app.post('/api/ai/analyze-schedule', async (req, res) => {
@@ -462,7 +458,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN environment variable.");
+      console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN inside environment variables.");
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
     }
 
@@ -476,42 +472,23 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIXED: Using Puter's direct official native feature endpoint mapping
-    const puterResponse = await axios.post(
-      'https://api.puter.com/v1/ai/chat',
-      {
-        // Native Puter payload format expects standard array messaging layout
-        messages: [{ role: 'user', content: prompt }],
-        // Puter natively uses standard model keys like 'gpt-4o-mini' or 'claude-3-5-sonnet'
-        model: 'gpt-4o-mini'
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    // ✅ FIXED: Native Puter structure wraps text inside response.data.message.content
-    let rawText = "";
-    if (puterResponse.data?.message?.content) {
-      rawText = puterResponse.data.message.content.toString().trim();
-    } else if (puterResponse.data?.choices?.[0]?.message?.content) {
-      rawText = puterResponse.data.choices[0].message.content.toString().trim();
-    }
+    // ✅ Using the official SDK chat abstraction 
+    // We use 'gpt-4o-mini' as it's highly stable under Puter's ecosystem rules
+    const sdkResponse = await puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
+    
+    let rawText = sdkResponse ? sdkResponse.toString().trim() : "";
 
     if (!rawText) {
-      throw new Error("No response content payload returned from Puter AI gateway.");
+      throw new Error("Puter SDK returned an empty string or null payload response.");
     }
     
-    // Clean up markdown syntax code blocks if the model appends backticks anyway
+    // Clean up markdown block fences if the model ignores the prompt layout
     if (rawText.includes("```")) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) rawText = jsonMatch[0];
     }
 
-    // Isolate structural bracket boundaries to guarantee a clean JSON parse object
+    // Isolate strict bracket bounds to secure a clean JSON structure
     const startBracket = rawText.indexOf('{');
     const endBracket = rawText.lastIndexOf('}');
     if (startBracket !== -1 && endBracket !== -1) {
@@ -522,10 +499,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    // This will print the precise underlying response error payload to your Railway console dashboard
-    console.error("❌ Puter AI Direct Native Proxy Error:", err.response ? err.response.data : err.message);
+    console.error("❌ Puter SDK Handler Error Details:", err.message);
     
-    // Maintain a safe fallback so the frontend interface state can map beautifully without stalling out
+    // Smooth fallback block so your frontend interface components always remain stable
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
