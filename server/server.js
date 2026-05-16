@@ -453,6 +453,9 @@ app.post('/api/settings/announcement', async (req, res) => {
 // --- AI ROUTE ---
 const { OpenAI } = require('openai');
 
+// ==========================================================
+// 🚀 FIXED: CORRECT INTERNAL PUTER INITIALIZATION ROUTE
+// ==========================================================
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
