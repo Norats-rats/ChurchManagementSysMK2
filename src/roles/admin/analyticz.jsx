@@ -4,27 +4,13 @@ import api from '../../api';
 
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
-  const [aiInsight, setAiInsight] = useState("");
+  const [aiInsight, setAiInsight] = useState("Generating live machine learning overview...");
   const [dbStats, setDbStats] = useState({
     totalMembers: 0,
     activeMinistries: 0,
     upcomingEvents: 0,
     ministryDistribution: []
   });
-
-  const generateSystemInsights = (stats) => {
-    const growthTrend = stats.totalMembers > 20 ? "rapidly expanding" : "consistently growing";
-    
-    const recommendation = stats.upcomingEvents < 3 
-      ? "increasing event frequency to maintain member engagement" 
-      : "focusing on volunteer retention for the high volume of upcoming activities";
-
-    const ministryStatus = stats.activeMinistries > 0 
-      ? `distributed across ${stats.activeMinistries} specialized ministries` 
-      : "currently centralizing operations";
-
-    return `System Analysis: The congregation is ${growthTrend}, with activities ${ministryStatus}. To optimize further, we suggest ${recommendation}.`;
-  };
 
   const fetchLiveAnalytics = async () => {
     try {
@@ -53,10 +39,18 @@ const Analytics = () => {
       };
 
       setDbStats(newStats);
-      
-      setAiInsight(generateSystemInsights(newStats));
-      
       setLoading(false);
+      try {
+        const aiResponse = await api.analyzeMetrics(newStats);
+        if (aiResponse.data && aiResponse.data.insight) {
+          setAiInsight(aiResponse.data.insight);
+        }
+      } catch (aiErr) {
+        console.error("Live AI Generation fallback triggered:", aiErr);
+        const growthTrend = newStats.totalMembers > 20 ? "rapidly expanding" : "consistently growing";
+        setAiInsight(`System Analysis: The congregation is ${growthTrend}. Review current event timelines manually to ensure specialized growth.`);
+      }
+
     } catch (err) {
       console.error("Analytics fetch error:", err);
       setLoading(false);
@@ -95,7 +89,7 @@ const Analytics = () => {
       ...dbStats.ministryDistribution.map(d => ({ Metric: `${d.name} Share`, Value: `${d.value}%` }))
     ]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Church_Analytics");
+    XLSUtils.book_append_sheet(wb, ws, "Church_Analytics");
     XLSX.writeFile(wb, "Live_Church_Analytics.xlsx");
   };
 
@@ -140,13 +134,14 @@ const Analytics = () => {
 
         <div style={styles.insightCard}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
-            <span style={{ fontSize: '24px' }}>📊</span>
-            <h3 style={{ margin: 0, color: '#1e40af' }}>Automated Insights</h3>
+            <span style={{ fontSize: '24px' }}>✨</span>
+            <h3 style={{ margin: 0, color: '#1e40af' }}>Live AI System Insights</h3>
           </div>
-          <p style={{ fontSize: '16px', color: '#334155', lineHeight: '1.7', fontStyle: 'italic' }}>
+          <p style={{ fontSize: '15px', color: '#334155', lineHeight: '1.7', fontStyle: 'italic' }}>
             "{aiInsight}"
           </p>
           <div style={{ marginTop: '20px', fontSize: '11px', color: '#94a3b8', letterSpacing: '1px' }}>
+            REAL-TIME INTELLIGENCE DATA REFRESHED LIVE
           </div>
         </div>
       </div>

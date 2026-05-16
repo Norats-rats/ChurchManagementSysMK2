@@ -12,12 +12,12 @@ const EventTab = ({ role, userId }) => {
 
   const [formData, setFormData] = useState({
     titleSelection: 'Worship Service', 
-    reservationName: '',              
-    category: 'Worship', 
-    date: '', 
-    time: '08:00 AM', 
-    room: '',                                                 
-    type: 'Once', 
+    reservationName: '',
+    category: 'Worship',
+    date: '',
+    time: '08:00 AM',
+    room: '',
+    type: 'Once',
     role: '',
     status: 'active'
   });
@@ -67,23 +67,17 @@ const EventTab = ({ role, userId }) => {
     setAiLoading(true);
     setAiSuggestion(null);
     try {
-      // Send optimization data payload using the centralized API client configurations
       const response = await api.analyzeSchedule({
         userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
         currentEvents: events
       });
-      
-      // Map server response payload data safely to client layout structures
       setAiSuggestion(response.data);
     } catch (err) {
-      // ✅ FIXED: Safely handling errors in React without using backend Express objects
       if (err.response) {
         console.error("❌ Puter Cloud API Rejected Request:", err.response.status, err.response.data);
       } else {
         console.error("❌ Network/System Error:", err.message);
       }
-      
-      // Render a fallback layout within the UI panel container gracefully
       setAiSuggestion({
         suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
         reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
