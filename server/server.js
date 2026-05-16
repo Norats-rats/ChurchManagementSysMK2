@@ -472,9 +472,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIXED ENDPOINT: Changed domain to 'ai.puter.com' to point to the correct LLM routing infrastructure
+    // ✅ FIXED ROUTE: Formatted using Puter's exact official proxy endpoint string path
     const httpResponse = await axios.post(
-      'https://ai.puter.com/v1/chat/completions',
+      'https://api.puter.com/puterai/openai/v1/chat/completions',
       {
         messages: [{ role: 'user', content: prompt }],
         model: 'gpt-4o-mini'
@@ -487,7 +487,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       }
     );
 
-    // ✅ FIXED EXTRACTION: Read choices mapping safely
+    // Read response text safely out of standard OpenAI choices schema structure
     let rawText = httpResponse.data?.choices?.[0]?.message?.content || "";
 
     if (!rawText) {
@@ -515,13 +515,14 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    // If the error response contains HTML text instead of JSON, print out clean error strings
+    // If the gateway throws an error, strip any HTML tags out cleanly so your console log is readable
     const detailedError = err.response && typeof err.response.data === 'string' 
-      ? err.response.data.replace(/<[^>]*>/g, '') 
+      ? err.response.data.replace(/<[^>]*>/g, '').trim() 
       : (err.response ? JSON.stringify(err.response.data) : err.message);
 
     console.error("❌ Puter AI Assistant Error Route:", detailedError);
     
+    // Return structured default object block mapping so frontend processing loops don't freeze
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${detailedError})`
