@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const { init } = require("@heyputer/puter.js/src/init.cjs");
-puter.authToken = process.env.PUTER_AUTH_TOKEN;
+const puter = init(process.env.PUTER_AUTH_TOKEN);
 
 const app = express();
 app.use(express.json());
