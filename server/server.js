@@ -355,7 +355,7 @@ app.post('/api/events', async (req, res) => {
     await newEvent.save();
     res.status(201).json(newEvent);
   } catch (err) {
-    res.status(400).json({ error: "Failed to create event" });
+    doc.status(400).json({ error: "Failed to create event" });
   }
 });
 
@@ -392,7 +392,7 @@ app.patch('/api/events/:id/archive', async (req, res) => {
     );
     res.json(updatedEvent);
   } catch (err) {
-    doc.status(400).json({ error: "Failed to archive event" });
+    res.status(400).json({ error: "Failed to archive event" });
   }
 });
 
@@ -448,19 +448,11 @@ app.post('/api/settings/announcement', async (req, res) => {
     { upsert: true }
   );
   res.json({ success: true });
- });
+});
 
 // --- AI ROUTE ---
-const { OpenAI } = require('openai');
-
 // ==========================================================
-// 🚀 FIXED: PRODUCTION-READY NATIVE PUTER AI ROUTE
-// ==========================================================
-// ==========================================================
-// 🚀 FIXED: BULLETPROOF NATIVE PUTER SERVICE INTERFACE
-// ==========================================================
-// ==========================================================
-// 🚀 FIXED: CORRECT BACKEND CONTENT EXTRACTION ROUTE
+// 🚀 FIXED: CLEAN DIRECT HTTP PUTER API CONNECT ENGINE
 // ==========================================================
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
@@ -481,53 +473,31 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    puter.authToken = process.env.PUTER_AUTH_TOKEN;
-
-    let sdkResponse = null;
-
-    // Execute the active Puter pattern
-    if (puter.ai && typeof puter.ai.chat === 'function') {
-      console.log("Using puter.ai.chat pattern...");
-      sdkResponse = await puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
-    } else if (typeof puter.chat === 'function') {
-      console.log("Using puter.chat pattern...");
-      sdkResponse = await puter.chat(prompt, { model: 'gpt-4o-mini' });
-    } else {
-      console.log("SDK functions unavailable, routing via HTTP gateway fallback...");
-      const httpFallback = await axios.post(
-        'https://api.puter.com/v1/ai/chat',
-        {
-          messages: [{ role: 'user', content: prompt }],
-          model: 'gpt-4o-mini'
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
-            'Content-Type': 'application/json'
-          }
+    // ✅ FIXED: Using Puter's direct official microservice endpoint. 
+    // This bypasses their broken SDK internal URLs completely.
+    const httpResponse = await axios.post(
+      'https://api.puter.com/v1/ai/chat',
+      {
+        messages: [{ role: 'user', content: prompt }],
+        model: 'gpt-4o-mini'
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
+          'Content-Type': 'application/json'
         }
-      );
-      sdkResponse = httpFallback.data;
-    }
+      }
+    );
 
-    if (!sdkResponse) {
-      return res.status(500).json({ error: "No response returned from Puter." });
-    }
+    // Pull the clean text string directly out of Puter's server data response map
+    let rawText = httpResponse.data?.message?.content || "";
 
-    // ✅ FIXED: Safely extract text contents depending on whether it's a string, message object, or fallback nested object
-    let rawText = "";
-    if (typeof sdkResponse === 'string') {
-      rawText = sdkResponse;
-    } else if (sdkResponse.message && sdkResponse.message.content) {
-      rawText = sdkResponse.message.content.toString();
-    } else if (sdkResponse.text) {
-      rawText = sdkResponse.text.toString();
-    } else {
-      rawText = JSON.stringify(sdkResponse);
+    if (!rawText) {
+      throw new Error("No payload text contents returned from Puter HTTP gateway.");
     }
 
     rawText = rawText.trim();
-    console.log("Successfully extracted text payload from Puter Object:", rawText);
+    console.log("Extracted text payload:", rawText);
 
     // Clean up markdown code blocks if the engine outputs backticks anyway
     if (rawText.includes("```")) {
@@ -547,7 +517,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    console.error("❌ Puter AI Assistant Error Route:", err.message);
+    console.error("❌ Puter AI Assistant Error Route:", err.response ? JSON.stringify(err.response.data) : err.message);
     
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
