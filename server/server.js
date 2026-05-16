@@ -512,7 +512,22 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     }
 
     const parsedData = JSON.parse(rawText);
-    return res.json(parsedData);
+
+    // ✅ FIX THE BLANK SCREEN: Normalize the shape before returning to the frontend.
+    // If Puter returns 'suggestion' as an object instead of a string, flatten it out nicely!
+    let finalizedSuggestion = "";
+    if (parsedData.suggestion && typeof parsedData.suggestion === 'object') {
+      const s = parsedData.suggestion;
+      finalizedSuggestion = `Suggested Schedule: Date: ${s.date || ''}, Time: ${s.time || ''}, Room: ${s.room || ''}`;
+    } else {
+      finalizedSuggestion = parsedData.suggestion || "No specific suggestion text generated.";
+    }
+
+    // Return the exact flat string format your frontend is configured to render safely
+    return res.json({
+      suggestion: finalizedSuggestion,
+      reason: parsedData.reason || "No conflict detected for this slot."
+    });
 
   } catch (err) {
     // If the gateway throws an error, strip any HTML tags out cleanly so your console log is readable
