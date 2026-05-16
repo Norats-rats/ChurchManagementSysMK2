@@ -1,4 +1,4 @@
-import axios from 'axios'; // ✅ Added to support direct API routing
+import axios from 'axios';
 import { useEffect, useState } from 'react';
 import api from '../../api';
 
@@ -9,7 +9,7 @@ const EventTab = ({ role, userId }) => {
   const [sortOrder, setSortOrder] = useState('nearest'); 
   
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState(null); // Holds { suggestion: "...", reason: "..." }
+  const [aiSuggestion, setAiSuggestion] = useState(null); 
 
   const [formData, setFormData] = useState({
     titleSelection: 'Worship Service', 
@@ -59,7 +59,7 @@ const EventTab = ({ role, userId }) => {
     return groups;
   };
 
-// --- 1. HANDLE AI SUGGESTION ROUTING ---
+  // --- 1. HANDLE AI SUGGESTION ROUTING ---
   const handleAIRecommendation = async () => {
     if (!formData.reservationName) {
       alert('Please enter a Booking/Reservation Name first!');
@@ -69,7 +69,6 @@ const EventTab = ({ role, userId }) => {
     setAiLoading(true);
     setAiSuggestion(null);
     try {
-      // ✅ Dynamically pulls your base URL configurations cleanly
       const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       
       const response = await axios.post(`${baseUrl}/api/ai/analyze-schedule`, {
@@ -249,7 +248,6 @@ const EventTab = ({ role, userId }) => {
             <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
               <button type="submit" style={styles.submitBtn}>{editingId ? "Update Event" : "Create Event"}</button>
               {!editingId && (
-                /* ✅ FIX: Corrected to call handleAIRecommendation */
                 <button type="button" onClick={handleAIRecommendation} disabled={aiLoading} style={styles.aiBtn}>
                   {aiLoading ? "Thinking..." : "✨ AI Suggest"}
                 </button>

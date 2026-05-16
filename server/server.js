@@ -471,35 +471,26 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Call Puter AI Chat
-    const aiResponse = await puter.ai.chat(prompt, 'claude-3-5-sonnet');
+    // ✅ FIX: Use txt2txt with properties matching Puter's core schema
+    const rawText = await puter.ai.txt2txt({
+      prompt: prompt,
+      model: 'claude-3-5-sonnet'
+    });
     
-    console.log("Raw Puter AI Response Object:", aiResponse);
+    console.log("Raw Puter AI Response:", rawText);
 
-    // ✅ FIX: Extract the text string directly from Puter's structured response property
-    let messageText = "";
-    if (typeof aiResponse === 'string') {
-      messageText = aiResponse;
-    } else if (aiResponse && aiResponse.message && aiResponse.message.content) {
-      messageText = aiResponse.message.content;
-    } else if (aiResponse && aiResponse.text) {
-      messageText = aiResponse.text;
-    } else {
-      messageText = JSON.stringify(aiResponse);
+    if (!rawText) {
+      return res.status(500).json({ error: "No text returned from the AI platform." });
     }
 
-    if (!messageText) {
-      return res.status(500).json({ error: "No clear text content found in the AI response." });
-    }
-
-    let cleanJsonString = messageText.trim();
+    let cleanJsonString = rawText.trim();
     
-    // Safety Net: Strip out any accidental markdown triple backticks
+    // Clean up markdown code fence backticks if the model ignores instructions
     if (cleanJsonString.startsWith("```")) {
       cleanJsonString = cleanJsonString.replace(/^```json/, "").replace(/^```/, "").replace(/```$/, "").trim();
     }
 
-    // Isolate the pure JSON dictionary block bounds
+    // Capture outer curly brackets safely
     const startBracket = cleanJsonString.indexOf('{');
     const endBracket = cleanJsonString.lastIndexOf('}');
     
