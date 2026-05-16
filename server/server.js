@@ -462,7 +462,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      console.error("Missing PUTER_AUTH_TOKEN inside your environment variables.");
+      console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN environment variable.");
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
     }
 
@@ -476,13 +476,14 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Direct HTTP call using Puter's exact chat completions endpoint
+    // ✅ FIXED: Using Puter's direct official native feature endpoint mapping
     const puterResponse = await axios.post(
-      'https://api.puter.com/v1/openai/v1/chat/completions',
+      'https://api.puter.com/v1/ai/chat',
       {
+        // Native Puter payload format expects standard array messaging layout
         messages: [{ role: 'user', content: prompt }],
-        model: 'gpt-4o-mini', // Using gpt-4o-mini which is Puter's primary default model string
-        stream: false
+        // Puter natively uses standard model keys like 'gpt-4o-mini' or 'claude-3-5-sonnet'
+        model: 'gpt-4o-mini'
       },
       {
         headers: {
@@ -492,14 +493,19 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       }
     );
 
-    // Extract content from Puter's standard OpenAI structural output payload
-    let rawText = puterResponse.data?.choices?.[0]?.message?.content?.trim() || "";
+    // ✅ FIXED: Native Puter structure wraps text inside response.data.message.content
+    let rawText = "";
+    if (puterResponse.data?.message?.content) {
+      rawText = puterResponse.data.message.content.toString().trim();
+    } else if (puterResponse.data?.choices?.[0]?.message?.content) {
+      rawText = puterResponse.data.choices[0].message.content.toString().trim();
+    }
 
     if (!rawText) {
-      throw new Error("No response text payload returned from Puter AI gateway.");
+      throw new Error("No response content payload returned from Puter AI gateway.");
     }
     
-    // Clean up fallback markdown code blocks if the model returns backticks anyway
+    // Clean up markdown syntax code blocks if the model appends backticks anyway
     if (rawText.includes("```")) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) rawText = jsonMatch[0];
@@ -516,10 +522,10 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    // This logs the exact server-side details into your Railway terminal window
-    console.error("❌ Puter AI Direct Integration Proxy Error:", err.response ? err.response.data : err.message);
+    // This will print the precise underlying response error payload to your Railway console dashboard
+    console.error("❌ Puter AI Direct Native Proxy Error:", err.response ? err.response.data : err.message);
     
-    // Fallback block layout to guarantee frontend mapping loops never break
+    // Maintain a safe fallback so the frontend interface state can map beautifully without stalling out
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
