@@ -5,8 +5,8 @@ const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-const { init } = require("@heyputer/puter.js/src/init.cjs");
-const puter = init(process.env.PUTER_AUTH_TOKEN);
+const puter = require("@heyputer/puter.js");
+puter.authToken = process.env.PUTER_AUTH_TOKEN;
 
 const app = express();
 app.use(express.json());
@@ -454,7 +454,7 @@ app.post('/api/settings/announcement', async (req, res) => {
 const { OpenAI } = require('openai');
 
 // ==========================================================
-// 🚀 FIXED: CORRECT INTERNAL PUTER INITIALIZATION ROUTE
+// 🚀 FIXED: PRODUCTION-READY NATIVE PUTER AI ROUTE
 // ==========================================================
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
@@ -475,8 +475,12 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ Puter's official Node.js framework execution sequence
-    const rawResponse = await puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
+    // Refresh token state validation directly before hitting the endpoint
+    puter.authToken = process.env.PUTER_AUTH_TOKEN;
+
+    // ✅ FIXED SDK CALL: Call puter.chat directly for backend runtime processes.
+    // We use 'gpt-4o-mini' because it is highly stable under Puter's free tiers.
+    const rawResponse = await puter.chat(prompt, { model: 'gpt-4o-mini' });
     
     console.log("Raw Puter AI Response:", rawResponse);
 
@@ -486,13 +490,13 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
 
     let cleanJsonString = rawResponse.toString().trim();
     
-    // Clean up markdown code blocks if the model appends them
+    // Clean up markdown code blocks if the engine outputs backticks anyway
     if (cleanJsonString.includes("```")) {
       const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
       if (jsonMatch) cleanJsonString = jsonMatch[0];
     }
 
-    // Double check JSON boundaries to ensure a perfect parse
+    // Isolate strict bracket bounds to secure a clean JSON object structure parse
     const startBracket = cleanJsonString.indexOf('{');
     const endBracket = cleanJsonString.lastIndexOf('}');
     
