@@ -5,7 +5,7 @@ const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-// ✅ FIX 1: Correct Puter Node.js SDK import (Removes the "not a constructor" error)
+// ✅ FIX: Correct Puter Node.js SDK initialization
 const puter = require("@heyputer/puter.js");
 puter.authToken = process.env.PUTER_AUTH_TOKEN;
 
@@ -393,7 +393,7 @@ app.patch('/api/events/:id/archive', async (req, res) => {
     );
     res.json(updatedEvent);
   } catch (err) {
-    res.status(400).json({ error: "Failed to archive event" });
+    doc.status(400).json({ error: "Failed to archive event" });
   }
 });
 
@@ -449,7 +449,7 @@ app.post('/api/settings/announcement', async (req, res) => {
     { upsert: true }
   );
   res.json({ success: true });
-});
+ });
 
 // --- AI ROUTE ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
@@ -457,7 +457,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      throw new Error("Missing PUTER_AUTH_TOKEN environment variable on Railway.");
+      throw new Error("Missing PUTER_AUTH_TOKEN environment variable.");
     }
 
     const prompt = `
@@ -470,7 +470,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Expected format: { "suggestion": "string", "reason": "string" }
     `;
 
-    // ✅ FIX 2: Format the request into Puter's exact options format object
+    // ✅ FIX: Use options object for txt2txt schema requirement
     const rawText = await puter.ai.txt2txt({
       prompt: prompt,
       model: 'google/gemini-2.5-flash'

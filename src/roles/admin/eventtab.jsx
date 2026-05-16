@@ -59,40 +59,37 @@ const EventTab = ({ role, userId }) => {
   };
 
   // --- 1. HANDLE AI SUGGESTION ROUTING ---
-  const handleAiSuggest = async () => {
-    if (!formData.reservationName) {
-      alert("Please enter a Booking/Reservation Name first!");
+const handleAIRecommendation = async () => {
+    if (!newEvent.reservationName) {
+      alert('Please enter a Booking/Reservation Name first!');
       return;
     }
-    setAiLoading(true);
-    setAiSuggestion(null); // Reset previous suggestions
+
+    setIsAiLoading(true);
+    setAiRecommendation(null);
     try {
-      const response = await api.analyzeSchedule({
-        userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}. Find a free date, time, and specific location room or hall if possible.`,
-        currentEvents: events 
+      // ✅ FIX: Call your actual backend route directly via Axios
+      const response = await axios.post('[https://church-management-app.lancemanemail.workers.dev/api/ai/analyze-schedule](https://church-management-app.lancemanemail.workers.dev/api/ai/analyze-schedule)', {
+        userRequest: `Schedule a ${newEvent.titleSelection || newEvent.title} for ${newEvent.reservationName}`,
+        currentEvents: events
       });
       
-      // Axios typically delivers the response payload on .data
-      setAiSuggestion(response.data);
-    } catch (err) {
-      console.error("AI Integration Error:", err);
-      alert("AI Assistant unavailable right now.");
+      setAiRecommendation(response.data);
+    } catch (e) {
+      console.error('AI Integration Error:', e);
+      alert('AI Assistant unavailable right now.');
     } finally {
-      setAiLoading(false);
+      setIsAiLoading(false);
     }
   };
 
-  // --- 2. APPLY AI VALUES DIRECTLY TO YOUR INPUT STATES ---
   const applyAiValues = () => {
     if (!aiSuggestion || !aiSuggestion.suggestion) return;
 
-    // A helper function to parse strings like "YYYY-MM-DD" out of text payloads
     const dateMatch = aiSuggestion.suggestion.match(/\d{4}-\d{2}-\d{2}/);
     
-    // A helper function to parse standard times (e.g., "10:00 AM", "03:00 PM")
     const timeMatch = aiSuggestion.suggestion.match(/(0\d|1[0-2]):[0-5]\d\s?(AM|PM)/i);
 
-    // Look for typical locations or room mentions dynamically
     const roomKeywords = ["Sanctuary", "Main Hall", "Room A", "Room B", "Fellowship Hall", "Youth Room", "Chapel"];
     const foundRoom = roomKeywords.find(room => 
       aiSuggestion.suggestion.toLowerCase().includes(room.toLowerCase())
@@ -105,7 +102,6 @@ const EventTab = ({ role, userId }) => {
       room: foundRoom ? foundRoom : prev.room
     }));
 
-    // Clear suggestion panel after successful implementation
     setAiSuggestion(null);
   };
 
