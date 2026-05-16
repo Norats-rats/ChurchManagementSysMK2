@@ -472,23 +472,22 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIXED ENDPOINT: Routed using Puter's official OpenAI-compatible endpoint route mapping
-    // This provides a highly stable, non-crashing direct network path.
- const httpResponse = await axios.post(
-  'https://ai.puter.com/v1/chat/completions', // ✨ CHANGED 'api' TO 'ai' HERE
-  {
-    messages: [{ role: 'user', content: prompt }],
-    model: 'gpt-4o-mini'
-  },
-  {
-    headers: {
-      'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
-      'Content-Type': 'application/json'
-    }
-  }
-);
+    // ✅ FIXED ENDPOINT: Changed domain to 'ai.puter.com' to point to the correct LLM routing infrastructure
+    const httpResponse = await axios.post(
+      'https://ai.puter.com/v1/chat/completions',
+      {
+        messages: [{ role: 'user', content: prompt }],
+        model: 'gpt-4o-mini'
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    // ✅ FIXED EXTRACTION: Safely read from standard OpenAI schema mapping choices
+    // ✅ FIXED EXTRACTION: Read choices mapping safely
     let rawText = httpResponse.data?.choices?.[0]?.message?.content || "";
 
     if (!rawText) {
@@ -516,12 +515,16 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    console.error("❌ Puter AI Assistant Error Route:", err.response ? JSON.stringify(err.response.data) : err.message);
+    // If the error response contains HTML text instead of JSON, print out clean error strings
+    const detailedError = err.response && typeof err.response.data === 'string' 
+      ? err.response.data.replace(/<[^>]*>/g, '') 
+      : (err.response ? JSON.stringify(err.response.data) : err.message);
+
+    console.error("❌ Puter AI Assistant Error Route:", detailedError);
     
-    // Smooth fallback tracking to make sure your front-end components don't freeze up
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
-      reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
+      reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${detailedError})`
     });
   }
 });
