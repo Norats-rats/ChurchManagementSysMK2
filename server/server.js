@@ -452,7 +452,6 @@ app.post('/api/settings/announcement', async (req, res) => {
  });
 
 // --- AI ROUTE ---
-// --- AI ROUTE ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
@@ -467,29 +466,28 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Existing Events: ${JSON.stringify(currentEvents)}
       
       Task: Suggest a non-clashing date, time, and room based on the existing events.
-      Strict Requirement: You must return ONLY a clean JSON object. Do not include markdown code fence formatting wrappers, do not wrap your answer in triple backticks (\`\`\`), and do not write introduction text.
+      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown text, do not wrap your answer in triple backticks (\`\`\`), and do not write introduction text.
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIX: No options object, no model parameters. 
-    // This forces the Puter SDK to use its internal, default working text model.
-    const rawText = await puter.ai.txt2txt(prompt);
+    // ✅ FIX: Use Puter's official .chat() method with their native baseline model
+    const rawResponse = await puter.ai.chat(prompt, { model: 'gpt-5.4-nano' });
     
-    console.log("Raw Puter AI Response:", rawText);
+    console.log("Raw Puter AI Response:", rawResponse);
 
-    if (!rawText) {
-      throw new Error("Empty string returned from Puter AI engine.");
+    if (!rawResponse) {
+      return res.status(500).json({ error: "No response text returned from Puter." });
     }
 
-    let cleanJsonString = rawText.trim();
+    let cleanJsonString = rawResponse.trim();
     
-    // Safety Net: Strip out markdown backticks if the model ignores instructions
+    // Clean up markdown code blocks if the model appends them
     if (cleanJsonString.includes("```")) {
       const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
       if (jsonMatch) cleanJsonString = jsonMatch[0];
     }
 
-    // Isolate outer curly brackets safely
+    // Double check JSON boundaries to ensure a perfect parse
     const startBracket = cleanJsonString.indexOf('{');
     const endBracket = cleanJsonString.lastIndexOf('}');
     
@@ -503,11 +501,10 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   } catch (err) {
     console.error("Puter AI Assistant Error:", err.message);
     
-    // ✅ CRITICAL SAFETY FALLBACK: If Puter drops or returns an error, 
-    // we send a clean, valid JSON object instead of breaking with an HTML error page.
+    // Hardened Fallback: If anything fails, return a safe JSON layout so your app never throws an alert loop
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
-      reason: `The AI Scheduling Assistant is undergoing maintenance. (${err.message})`
+      reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
     });
   }
 });
