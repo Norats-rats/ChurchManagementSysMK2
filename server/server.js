@@ -452,6 +452,7 @@ app.post('/api/settings/announcement', async (req, res) => {
  });
 
 // --- AI ROUTE ---
+// NOTE: If you are using a global Router prefix for /api, change this path to '/ai/analyze-schedule'
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
@@ -466,33 +467,25 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Existing Events: ${JSON.stringify(currentEvents)}
       
       Task: Suggest a non-clashing date, time, and room based on the existing events.
-      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown text, do not wrap your answer in triple backticks (\`\`\`), and do not write introduction text.
+      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown text, do not wrap your answer in triple backticks, and do not write introduction text.
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIX: Use Puter's official .chat() method with their native baseline model
-    const rawResponse = await puter.ai.chat(prompt, { model: 'gpt-5.4-nano' });
+    // Use Puter's standard chat generation with a reliably supported model
+    const rawResponse = await puter.ai.chat(prompt, { model: 'gpt-4o' });
     
     console.log("Raw Puter AI Response:", rawResponse);
 
-    if (!rawResponse) {
+    if (!rawResponse || !rawResponse.toString()) {
       return res.status(500).json({ error: "No response text returned from Puter." });
     }
 
-    let cleanJsonString = rawResponse.trim();
+    let cleanJsonString = rawResponse.toString().trim();
     
-    // Clean up markdown code blocks if the model appends them
+    // Clean up markdown code blocks if the model appends them anyway
     if (cleanJsonString.includes("```")) {
       const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
       if (jsonMatch) cleanJsonString = jsonMatch[0];
-    }
-
-    // Double check JSON boundaries to ensure a perfect parse
-    const startBracket = cleanJsonString.indexOf('{');
-    const endBracket = cleanJsonString.lastIndexOf('}');
-    
-    if (startBracket !== -1 && endBracket !== -1) {
-      cleanJsonString = cleanJsonString.substring(startBracket, endBracket + 1);
     }
 
     const parsedData = JSON.parse(cleanJsonString);
@@ -501,8 +494,8 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   } catch (err) {
     console.error("Puter AI Assistant Error:", err.message);
     
-    // Hardened Fallback: If anything fails, return a safe JSON layout so your app never throws an alert loop
-    return res.json({
+    // Returning a safe JSON fallback so your frontend doesn't break if an API limit or parse error occurs
+    return res.status(200).json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
     });

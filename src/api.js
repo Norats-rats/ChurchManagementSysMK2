@@ -18,6 +18,7 @@ getAnnouncement: () => apiClient.get('/api/settings/announcement'),
   //qr thing
   recordAttendance: (checkInData) => apiClient.post('/api/attendance', checkInData),
   
+  analyzeSchedule: (aiData) => apiClient.post('/api/ai/analyze-schedule', aiData),
 
   // Authentication
   login: (credentials) => apiClient.post('/login', credentials),

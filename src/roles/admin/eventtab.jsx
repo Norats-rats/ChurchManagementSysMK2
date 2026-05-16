@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { useEffect, useState } from 'react';
 import api from '../../api';
 
@@ -59,35 +58,30 @@ const EventTab = ({ role, userId }) => {
     return groups;
   };
 
-  // --- 1. HANDLE AI SUGGESTION ROUTING ---
-// --- 1. HANDLE AI SUGGESTION ROUTING ---
-  const handleAIRecommendation = async () => {
-    if (!formData.reservationName) {
-      alert('Please enter a Booking/Reservation Name first!');
-      return;
-    }
+const handleAIRecommendation = async () => {
+  if (!formData.reservationName) {
+    alert('Please enter a Booking/Reservation Name first!');
+    return;
+  }
 
-    setAiLoading(true);
-    setAiSuggestion(null);
-    try {
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      
-      const response = await axios.post(`${baseUrl}/api/ai/analyze-schedule`, {
-        userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
-        currentEvents: events
-      });
-      
-      setAiSuggestion(response.data);
-    } catch (e) {
-      console.error('AI Integration Error:', e);
-      // Grabs detailed response message if your server catches an issue
-      const errMsg = e.response?.data?.error || 'AI Assistant unavailable right now.';
-      const details = e.response?.data?.details ? ` (${e.response.data.details})` : '';
-      alert(`AI Error: ${errMsg}${details}`);
-    } finally {
-      setAiLoading(false);
-    }
-  };
+  setAiLoading(true);
+  setAiSuggestion(null);
+  try {
+    // Using the structured API module prevents mismatching base URLs!
+    const response = await api.analyzeSchedule({
+      userRequest: `Schedule a ${formData.titleSelection} for ${formData.reservationName}`,
+      currentEvents: events
+    });
+
+    setAiSuggestion(response.data);
+  } catch (e) {
+    console.error('AI Integration Error:', e);
+    const errMsg = e.response?.data?.error || 'AI Assistant unavailable right now.';
+    alert(`AI Error: ${errMsg}`);
+  } finally {
+    setAiLoading(false);
+  }
+};
 
   const applyAiValues = () => {
     if (!aiSuggestion || !aiSuggestion.suggestion) return;
