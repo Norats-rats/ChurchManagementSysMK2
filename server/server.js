@@ -451,27 +451,8 @@ app.post('/api/settings/announcement', async (req, res) => {
   res.json({ success: true });
  });
 
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const axios = require('axios');
-const bcrypt = require('bcryptjs');
-require('dotenv').config();
-
-// ==========================================
-// 🛠️ CORRECT PUTER NODE.JS INITIALIZATION
-// ==========================================
-const { init } = require("@heyputer/puter.js/src/init.cjs");
-const puter = init(process.env.PUTER_AUTH_TOKEN);
-
-const app = express();
-app.use(express.json());
-
-// ... Keep your existing app.use(cors({...})) and mongoose schemas exactly as they are ...
-
-// ==========================================
-// 🛠️ UPDATED AI ROUTE WITH CORRECT PARSING
-// ==========================================
+// --- AI ROUTE ---
+// NOTE: If you are using a global Router prefix for /api, change this path to '/ai/analyze-schedule'
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
