@@ -458,6 +458,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
+      console.error("Missing PUTER_AUTH_TOKEN inside your environment variables.");
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable on Railway." });
     }
 
@@ -471,31 +472,53 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Use Puter's standard chat generation with a reliably supported model
-    const rawResponse = await puter.ai.chat(prompt, { model: 'gpt-4o' });
-    
-    console.log("Raw Puter AI Response:", rawResponse);
+    // Direct HTTP request to avoid broken WebSocket/SDK local container wrappers
+    const puterResponse = await axios.post(
+      'https://api.puter.com/v1/ai/chat',
+      {
+        messages: [{ role: 'user', content: prompt }],
+        model: 'gpt-4o' 
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    if (!rawResponse || !rawResponse.toString()) {
-      return res.status(500).json({ error: "No response text returned from Puter." });
+    let rawText = "";
+    if (puterResponse.data?.message?.content) {
+      rawText = puterResponse.data.message.content.toString().trim();
+    } else if (puterResponse.data?.choices?.[0]?.message?.content) {
+      rawText = puterResponse.data.choices[0].message.content.toString().trim();
     }
 
-    let cleanJsonString = rawResponse.toString().trim();
+    if (!rawText) {
+      throw new Error("No response payload text returned from Puter AI services.");
+    }
     
-    // Clean up markdown code blocks if the model appends them anyway
-    if (cleanJsonString.includes("```")) {
-      const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
-      if (jsonMatch) cleanJsonString = jsonMatch[0];
+    // Clean up markdown code blocks if the model ignores strict formatting rules
+    if (rawText.includes("```")) {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) rawText = jsonMatch[0];
     }
 
-    const parsedData = JSON.parse(cleanJsonString);
+    // Isolate structural bracket boundaries to guarantee a clean JSON parse object
+    const startBracket = rawText.indexOf('{');
+    const endBracket = rawText.lastIndexOf('}');
+    if (startBracket !== -1 && endBracket !== -1) {
+      rawText = rawText.substring(startBracket, endBracket + 1);
+    }
+
+    const parsedData = JSON.parse(rawText);
     return res.json(parsedData);
 
   } catch (err) {
     console.error("Puter AI Assistant Error:", err.message);
     
-    // Returning a safe JSON fallback so your frontend doesn't break if an API limit or parse error occurs
-    return res.status(200).json({
+    // Fallback block layout to guarantee frontend mapping loops never break
+    return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
     });
