@@ -452,6 +452,7 @@ app.post('/api/settings/announcement', async (req, res) => {
  });
 
 // --- AI ROUTE ---
+// --- AI ROUTE ---
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
@@ -466,34 +467,32 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Existing Events: ${JSON.stringify(currentEvents)}
       
       Task: Suggest a non-clashing date, time, and room based on the existing events.
-      Strict Requirement: You must return ONLY a valid, parseable JSON object. Do not wrap your response in markdown triple backticks (\`\`\`), do not include conversational introductions, and do not say "Here is your JSON".
+      Strict Requirement: You must return ONLY a clean JSON object. Do not include markdown code fence formatting wrappers, do not wrap your answer in triple backticks (\`\`\`), and do not write introduction text.
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIX: Completely removed the 'model' key. Puter will auto-route to the best available working model!
-    const rawText = await puter.ai.txt2txt({
-      prompt: prompt
-    });
+    // ✅ FIX: No options object, no model parameters. 
+    // This forces the Puter SDK to use its internal, default working text model.
+    const rawText = await puter.ai.txt2txt(prompt);
     
     console.log("Raw Puter AI Response:", rawText);
 
     if (!rawText) {
-      return res.status(500).json({ error: "No text returned from the AI platform." });
+      throw new Error("Empty string returned from Puter AI engine.");
     }
 
     let cleanJsonString = rawText.trim();
     
-    // Safety Net: Strip out markdown triple backticks if the model still outputs them anyway
+    // Safety Net: Strip out markdown backticks if the model ignores instructions
     if (cleanJsonString.includes("```")) {
       const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanJsonString = jsonMatch[0];
-      }
+      if (jsonMatch) cleanJsonString = jsonMatch[0];
     }
 
-    // Isolate pure JSON string by boundaries to be absolutely safe
+    // Isolate outer curly brackets safely
     const startBracket = cleanJsonString.indexOf('{');
     const endBracket = cleanJsonString.lastIndexOf('}');
+    
     if (startBracket !== -1 && endBracket !== -1) {
       cleanJsonString = cleanJsonString.substring(startBracket, endBracket + 1);
     }
@@ -504,10 +503,11 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   } catch (err) {
     console.error("Puter AI Assistant Error:", err.message);
     
-    // Fallback: If parsing fails or Puter acts up, send a clean JSON structure so the frontend NEVER breaks
+    // ✅ CRITICAL SAFETY FALLBACK: If Puter drops or returns an error, 
+    // we send a clean, valid JSON object instead of breaking with an HTML error page.
     return res.json({
-      suggestion: "Please pick an alternative date and time manually checking the list above.",
-      reason: `AI Temporary Fallback Mode: ${err.message}`
+      suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
+      reason: `The AI Scheduling Assistant is undergoing maintenance. (${err.message})`
     });
   }
 });
