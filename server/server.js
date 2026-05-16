@@ -459,6 +459,9 @@ const { OpenAI } = require('openai');
 // ==========================================================
 // 🚀 FIXED: BULLETPROOF NATIVE PUTER SERVICE INTERFACE
 // ==========================================================
+// ==========================================================
+// 🚀 FIXED: CORRECT BACKEND CONTENT EXTRACTION ROUTE
+// ==========================================================
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
@@ -478,22 +481,19 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Ensure the token configuration properties map cleanly
     puter.authToken = process.env.PUTER_AUTH_TOKEN;
 
-    let rawResponse = null;
+    let sdkResponse = null;
 
-    // ✅ THE SOLUTION: Universal checking strategy to handle Puter's changing method locations
+    // Execute the active Puter pattern
     if (puter.ai && typeof puter.ai.chat === 'function') {
       console.log("Using puter.ai.chat pattern...");
-      rawResponse = await puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
+      sdkResponse = await puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
     } else if (typeof puter.chat === 'function') {
       console.log("Using puter.chat pattern...");
-      rawResponse = await puter.chat(prompt, { model: 'gpt-4o-mini' });
+      sdkResponse = await puter.chat(prompt, { model: 'gpt-4o-mini' });
     } else {
-      // Emergency secure fallback: If the SDK objects are completely locked, 
-      // we route using a clean direct HTTP post connection to ensure it NEVER crashes the server.
-      console.log("SDK functions unavailable, routing via direct fallback request gateway...");
+      console.log("SDK functions unavailable, routing via HTTP gateway fallback...");
       const httpFallback = await axios.post(
         'https://api.puter.com/v1/ai/chat',
         {
@@ -507,38 +507,48 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
           }
         }
       );
-      rawResponse = httpFallback.data?.message?.content || httpFallback.data?.choices?.[0]?.message?.content;
-    }
-    
-    console.log("Raw Puter AI Response Object:", rawResponse);
-
-    if (!rawResponse) {
-      return res.status(500).json({ error: "No response text returned from Puter gateway engine." });
+      sdkResponse = httpFallback.data;
     }
 
-    let cleanJsonString = rawResponse.toString().trim();
-    
+    if (!sdkResponse) {
+      return res.status(500).json({ error: "No response returned from Puter." });
+    }
+
+    // ✅ FIXED: Safely extract text contents depending on whether it's a string, message object, or fallback nested object
+    let rawText = "";
+    if (typeof sdkResponse === 'string') {
+      rawText = sdkResponse;
+    } else if (sdkResponse.message && sdkResponse.message.content) {
+      rawText = sdkResponse.message.content.toString();
+    } else if (sdkResponse.text) {
+      rawText = sdkResponse.text.toString();
+    } else {
+      rawText = JSON.stringify(sdkResponse);
+    }
+
+    rawText = rawText.trim();
+    console.log("Successfully extracted text payload from Puter Object:", rawText);
+
     // Clean up markdown code blocks if the engine outputs backticks anyway
-    if (cleanJsonString.includes("```")) {
-      const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
-      if (jsonMatch) cleanJsonString = jsonMatch[0];
+    if (rawText.includes("```")) {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) rawText = jsonMatch[0];
     }
 
     // Isolate strict bracket bounds to secure a clean JSON object structure parse
-    const startBracket = cleanJsonString.indexOf('{');
-    const endBracket = cleanJsonString.lastIndexOf('}');
+    const startBracket = rawText.indexOf('{');
+    const endBracket = rawText.lastIndexOf('}');
     
     if (startBracket !== -1 && endBracket !== -1) {
-      cleanJsonString = cleanJsonString.substring(startBracket, endBracket + 1);
+      rawText = rawText.substring(startBracket, endBracket + 1);
     }
 
-    const parsedData = JSON.parse(cleanJsonString);
+    const parsedData = JSON.parse(rawText);
     return res.json(parsedData);
 
   } catch (err) {
     console.error("❌ Puter AI Assistant Error Route:", err.message);
     
-    // Return a perfect fallback loop so your frontend state NEVER stays stuck loading
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
