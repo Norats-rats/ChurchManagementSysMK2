@@ -474,19 +474,19 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
 
     // ✅ FIXED ENDPOINT: Routed using Puter's official OpenAI-compatible endpoint route mapping
     // This provides a highly stable, non-crashing direct network path.
-    const httpResponse = await axios.post(
-      'https://api.puter.com/v1/chat/completions',
-      {
-        messages: [{ role: 'user', content: prompt }],
-        model: 'gpt-4o-mini'
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+ const httpResponse = await axios.post(
+  'https://ai.puter.com/v1/chat/completions', // ✨ CHANGED 'api' TO 'ai' HERE
+  {
+    messages: [{ role: 'user', content: prompt }],
+    model: 'gpt-4o-mini'
+  },
+  {
+    headers: {
+      'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
+      'Content-Type': 'application/json'
+    }
+  }
+);
 
     // ✅ FIXED EXTRACTION: Safely read from standard OpenAI schema mapping choices
     let rawText = httpResponse.data?.choices?.[0]?.message?.content || "";
