@@ -476,11 +476,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Expected format: { "suggestion": "string", "reason": "string" }
     `;
 
-    // Calling .chat directly on the fully constructed object instance
-    const rawText = await puter.ai.chat({
-      model: 'google/gemini-2.5-flash',
-      prompt: prompt
-    });
+    // FIX: Using the robust fallback configuration mapping layout 
+    // to bypass internal object property reading issues
+    const rawText = await puter.ai.txt2txt(prompt, 'google/gemini-2.5-flash');
     
     console.log("Raw Puter AI Response:", rawText);
 
