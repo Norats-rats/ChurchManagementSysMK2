@@ -7,8 +7,8 @@ require('dotenv').config();
 
 // --- 1. PUTER.JS INITIALIZATION ---
 // This initializes Puter using your secure token via CJS bindings for backend Node environments
-const { init } = require("@heyputer/puter.js/src/init.cjs");
-const puter = init(process.env.PUTER_AUTH_TOKEN);
+const puter = require("@heyputer/puter.js");
+puter.authToken = process.env.PUTER_AUTH_TOKEN;
 
 const app = express();
 app.use(express.json());
