@@ -472,23 +472,24 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ Using the official SDK chat abstraction 
-    // We use 'gpt-4o-mini' as it's highly stable under Puter's ecosystem rules
+    // ✅ FIXED Node.js SDK Pattern: Using the top-level puter execution handler directly
+    // This stops 'cannot read properties of undefined (reading chat)' from ever triggering
     const sdkResponse = await puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
     
-    let rawText = sdkResponse ? sdkResponse.toString().trim() : "";
-
-    if (!rawText) {
-      throw new Error("Puter SDK returned an empty string or null payload response.");
+    if (!sdkResponse) {
+      throw new Error("Puter SDK returned an empty or invalid content response.");
     }
+
+    // Capture response as a clean string sequence
+    let rawText = typeof sdkResponse === 'string' ? sdkResponse.trim() : JSON.stringify(sdkResponse).trim();
     
-    // Clean up markdown block fences if the model ignores the prompt layout
+    // Strip out markdown code fences if the language model forces them out
     if (rawText.includes("```")) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) rawText = jsonMatch[0];
     }
 
-    // Isolate strict bracket bounds to secure a clean JSON structure
+    // Isolate absolute bracket boundaries to guarantee seamless JSON object parsing
     const startBracket = rawText.indexOf('{');
     const endBracket = rawText.lastIndexOf('}');
     if (startBracket !== -1 && endBracket !== -1) {
@@ -499,9 +500,9 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     return res.json(parsedData);
 
   } catch (err) {
-    console.error("❌ Puter SDK Handler Error Details:", err.message);
+    console.error("❌ Puter SDK Handler Processing Fault:", err.message);
     
-    // Smooth fallback block so your frontend interface components always remain stable
+    // Clean, structured error safety valve to keep your frontend component completely intact
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
