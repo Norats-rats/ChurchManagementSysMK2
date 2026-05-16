@@ -458,7 +458,7 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN inside environment variables.");
+      console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN environment variable.");
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
     }
 
@@ -472,37 +472,49 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // ✅ FIXED Node.js SDK Pattern: Using the top-level puter execution handler directly
-    // This stops 'cannot read properties of undefined (reading chat)' from ever triggering
-    const sdkResponse = await puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
+    // Ensure the token configuration is fresh right before executing the execution event
+    puter.authToken = process.env.PUTER_AUTH_TOKEN;
+
+    // ✅ ROBUST FIX: Defensively check object tree mapping before calling the method
+    let rawResponse;
+    if (puter && puter.ai && typeof puter.ai.chat === 'function') {
+      rawResponse = await puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
+    } else if (puter && typeof puter.chat === 'function') {
+      // Direct root function shortcut fallback assignment
+      rawResponse = await puter.chat(prompt, { model: 'gpt-4o-mini' });
+    } else {
+      throw new Error("Puter library structural context error: .ai namespace properties are undefined.");
+    }
     
-    if (!sdkResponse) {
-      throw new Error("Puter SDK returned an empty or invalid content response.");
+    console.log("Raw Puter AI Response:", rawResponse);
+
+    if (!rawResponse) {
+      return res.status(500).json({ error: "No response text returned from Puter." });
     }
 
-    // Capture response as a clean string sequence
-    let rawText = typeof sdkResponse === 'string' ? sdkResponse.trim() : JSON.stringify(sdkResponse).trim();
+    let cleanJsonString = rawResponse.toString().trim();
     
-    // Strip out markdown code fences if the language model forces them out
-    if (rawText.includes("```")) {
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) rawText = jsonMatch[0];
+    // Clean up markdown code blocks if the model appends them anyway
+    if (cleanJsonString.includes("```")) {
+      const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) cleanJsonString = jsonMatch[0];
     }
 
-    // Isolate absolute bracket boundaries to guarantee seamless JSON object parsing
-    const startBracket = rawText.indexOf('{');
-    const endBracket = rawText.lastIndexOf('}');
+    // Double check JSON boundaries to ensure a perfect string conversion parse
+    const startBracket = cleanJsonString.indexOf('{');
+    const endBracket = cleanJsonString.lastIndexOf('}');
+    
     if (startBracket !== -1 && endBracket !== -1) {
-      rawText = rawText.substring(startBracket, endBracket + 1);
+      cleanJsonString = cleanJsonString.substring(startBracket, endBracket + 1);
     }
 
-    const parsedData = JSON.parse(rawText);
+    const parsedData = JSON.parse(cleanJsonString);
     return res.json(parsedData);
 
   } catch (err) {
     console.error("❌ Puter SDK Handler Processing Fault:", err.message);
     
-    // Clean, structured error safety valve to keep your frontend component completely intact
+    // Smooth fallback loop injection blocks so the application components stay alive
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${err.message})`
