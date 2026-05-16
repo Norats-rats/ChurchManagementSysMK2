@@ -462,17 +462,23 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
     }
 
+    const today = new Date();
+    const formattedToday = today.toISOString().split('T')[0];
     const prompt = `
       You are a Church Event Assistant. 
-      User Request: "${userRequest}"
-      Existing Events: ${JSON.stringify(currentEvents)}
       
-      Task: Suggest a non-clashing date, time, and room based on the existing events.
+      CRITICAL CALENDAR CONTEXT:
+      - Today's current date is exactly: ${formattedToday}
+      - Any slot you suggest MUST be strictly in the FUTURE relative to this date. Never suggest a past date.
+      
+      User Request: "${userRequest}"
+      Existing Booked Events to Avoid Clashing With: ${JSON.stringify(currentEvents)}
+      
+      Task: Suggest a non-clashing future date, time, and room based on the existing events.
       Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown text, do not wrap your answer in triple backticks, and do not write introduction text.
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
-
-    // ✅ FIXED ROUTE: Formatted using Puter's exact official proxy endpoint string path
+    
     const httpResponse = await axios.post(
       'https://api.puter.com/puterai/openai/v1/chat/completions',
       {
@@ -487,7 +493,6 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       }
     );
 
-    // Read response text safely out of standard OpenAI choices schema structure
     let rawText = httpResponse.data?.choices?.[0]?.message?.content || "";
 
     if (!rawText) {
@@ -497,13 +502,11 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     rawText = rawText.trim();
     console.log("Extracted payload text:", rawText);
 
-    // Clean up markdown code blocks if the engine outputs backticks anyway
     if (rawText.includes("```")) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) rawText = jsonMatch[0];
     }
 
-    // Isolate strict bracket bounds to secure a clean JSON object structure parse
     const startBracket = rawText.indexOf('{');
     const endBracket = rawText.lastIndexOf('}');
     
@@ -512,9 +515,6 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     }
 
     const parsedData = JSON.parse(rawText);
-
-    // ✅ FIX THE BLANK SCREEN: Normalize the shape before returning to the frontend.
-    // If Puter returns 'suggestion' as an object instead of a string, flatten it out nicely!
     let finalizedSuggestion = "";
     if (parsedData.suggestion && typeof parsedData.suggestion === 'object') {
       const s = parsedData.suggestion;
@@ -523,21 +523,17 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       finalizedSuggestion = parsedData.suggestion || "No specific suggestion text generated.";
     }
 
-    // Return the exact flat string format your frontend is configured to render safely
     return res.json({
       suggestion: finalizedSuggestion,
       reason: parsedData.reason || "No conflict detected for this slot."
     });
 
   } catch (err) {
-    // If the gateway throws an error, strip any HTML tags out cleanly so your console log is readable
     const detailedError = err.response && typeof err.response.data === 'string' 
       ? err.response.data.replace(/<[^>]*>/g, '').trim() 
       : (err.response ? JSON.stringify(err.response.data) : err.message);
 
     console.error("❌ Puter AI Assistant Error Route:", detailedError);
-    
-    // Return structured default object block mapping so frontend processing loops don't freeze
     return res.json({
       suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
       reason: `The AI Scheduling Assistant is undergoing brief routine updates. (${detailedError})`
