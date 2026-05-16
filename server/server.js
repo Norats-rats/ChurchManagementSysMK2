@@ -5,9 +5,12 @@ const axios = require('axios');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-// ✅ FIX: Correct Puter Node.js SDK initialization
-const puter = require("@heyputer/puter.js");
-puter.authToken = process.env.PUTER_AUTH_TOKEN;
+// ==========================================
+// 🛠️ CORRECT PUTER NODE.JS INITIALIZATION
+// ==========================================
+// The Node SDK must use its CommonJS init file instead of an inline property assignment
+const { init } = require("@heyputer/puter.js/src/init.cjs");
+const puter = init(process.env.PUTER_AUTH_TOKEN);
 
 const app = express();
 app.use(express.json());
@@ -393,7 +396,7 @@ app.patch('/api/events/:id/archive', async (req, res) => {
     );
     res.json(updatedEvent);
   } catch (err) {
-    doc.status(400).json({ error: "Failed to archive event" });
+    res.status(400).json({ error: "Failed to archive event" });
   }
 });
 
@@ -451,14 +454,15 @@ app.post('/api/settings/announcement', async (req, res) => {
   res.json({ success: true });
  });
 
-// --- AI ROUTE ---
-// NOTE: If you are using a global Router prefix for /api, change this path to '/ai/analyze-schedule'
+// ==========================================
+// 🛠️ CORRECTED PUTER AI ROUTE
+// ==========================================
 app.post('/api/ai/analyze-schedule', async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
 
     if (!process.env.PUTER_AUTH_TOKEN) {
-      return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable on Railway." });
+      return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
     }
 
     const prompt = `
@@ -471,12 +475,12 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
       Format: {"suggestion": "Your suggestion here", "reason": "Your reason here"}
     `;
 
-    // Using a fully available production model on Puter's free cluster
+    // A supported, operational chat generation model
     const response = await puter.ai.chat(prompt, { model: 'gpt-4o' });
     
     console.log("Raw Puter Object:", response);
 
-    // Node SDK extracts text content out of the message object array
+    // FIX: Puter SDK returns a structured message object hierarchy. We extract the content string safely:
     let rawText = "";
     if (response && response.message && response.message.content) {
       rawText = response.message.content.toString().trim();
@@ -485,13 +489,20 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     }
 
     if (!rawText) {
-      throw new Error("Puter returned an empty content payload.");
+      throw new Error("Puter returned an empty response payload.");
     }
-
-    // Clean up fallback markdown wrapping if the LLM ignores instructions
+    
+    // Clean up fallback markdown block wrappers if the model forces them
     if (rawText.includes("```")) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) rawText = jsonMatch[0];
+    }
+
+    // Isolate boundaries to protect JSON parsing
+    const startBracket = rawText.indexOf('{');
+    const endBracket = rawText.lastIndexOf('}');
+    if (startBracket !== -1 && endBracket !== -1) {
+      rawText = rawText.substring(startBracket, endBracket + 1);
     }
 
     const parsedData = JSON.parse(rawText);
@@ -500,10 +511,12 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   } catch (err) {
     console.error("Puter AI Assistant Error:", err.message);
     
-    // Fallback message handles errors explicitly so you see exactly what's failing on screen
+    // Informative error message context delivered to client instead of a blind fallback loop
     return res.status(500).json({
-      error: "AI Generation Failed",
-      details: err.message
+      error: "AI Assistant Error",
+      message: err.message,
+      suggestion: "Please pick an alternative date, time, and room manually by reviewing the calendar list.",
+      reason: `The AI Scheduling Assistant encountered an execution error: ${err.message}`
     });
   }
 });
