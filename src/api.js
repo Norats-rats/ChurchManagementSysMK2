@@ -20,7 +20,7 @@ getAnnouncement: () => apiClient.get('/api/settings/announcement'),
   
   //AI stuff
   analyzeSchedule: (aiData) => apiClient.post('/api/ai/analyze-schedule', aiData),
-  analyzeMetrics: (stats) => axios.post('/api/ai/analyze-metrics', stats),
+  analyzeMetrics: (stats) => apiClient.post('/api/ai/analyze-metrics', stats),
 
   // Authentication
   login: (credentials) => apiClient.post('/login', credentials),
