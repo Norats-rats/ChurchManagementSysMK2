@@ -80,13 +80,17 @@ const MemberForm = () => {
         }
     };
 
-    const deleteMember = async (id) => {
-        if (!window.confirm("Are you sure you want to permanently delete this user?")) return;
+    const archiveMember = async (id, currentStatus) => {
+        if (currentStatus === "Inactive") {
+            alert("This member is already archived.");
+            return;
+        }
+        if (!window.confirm("Are you sure you want to archive this user? This will set their status to Inactive.")) return;
         try {
-            await api.deleteMember(id);
+            await api.updateUserStatus(id, "Inactive");
             fetchMembers();
         } catch (err) {
-            alert("Delete failed");
+            alert("Archive process failed");
         }
     };
 
@@ -148,13 +152,13 @@ const MemberForm = () => {
                 onChange={(e) => setFilterMinistry(e.target.value)}
                 style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
             >
-                <option>All Ministries</option>
-                <option>Worship Team</option>
-                <option>Youth Ministry</option>
-                <option>Children's Ministry</option>
-                <option>Outreach</option>
-                <option>General Staff</option>
-                <option>None</option>
+                <option value="All Ministries">All Ministries</option>
+                <option value="Worship Team">Worship Team</option>
+                <option value="Youth Ministry">Youth Ministry</option>
+                <option value="Children's Ministry">Children's Ministry</option>
+                <option value="Outreach">Outreach</option>
+                <option value="General Staff">General Staff</option>
+                <option value="None">None</option>
             </select>
         </div>
 
@@ -191,12 +195,12 @@ const MemberForm = () => {
             </select>
 
             <select value={ministry} onChange={(e) => setMinistry(e.target.value)}>
-                <option>Worship Team</option>
-                <option>Youth Ministry</option>
-                <option>Children's Ministry</option>
-                <option>Outreach</option>
-                <option>General Staff</option>
-                <option>None</option>
+                <option value="Worship Team">Worship Team</option>
+                <option value="Youth Ministry">Youth Ministry</option>
+                <option value="Children's Ministry">Children's Ministry</option>
+                <option value="Outreach">Outreach</option>
+                <option value="General Staff">General Staff</option>
+                <option value="None">None</option>
             </select>
             
             <button className="add-btn-primary" onClick={handleAction}>
@@ -251,8 +255,15 @@ const MemberForm = () => {
                                 </button>
                             </td>
                             <td>
-                                <button className="action-icon edit" onClick={() => startEdit(m)}>✏️</button>
-                                <button className="action-icon delete" onClick={() => deleteMember(m._id)}>🗑️</button>
+                                <button className="action-icon edit" onClick={() => startEdit(m)} title="Edit Member">✏️</button>
+                                <button 
+                                    className="action-icon delete" 
+                                    onClick={() => archiveMember(m._id, m.status)}
+                                    title="Archive Member (Set Inactive)"
+                                    style={{ filter: m.status === 'Inactive' ? 'grayscale(100%) opacity(50%)' : 'none' }}
+                                >
+                                    📦
+                                </button>
                             </td>
                         </tr>
                     ))}
