@@ -131,15 +131,15 @@ const Ministry = mongoose.model('Ministry', new mongoose.Schema({
   status: { type: String, default: "Active" } 
 }, { timestamps: true }));
 
-const Inventory = mongoose.model('Inventory', new mongoose.Schema({
-  item: { type: String, required: true },
+const InventorySchema = new mongoose.Schema({
+  itemName: { type: String, required: true },
+  category: { type: String, required: true },
   quantity: { type: Number, required: true, default: 0 },
-  location: { type: String },
-  assignedTo: { type: String },
-  lastMaintenance: { type: String }, 
-  category: { type: String, default: 'Miscellaneous' },
-  condition: { type: String, default: 'Good' }
-}, { timestamps: true }));
+  condition: { type: String, enum: ['Excellent', 'Good', 'Fair', 'Poor'], default: 'Good' },
+  location: { type: String, required: true },
+  assignedTo: { type: String, default: 'None' },
+  lastMaintenance: { type: String }
+}, { timestamps: true });
 
 const Inventory = mongoose.model('Inventory', InventorySchema);
 
