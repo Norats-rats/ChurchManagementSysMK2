@@ -24,7 +24,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const navigationConfig = [
     { id: 'dashboard', label: role === 'Member' ? '📌 Bulletin Board' : '📊 Dashboard', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'ebible', label: '📖 eBible', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'members', label: '👥 Church Members', roles: ['Admin'] },
+    { id: 'members', label: '👥 Church Members', roles: ['Admin', 'Ministry Leader'] },
     { id: 'events', label: '📅 Events', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'attendance', label: '📋 Attendance', roles: ['Admin', 'Member', 'Staff'] },
     { id: 'ministries', label: '❤️ Ministries', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },

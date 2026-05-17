@@ -84,7 +84,7 @@ const InventoryForm = () => {
     };
 
     const deleteItem = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this item permanently?")) return;
+        if (!window.confirm("Are you sure you want to remove all of this item?")) return;
         try {
             await api.deleteInventory(id);
             fetchInventory();
