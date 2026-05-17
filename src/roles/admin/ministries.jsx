@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 
-const API_BASE_RAW = import.meta.env.VITE_API_URL
+const API_BASE_RAW = import.meta.env.VITE_API_URL;
 const API_BASE = API_BASE_RAW.endsWith('/') ? API_BASE_RAW.slice(0, -1) : API_BASE_RAW;
 
 const Ministries = ({ role }) => {
   const [ministryList, setMinistryList] = useState([]);
   const [leaderOptions, setLeaderOptions] = useState([]);
+  const [allMembers, setAllMembers] = useState([]); 
+  const [expandedId, setExpandedId] = useState(null); 
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -24,12 +26,12 @@ const Ministries = ({ role }) => {
     fetchInitialData();
   }, [role]);
 
-const fetchInitialData = async () => {
-  if (!API_BASE) {
-    console.error("API_URL is not defined in environment variables");
-    setLoading(false);
-    return;
-  }
+  const fetchInitialData = async () => {
+    if (!API_BASE) {
+      console.error("API_URL is not defined in environment variables");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const minRes = await fetch(`${API_BASE}/api/ministries`);
@@ -41,9 +43,12 @@ const fetchInitialData = async () => {
       if (!userRes.ok) throw new Error("Failed to fetch members");
       const userData = await userRes.json();
       
-      const filteredLeaders = Array.isArray(userData) 
-        ? userData.filter(u => u.role === 'Ministry Leader' || u.role === 'Ministry')
-        : [];
+      const parsedMembers = Array.isArray(userData) ? userData : [];
+      setAllMembers(parsedMembers); 
+
+      const filteredLeaders = parsedMembers.filter(
+        u => u.role === 'Ministry Leader' || u.role === 'Ministry'
+      );
       setLeaderOptions(filteredLeaders);
 
     } catch (err) {
@@ -51,6 +56,10 @@ const fetchInitialData = async () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleDropdown = (id) => {
+    setExpandedId(expandedId === id ? null : id);
   };
 
   const handleCreate = async (e) => {
@@ -69,7 +78,7 @@ const fetchInitialData = async () => {
       
       if (res.ok) {
         setShowCreateForm(false);
-        setFormData({ name: '', leader: '', members: 10, schedule: '', color: '#2563eb' });
+        setFormData({ name: '', leader: '', members: 0, schedule: '', color: '#2563eb' });
         fetchInitialData();
       }
     } catch (err) { 
@@ -171,46 +180,89 @@ const fetchInitialData = async () => {
         </form>
       )}
 
+      {/* Keeps your exact 3-column responsive layout grid intact */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-        {ministryList.map((m) => (
-          <div key={m._id} style={{ borderTop: `6px solid ${m.color}`, background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-            {canManage && editingId === m._id ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <input style={inputStyle} value={editFormData.name} onChange={e => setEditFormData({...editFormData, name: e.target.value})} />
-                <input type="time" style={inputStyle} value={editFormData.schedule} onChange={e => setEditFormData({...editFormData, schedule: e.target.value})} />
-                <select style={inputStyle} value={editFormData.status} onChange={e => setEditFormData({...editFormData, status: e.target.value})}>
-                  <option value="Active">Active</option>
-                  <option value="Deactive">Deactive</option>
-                </select>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => handleUpdate(m._id)} style={btnPrimary}>Save</button>
-                  <button onClick={() => setEditingId(null)} style={btnSecondary}>Cancel</button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <h3 style={{ margin: 0 }}>{m.name}</h3>
-                  {m.status === 'Deactive' && <span style={inactivePill}>INACTIVE</span>}
-                </div>
-                <p style={{ color: '#64748b', fontSize: '14px' }}>Led by {m.leader}</p>
-                <div style={cardFooter}>
-                  <span>Members: <strong>{m.members}</strong></span>
-                  <span>🕒 {formatTime(m.schedule)}</span>
-                </div>
-                {canManage && (
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                    <button onClick={() => {
-                      setEditingId(m._id); 
-                      setEditFormData({ name: m.name, schedule: m.schedule, status: m.status || 'Active' });
-                    }} style={btnSecondary}>Edit</button>
-                    <button onClick={() => handleDelete(m._id)} style={btnDelete}>Delete</button>
+        {ministryList.map((m) => {
+          // Filters case-insensitively so "Music ministry" matches "Music Ministry"
+          const ministryMembers = allMembers.filter(member => 
+            member.ministry && m.name && member.ministry.trim().toLowerCase() === m.name.trim().toLowerCase()
+          );
+          const isExpanded = expandedId === m._id;
+
+          return (
+            <div key={m._id} style={{ borderTop: `6px solid ${m.color}`, background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              {canManage && editingId === m._id ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input style={inputStyle} value={editFormData.name} onChange={e => setEditFormData({...editFormData, name: e.target.value})} />
+                  <input type="time" style={inputStyle} value={editFormData.schedule} onChange={e => setEditFormData({...editFormData, schedule: e.target.value})} />
+                  <select style={inputStyle} value={editFormData.status} onChange={e => setEditFormData({...editFormData, status: e.target.value})}>
+                    <option value="Active">Active</option>
+                    <option value="Deactive">Deactive</option>
+                  </select>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => handleUpdate(m._id)} style={btnPrimary}>Save</button>
+                    <button onClick={() => setEditingId(null)} style={btnSecondary}>Cancel</button>
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        ))}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    {/* Entire header block acts as an accordion toggle */}
+                    <div 
+                      onClick={() => toggleDropdown(m._id)} 
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <h3 style={{ margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', color: '#94a3b8', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }}>
+                          ▼
+                        </span>
+                        {m.name}
+                      </h3>
+                      {m.status === 'Deactive' && <span style={inactivePill}>INACTIVE</span>}
+                    </div>
+                    
+                    <p style={{ color: '#64748b', fontSize: '14px', margin: '6px 0 15px 20px' }}>Led by {m.leader}</p>
+                    
+                    <div style={cardFooter}>
+                      <span>Members: <strong>{m.members}</strong></span>
+                      <span>🕒 {formatTime(m.schedule)}</span>
+                    </div>
+
+                    {/* Dropdown Container displaying the matching users list */}
+                    {isExpanded && (
+                      <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', maxHeight: '180px', overflowY: 'auto' }}>
+                        <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Assigned ({ministryMembers.length})
+                        </h4>
+                        {ministryMembers.length === 0 ? (
+                          <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>No members added yet.</p>
+                        ) : (
+                          <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
+                            {ministryMembers.map(member => (
+                              <li key={member._id} style={{ marginBottom: '4px' }}>
+                                <strong>{member.firstName} {member.lastName}</strong>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {canManage && (
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                      <button style={btnSecondary} onClick={() => {
+                        setEditingId(m._id); 
+                        setEditFormData({ name: m.name, schedule: m.schedule, status: m.status || 'Active' });
+                      }}>Edit</button>
+                      <button onClick={() => handleDelete(m._id)} style={btnDelete}>Delete</button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
