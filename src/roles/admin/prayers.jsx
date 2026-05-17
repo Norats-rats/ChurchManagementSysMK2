@@ -21,7 +21,7 @@ const PrayerRequests = ({ user, role }) => {
     try {
       setLoading(true);
       
-      // Pass the logged-in ID and the role into our updated secure api call
+      // Pass the logged-in ID and the role into our secure api call
       const response = await api.getPrayers(loggedInId, role);
       const data = response.data;
       
@@ -196,7 +196,20 @@ const PrayerRequests = ({ user, role }) => {
                   </div>
                 </div>
               </div>
-              <p style={{ color: '#475569', fontSize: '14px', lineHeight: '1.6', marginBottom: '20px', minHeight: '60px' }}>{r.text}</p>
+              
+              {/* User Prayer Request Text Block */}
+              <p style={{ color: '#475569', fontSize: '14px', lineHeight: '1.6', marginBottom: '20px', minHeight: '60px' }}>
+                {r.text}
+              </p>
+              
+              {/* ✨ Integrated AI Prayer Assistant Feedback Block */}
+              {r.aiResponse && (
+                <div style={{ backgroundColor: '#f1f5f9', padding: '12px 16px', borderRadius: '8px', marginBottom: '15px', borderLeft: '4px solid #6366f1', textAlign: 'left' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#475569', fontStyle: 'italic', lineHeight: '1.5' }}>
+                    <strong>✨ AI Prayer Assistant:</strong> {r.aiResponse}
+                  </p>
+                </div>
+              )}
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '15px' }}>
                 <span style={{ fontSize: '12px', color: '#94a3b8' }}>

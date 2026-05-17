@@ -62,12 +62,13 @@ getPrayers: (userId, role) => apiClient.get('/api/prayers', {
   }),
   submitPrayer: (newEntry) => apiClient.post('/api/prayers', newEntry),
   incrementPraying: (id) => apiClient.patch(`/api/prayers/${id}/pray`),
+  
+  // Keep only this secure version with the role headers:
   markAnswered: (id, role) => apiClient.patch(`/api/prayers/${id}/answer`, {}, {
     headers: {
       'x-user-role': role
     }
-  }),
-  markAnswered: (id) => apiClient.patch(`/api/prayers/${id}/answer`),
+  })
 };
 
 export default api;

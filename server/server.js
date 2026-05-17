@@ -117,7 +117,8 @@ const Prayer = mongoose.model('prayers', new mongoose.Schema({
   userId: { type: String, required: true },
   tags: [String], 
   date: { type: Date, default: Date.now },
-  status: { type: String, default: 'Active' }
+  status: { type: String, default: 'Active' },
+  aiResponse: { type: String, default: "" }
 }));
 
 const Ministry = mongoose.model('Ministry', new mongoose.Schema({
@@ -422,10 +423,50 @@ app.post('/api/prayers', async (req, res) => {
     const { name, initial, text, userId, tags } = req.body;
     
     if (!userId) {
-      return res.status(400).json({ error: "A valid userId is required to post a prayer request." });
+      return res.status(400).json({ error: "A valid userId is required." });
     }
 
-    const newPrayer = new Prayer({ name, initial, text, userId, tags });
+    let aiFeedback = "";
+
+    // Fire Puter AI to generate an uplifting scriptural encouragement or supportive thought
+    if (process.env.PUTER_AUTH_TOKEN && text) {
+      try {
+        const prompt = `
+          You are an encouraging, compassionate pastoral assistant. 
+          A church member has shared this private prayer request: "${text}".
+          Provide a brief, deeply supportive response (max 2 sentences) and include one helpful Bible verse reference that provides comfort for this situation. Keep it gentle and professional. Do not return any JSON formatting, just the raw message.
+        `;
+
+        const httpResponse = await axios.post(
+          'https://api.puter.com/puterai/openai/v1/chat/completions',
+          {
+            messages: [{ role: 'user', content: prompt }],
+            model: 'gpt-4o-mini'
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        aiFeedback = httpResponse.data?.choices?.[0]?.message?.content?.trim() || "";
+      } catch (aiErr) {
+        console.error("💡 Puter background processing failed:", aiErr.message);
+        aiFeedback = "Our ministry team is standing in agreement with you.";
+      }
+    }
+
+    // Save with the AI note attached
+    const newPrayer = new Prayer({ 
+      name, 
+      initial, 
+      text, 
+      userId, 
+      tags,
+      aiResponse: aiFeedback 
+    });
+
     await newPrayer.save();
     res.status(201).json(newPrayer);
   } catch (err) { 
