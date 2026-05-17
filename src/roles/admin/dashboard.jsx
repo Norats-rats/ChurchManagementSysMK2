@@ -4,9 +4,11 @@ import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
 import EBible from './ebible';
 import EventTab from './eventtab';
+import InventoryForm from './invento';
 import MemberForm from './memberform';
 import Ministries from './ministries';
 import Prayers from './prayers';
+
 
 const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const role = rawRole?.toLowerCase().includes('member') ? 'Member' : rawRole;
@@ -28,6 +30,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
     { id: 'ministries', label: '❤️ Ministries', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'prayers', label: '🙏 Prayers', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'analytics', label: '📈 Analytics', roles: ['Admin', 'Ministry Leader'] },
+    { id: 'inventory', label: '📦 Inventory', roles: ['Admin', 'Ministry Leader', 'Staff'] },
   ];
 
   const visibleTabs = navigationConfig.filter(tab => tab.roles.includes(role));
@@ -564,6 +567,9 @@ const trivias = [
           {currentTab === 'ministries' && <Ministries role={role} />}
           {currentTab === 'prayers' && <Prayers role={role} user={user} />}
           {currentTab === 'analytics' && isLeader && <Analytics />}
+          
+          {/* Render InventoryForm safely checking dynamic navigation visibility permissions */}
+          {currentTab === 'inventory' && ['Admin', 'Ministry Leader', 'Staff'].includes(role) && <InventoryForm />}
         </div>
       </div>
     </div>
@@ -575,10 +581,10 @@ const announcementBoxStyle = { background: '#f8fafc', padding: '25px', borderRad
 const triviaBoxStyle = { marginTop: '20px', padding: '15px', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fef3c7' };
 const leaderInputCard = { background: '#eff6ff', padding: '20px', borderRadius: '16px', border: '2px solid #bfdbfe', marginBottom: '20px' };
 const inputStyle = { flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '15px' };
-const postBtnStyle = { background: '#2563eb', color: '#fff', border: 'none', padding: '0 25px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' };
+const postBtnStyle = { background: '#2563eb', color: '#fff', border: 'none', padding: '0 25px', borderRadius: '10px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' };
 const quoteContainerStyle = { marginTop: '30px', padding: '40px', background: '#f1f5f9', borderRadius: '24px', textAlign: 'center', position: 'relative' };
-const quoteIconStyle = { fontSize: '50px', color: '#cbd5e1', position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)' };
-const quoteTextStyle = { fontSize: '18px', fontStyle: 'italic', color: '#334155', position: 'relative', zIndex: 1 };
-const quoteAuthorStyle = { display: 'block', marginTop: '15px', fontWeight: 'bold', color: '#64748b' };
+const quoteIconStyle = { fontSize: '80px', color: '#cbd5e1', position: 'absolute', top: '-10px', left: '30px', fontFamily: 'serif', lineHeight: '1' };
+const quoteTextStyle = { fontSize: '22px', italic: 'true', color: '#334155', position: 'relative', zIndex: '1', margin: '0 0 15px 0' };
+const quoteAuthorStyle = { fontSize: '15px', color: '#64748b', position: 'relative', zIndex: '1' };
 
 export default Dashboard;

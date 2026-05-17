@@ -11,8 +11,15 @@ const apiClient = axios.create({
 
 export const api = {
 
+  // Inventory
+  getInventory: () => apiClient.get('/api/inventory'),
+  createInventoryItem: (itemData) => apiClient.post('/api/inventory', itemData),
+  updateInventoryItem: (id, itemData) => apiClient.put(`/api/inventory/${id}`, itemData),
+  deleteInventoryItem: (id) => apiClient.delete(`/api/inventory/${id}`),
+
+
   //announcement
-getAnnouncement: () => apiClient.get('/api/settings/announcement'),
+  getAnnouncement: () => apiClient.get('/api/settings/announcement'),
   updateAnnouncement: (text) => apiClient.post('/api/settings/announcement', { text }),
 
   //qr thing
@@ -54,7 +61,7 @@ getAnnouncement: () => apiClient.get('/api/settings/announcement'),
   deleteMinistry: (id) => apiClient.delete(`/api/ministries/${id}`),
 
   // Prayers
-getPrayers: (userId, role) => apiClient.get('/api/prayers', {
+  getPrayers: (userId, role) => apiClient.get('/api/prayers', {
     headers: {
       'x-user-id': userId,
       'x-user-role': role
@@ -63,7 +70,6 @@ getPrayers: (userId, role) => apiClient.get('/api/prayers', {
   submitPrayer: (newEntry) => apiClient.post('/api/prayers', newEntry),
   incrementPraying: (id) => apiClient.patch(`/api/prayers/${id}/pray`),
   
-  // Keep only this secure version with the role headers:
   markAnswered: (id, role) => apiClient.patch(`/api/prayers/${id}/answer`, {}, {
     headers: {
       'x-user-role': role

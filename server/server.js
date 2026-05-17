@@ -131,6 +131,19 @@ const Ministry = mongoose.model('Ministry', new mongoose.Schema({
   status: { type: String, default: "Active" } 
 }, { timestamps: true }));
 
+const InventorySchema = new mongoose.Schema({
+  itemName: { type: String, required: true },
+  category: { type: String, required: true },
+  quantity: { type: Number, required: true, default: 0 },
+  condition: { type: String, enum: ['Excellent', 'Good', 'Fair', 'Poor'], default: 'Good' },
+  location: { type: String, required: true },
+  assignedTo: { type: String, default: 'None' },
+  lastMaintenance: { type: String }
+}, { timestamps: true });
+
+const Inventory = mongoose.model('Inventory', InventorySchema);
+
+
 app.get('/', (req, res) => {
   res.send('Church Management API is Online and Running');
 });
@@ -229,6 +242,36 @@ app.post('/reset-password', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// --- INVENTORY ROUTES ---
+app.get('/api/inventory', async (req, res) => {
+  try {
+    const items = await Inventory.find().sort({ createdAt: -1 });
+    res.json(items);
+  } catch (err) { res.status(500).json({ error: "Failed to fetch inventory items" }); }
+});
+
+app.post('/api/inventory', async (req, res) => {
+  try {
+    const newItem = new Inventory(req.body);
+    await newItem.save();
+    res.status(201).json(newItem);
+  } catch (err) { res.status(400).json({ error: "Failed to create item" }); }
+});
+
+app.put('/api/inventory/:id', async (req, res) => {
+  try {
+    const updated = await Inventory.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updated);
+  } catch (err) { res.status(400).json({ error: "Failed to update item" }); }
+});
+
+app.delete('/api/inventory/:id', async (req, res) => {
+  try {
+    await Inventory.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted successfully" });
+  } catch (err) { res.status(500).json({ error: "Failed to delete item" }); }
 });
 
 // --- MINISTRY ROUTES ---
@@ -427,8 +470,6 @@ app.post('/api/prayers', async (req, res) => {
     }
 
     let aiFeedback = "";
-
-    // Fire Puter AI to generate an uplifting scriptural encouragement or supportive thought
     if (process.env.PUTER_AUTH_TOKEN && text) {
       try {
         const prompt = `
@@ -457,7 +498,6 @@ app.post('/api/prayers', async (req, res) => {
       }
     }
 
-    // Save with the AI note attached
     const newPrayer = new Prayer({ 
       name, 
       initial, 
