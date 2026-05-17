@@ -12,7 +12,6 @@ const Analytics = () => {
     ministryDistribution: []
   });
 
-// Open analyticz.jsx and update the fetchLiveAnalytics routine:
 
   const fetchLiveAnalytics = async () => {
     try {
@@ -26,7 +25,6 @@ const Analytics = () => {
       const ministries = ministriesRes.data || [];
       const events = eventsRes.data || [];
 
-      // 🛠️ REVISED: Group and count active member assignments from your Member Collection
       const ministryCounts = {};
       members.forEach(member => {
         const minName = member.ministry || 'None';
@@ -35,7 +33,6 @@ const Analytics = () => {
         }
       });
 
-      // Map the top ministries dynamically based on real member metrics
       const distribution = ministries.slice(0, 5).map(m => {
         const realCount = ministryCounts[m.name] || 0;
         return {
@@ -55,7 +52,6 @@ const Analytics = () => {
       setDbStats(newStats);
       setLoading(false);
 
-      // Trigger the AI Insights proxy
       try {
         const aiResponse = await api.analyzeMetrics(newStats);
         if (aiResponse.data && aiResponse.data.insight) {

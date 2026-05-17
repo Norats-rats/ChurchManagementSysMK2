@@ -399,18 +399,68 @@ app.patch('/api/events/:id/archive', async (req, res) => {
 // --- PRAYER ROUTES ---
 app.get('/api/prayers', async (req, res) => { 
   try {
-    const prayers = await Prayer.find().sort({ date: -1 });
+    const loggedInUserId = req.headers['x-user-id'];
+    const loggedInUserRole = req.headers['x-user-role'];
+
+    if (!loggedInUserId) {
+      return res.status(401).json({ error: "Unauthorized access: Missing identity headers." });
+    }
+
+    let query = {};
+    if (loggedInUserRole !== 'Ministry Leader' && loggedInUserRole !== 'Admin') {
+      query = { userId: loggedInUserId };
+    }
+    const prayers = await Prayer.find(query).sort({ date: -1 });
     res.json(prayers);
-  } catch (err) { res.status(500).json({ error: "Error" }); }
+  } catch (err) { 
+    console.error("Error fetching filtered prayers:", err);
+    res.status(500).json({ error: "Internal server error fetching records." }); 
+  }
 });
 
 app.post('/api/prayers', async (req, res) => {
   try {
     const { name, initial, text, userId, tags } = req.body;
+    
+    // Safety check to verify a record isn't being spoofed or left orphaned
+    if (!userId) {
+      return res.status(400).json({ error: "A valid userId is required to post a prayer request." });
+    }
+
     const newPrayer = new Prayer({ name, initial, text, userId, tags });
     await newPrayer.save();
     res.status(201).json(newPrayer);
-  } catch (err) { res.status(400).json({ error: "Error" }); }
+  } catch (err) { 
+    res.status(400).json({ error: "Failed to create prayer request." }); 
+  }
+});
+
+app.patch('/api/prayers/:id/pray', async (req, res) => {
+  try {
+    const updated = await Prayer.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { prayingCount: 1 } },
+      { new: true }
+    );
+    res.json(updated);
+  } catch (err) { res.status(400).json({ error: "Failed to update count." }); }
+});
+
+app.patch('/api/prayers/:id/answer', async (req, res) => {
+  try {
+    const loggedInUserRole = req.headers['x-user-role'];
+
+    if (loggedInUserRole !== 'Ministry Leader' && loggedInUserRole !== 'Admin') {
+      return res.status(403).json({ error: "Forbidden: Only Ministry Leaders can update prayer states." });
+    }
+
+    const updated = await Prayer.findByIdAndUpdate(
+      req.params.id,
+      { $set: { status: "Answered" } },
+      { new: true }
+    );
+    res.json(updated);
+  } catch (err) { res.status(400).json({ error: "Failed to update prayer status." }); }
 });
 
 app.patch('/api/prayers/:id/pray', async (req, res) => {

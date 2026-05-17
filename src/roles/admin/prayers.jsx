@@ -10,12 +10,17 @@ const PrayerRequests = ({ user, role }) => {
 
   const categories = ["Health", "Career", "Financial", "Family", "Testimony", "Ministry", "Relationships", "Travel"];
 
+  // Cache user identifiers to avoid cluttering the JSX loop
+  const loggedInId = user?._id || user?.id;
+  const isAdminOrMinistry = role === 'Admin' || role === 'Ministry Leader';
+
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [loggedInId]); // Refetch if user session shifts
 
   const fetchRequests = async () => {
     try {
+      setLoading(true);
       const response = await api.getPrayers();
       const data = response.data;
       
@@ -57,7 +62,7 @@ const PrayerRequests = ({ user, role }) => {
       name: userName, 
       initial: userInitial,
       text: newRequestText,
-      userId: user?._id || user?.id, 
+      userId: loggedInId, 
       tags: selectedCategories, 
       status: "Active",
       prayingCount: 0, 
@@ -144,8 +149,12 @@ const PrayerRequests = ({ user, role }) => {
     <div style={styles.container}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '24px', color: '#1e293b' }}>Prayer Requests</h1>
-          <p style={{ margin: '5px 0 0', color: '#64748b' }}>Connect with the church through prayer</p>
+          <h1 style={{ margin: 0, fontSize: '24px', color: '#1e293b' }}>
+            {isAdminOrMinistry ? "All Prayer Requests" : "Your Prayer Requests"}
+          </h1>
+          <p style={{ margin: '5px 0 0', color: '#64748b' }}>
+            {isAdminOrMinistry ? "Reviewing church family needs" : "Keep track of your personal prayer requests"}
+          </p>
         </div>
         <button style={styles.btnPrimary} onClick={() => setShowModal(true)}>+ Submit Prayer Request</button>
       </div>
@@ -178,10 +187,16 @@ const PrayerRequests = ({ user, role }) => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
         {loading ? (
           <p>Loading...</p>
+        ) : requests.length === 0 ? (
+          <p style={{ color: '#64748b', fontStyle: 'italic' }}>No prayer requests found.</p>
         ) : requests.map((r) => {
-          const loggedInId = user?._id || user?.id;
           const isCreator = loggedInId && r.userId && String(loggedInId) === String(r.userId);
-          const isAdminOrMinistry = role === 'Admin' || role === 'Ministry Leader';
+
+          // 🔒 UI Safety Guard: In case backend filter hasn't been implemented yet, 
+          // this client filter ensures regular members still won't see other users' cards on screen.
+          if (!isCreator && !isAdminOrMinistry) {
+            return null;
+          }
 
           return (
             <div key={r._id} style={styles.requestCard(r.status)}>
@@ -205,8 +220,9 @@ const PrayerRequests = ({ user, role }) => {
                 <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                   📅 {new Date(r.date).toLocaleDateString()} • 👥 {r.praying} praying
                 </span>
+                
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  
+                  {/* Allow clicking "I'm Praying" if it's their own, or if a Leader is viewing */}
                   {r.status === "Active" && (
                     <button 
                       onClick={() => handlePraying(r._id)} 
@@ -216,6 +232,7 @@ const PrayerRequests = ({ user, role }) => {
                     </button>
                   )}
                   
+                  {/* Only Admin/Ministry leaders can see the "Mark Answered" management control */}
                   {r.status === "Active" && isAdminOrMinistry && (
                     <button 
                       onClick={() => handleMarkAnswered(r._id)} 
