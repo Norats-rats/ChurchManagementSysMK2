@@ -16,9 +16,9 @@ const InventoryForm = () => {
     const [itemName, setItemName] = useState("");
     const [category, setCategory] = useState("Instruments");
     const [quantity, setQuantity] = useState("");
-    const [condition, setCondition] = useState("Good"); 
+    const [condition, setCondition] = useState(""); 
     const [location, setLocation] = useState("");
-    const [assignedTo, setAssignedTo] = useState("None");
+    const [assignedTo, setAssignedTo] = useState("");
     const [lastMaintenance, setLastMaintenance] = useState("");
     
     const [searchQuery, setSearchQuery] = useState("");
@@ -191,7 +191,7 @@ const InventoryForm = () => {
                     ))}
                 </select>
             </div>
-            
+
             <div className="table-container">
                 <table className="member-table">
                     <thead>
