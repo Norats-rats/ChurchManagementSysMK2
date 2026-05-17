@@ -315,11 +315,18 @@ const Ministries = ({ role }) => {
 
               {canManage && (
                 <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                  <button style={btnSecondary} onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingId(m._id); 
-                    setEditLeaderData(m.leader);
-                  }}>Edit</button>
+                  {editingId === m._id ? (
+                    <button style={btnSecondary} onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingId(null);
+                    }}>Cancel Edit</button>
+                  ) : (
+                    <button style={btnSecondary} onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingId(m._id); 
+                      setEditLeaderData(m.leader);
+                    }}>Edit</button>
+                  )}
                   
                   <button 
                     onClick={(e) => {
