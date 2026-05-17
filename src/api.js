@@ -54,8 +54,19 @@ getAnnouncement: () => apiClient.get('/api/settings/announcement'),
   deleteMinistry: (id) => apiClient.delete(`/api/ministries/${id}`),
 
   // Prayers
-  getPrayers: () => apiClient.get('/api/prayers'),
+getPrayers: (userId, role) => apiClient.get('/api/prayers', {
+    headers: {
+      'x-user-id': userId,
+      'x-user-role': role
+    }
+  }),
   submitPrayer: (newEntry) => apiClient.post('/api/prayers', newEntry),
+  incrementPraying: (id) => apiClient.patch(`/api/prayers/${id}/pray`),
+  markAnswered: (id, role) => apiClient.patch(`/api/prayers/${id}/answer`, {}, {
+    headers: {
+      'x-user-role': role
+    }
+  }),
   incrementPraying: (id) => apiClient.patch(`/api/prayers/${id}/pray`),
   markAnswered: (id) => apiClient.patch(`/api/prayers/${id}/answer`),
 };

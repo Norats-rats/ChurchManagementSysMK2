@@ -18,10 +18,12 @@ const PrayerRequests = ({ user, role }) => {
     fetchRequests();
   }, [loggedInId]); // Refetch if user session shifts
 
-  const fetchRequests = async () => {
+const fetchRequests = async () => {
     try {
       setLoading(true);
-      const response = await api.getPrayers();
+      
+      // Pass the logged-in ID and the role into our updated api call
+      const response = await api.getPrayers(loggedInId, role);
       const data = response.data;
       
       const formattedData = Array.isArray(data) ? data.map(item => ({
@@ -95,9 +97,10 @@ const PrayerRequests = ({ user, role }) => {
     }
   };
 
-  const handleMarkAnswered = async (id) => {
+const handleMarkAnswered = async (id) => {
     try {
-      const response = await api.markAnswered(id);
+      // Pass 'role' as the second parameter so the backend block doesn't throw a 403
+      const response = await api.markAnswered(id, role);
       if (response.status === 200) {
         setRequests(prevRequests => 
           prevRequests.map(item => 

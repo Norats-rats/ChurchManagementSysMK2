@@ -422,7 +422,6 @@ app.post('/api/prayers', async (req, res) => {
   try {
     const { name, initial, text, userId, tags } = req.body;
     
-    // Safety check to verify a record isn't being spoofed or left orphaned
     if (!userId) {
       return res.status(400).json({ error: "A valid userId is required to post a prayer request." });
     }
@@ -461,28 +460,6 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
     );
     res.json(updated);
   } catch (err) { res.status(400).json({ error: "Failed to update prayer status." }); }
-});
-
-app.patch('/api/prayers/:id/pray', async (req, res) => {
-  try {
-    const updated = await Prayer.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { prayingCount: 1 } },
-      { new: true }
-    );
-    res.json(updated);
-  } catch (err) { res.status(400).json({ error: "Failed" }); }
-});
-
-app.patch('/api/prayers/:id/answer', async (req, res) => {
-  try {
-    const updated = await Prayer.findByIdAndUpdate(
-      req.params.id,
-      { $set: { status: "Answered" } },
-      { new: true }
-    );
-    res.json(updated);
-  } catch (err) { res.status(400).json({ error: "Failed" }); }
 });
 
 // --- SETTINGS ROUTES ---
