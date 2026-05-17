@@ -1,6 +1,23 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
 
+const MINISTRY_OPTIONS = [
+    "Worship Team",
+    "Youth Ministry",
+    "Children's Ministry",
+    "Outreach",
+    "General Staff",
+    "Jail ministry",
+    "Marshall Ministry",
+    "Usher Ministry",
+    "Sanitation ministry",
+    "Kitchen ministry",
+    "Social and Live Ministry",
+    "Technical Ministry",
+    "Music ministry",
+    "None"
+];
+
 const MemberForm = () => {
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
@@ -70,24 +87,24 @@ const MemberForm = () => {
         setIsEditing(false); setEditId(null);
     };
 
-    const toggleStatus = async (id, currentStatus) => {
-        const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+    const toggleStatus = async (member) => {
+        const newStatus = member.status === "Active" ? "Inactive" : "Active";
         try {
-            await api.updateUserStatus(id, newStatus);
+            await api.updateMember(member._id, { ...member, status: newStatus });
             fetchMembers();
         } catch (err) {
-            console.error("Failed to update status");
+            console.error("Failed to update status:", err);
         }
     };
 
-    const archiveMember = async (id, currentStatus) => {
-        if (currentStatus === "Inactive") {
+    const archiveMember = async (id, currentMemberData) => {
+        if (currentMemberData.status === "Inactive") {
             alert("This member is already archived.");
             return;
         }
         if (!window.confirm("Are you sure you want to archive this user? This will set their status to Inactive.")) return;
         try {
-            await api.updateUserStatus(id, "Inactive");
+            await api.updateMember(id, { ...currentMemberData, status: "Inactive" });
             fetchMembers();
         } catch (err) {
             alert("Archive process failed");
@@ -153,12 +170,9 @@ const MemberForm = () => {
                 style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
             >
                 <option value="All Ministries">All Ministries</option>
-                <option value="Worship Team">Worship Team</option>
-                <option value="Youth Ministry">Youth Ministry</option>
-                <option value="Children's Ministry">Children's Ministry</option>
-                <option value="Outreach">Outreach</option>
-                <option value="General Staff">General Staff</option>
-                <option value="None">None</option>
+                {MINISTRY_OPTIONS.map((min) => (
+                    <option key={min} value={min}>{min}</option>
+                ))}
             </select>
         </div>
 
@@ -195,11 +209,9 @@ const MemberForm = () => {
             </select>
 
             <select value={ministry} onChange={(e) => setMinistry(e.target.value)}>
-                <option value="Worship Team">Worship Team</option>
-                <option value="Youth Ministry">Youth Ministry</option>
-                <option value="Children's Ministry">Children's Ministry</option>
-                <option value="Outreach">Outreach</option>
-                <option value="General Staff">General Staff</option>
+                {MINISTRY_OPTIONS.filter(min => min !== "None").map((min) => (
+                    <option key={min} value={min}>{min}</option>
+                ))}
                 <option value="None">None</option>
             </select>
             
@@ -248,17 +260,17 @@ const MemberForm = () => {
                             <td><span className="ministry-tag">{m.ministry}</span></td>
                             <td>
                                 <button 
-                                    className={`status-pill ${m.status?.toLowerCase() || 'active'}`}
-                                    onClick={() => toggleStatus(m._id, m.status)}
+                                    className={`status-pill ${m.status?.toLowerCase() || 'inactive'}`}
+                                    onClick={() => toggleStatus(m)}
                                 >
-                                    {m.status || "Active"}
+                                    {m.status || "Inactive"}
                                 </button>
                             </td>
                             <td>
                                 <button className="action-icon edit" onClick={() => startEdit(m)} title="Edit Member">✏️</button>
                                 <button 
                                     className="action-icon delete" 
-                                    onClick={() => archiveMember(m._id, m.status)}
+                                    onClick={() => archiveMember(m._id, m)}
                                     title="Archive Member (Set Inactive)"
                                     style={{ filter: m.status === 'Inactive' ? 'grayscale(100%) opacity(50%)' : 'none' }}
                                 >

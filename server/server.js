@@ -187,12 +187,12 @@ app.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
-    if (user.status === 'Deactivated' || !user.isVerified) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Your account is deactivated or not yet verified." 
-      });
-    }
+if (user.status === 'Deactivated' || user.status === 'Inactive' || !user.isVerified) {
+  return res.status(403).json({ 
+    success: false, 
+    message: "Your account is inactive, deactivated, or not yet verified." 
+  });
+}
     res.json({ success: true, role: user.role, user });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
