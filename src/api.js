@@ -67,7 +67,6 @@ getPrayers: (userId, role) => apiClient.get('/api/prayers', {
       'x-user-role': role
     }
   }),
-  incrementPraying: (id) => apiClient.patch(`/api/prayers/${id}/pray`),
   markAnswered: (id) => apiClient.patch(`/api/prayers/${id}/answer`),
 };
 

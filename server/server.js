@@ -116,7 +116,6 @@ const Prayer = mongoose.model('prayers', new mongoose.Schema({
   text: String,
   userId: { type: String, required: true },
   tags: [String], 
-  prayingCount: { type: Number, default: 0 },
   date: { type: Date, default: Date.now },
   status: { type: String, default: 'Active' }
 }));
@@ -434,16 +433,6 @@ app.post('/api/prayers', async (req, res) => {
   }
 });
 
-app.patch('/api/prayers/:id/pray', async (req, res) => {
-  try {
-    const updated = await Prayer.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { prayingCount: 1 } },
-      { new: true }
-    );
-    res.json(updated);
-  } catch (err) { res.status(400).json({ error: "Failed to update count." }); }
-});
 
 app.patch('/api/prayers/:id/answer', async (req, res) => {
   try {

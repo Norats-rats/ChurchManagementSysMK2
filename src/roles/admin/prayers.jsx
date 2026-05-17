@@ -9,27 +9,24 @@ const PrayerRequests = ({ user, role }) => {
   const [loading, setLoading] = useState(true);
 
   const categories = ["Health", "Career", "Financial", "Family", "Testimony", "Ministry", "Relationships", "Travel"];
-
-  // Cache user identifiers to avoid cluttering the JSX loop
+  
   const loggedInId = user?._id || user?.id;
   const isAdminOrMinistry = role === 'Admin' || role === 'Ministry Leader';
 
   useEffect(() => {
     fetchRequests();
-  }, [loggedInId]); // Refetch if user session shifts
+  }, [loggedInId]); 
 
-const fetchRequests = async () => {
+  const fetchRequests = async () => {
     try {
       setLoading(true);
       
-      // Pass the logged-in ID and the role into our updated api call
+      // Pass the logged-in ID and the role into our updated secure api call
       const response = await api.getPrayers(loggedInId, role);
       const data = response.data;
       
-      const formattedData = Array.isArray(data) ? data.map(item => ({
-        ...item,
-        praying: item.prayingCount || 0 
-      })) : [];
+      // Cleaned up: No longer mapping item.prayingCount
+      const formattedData = Array.isArray(data) ? data : [];
 
       setRequests(formattedData);
       setLoading(false);
@@ -67,7 +64,6 @@ const fetchRequests = async () => {
       userId: loggedInId, 
       tags: selectedCategories, 
       status: "Active",
-      prayingCount: 0, 
       date: new Date().toISOString()
     };
 
@@ -84,22 +80,8 @@ const fetchRequests = async () => {
     }
   };
 
-  const handlePraying = async (id) => {
+  const handleMarkAnswered = async (id) => {
     try {
-      const response = await api.incrementPraying(id);
-      if (response.status === 200) {
-        setRequests(requests.map(r => 
-            r._id === id ? { ...r, praying: (r.praying || 0) + 1 } : r
-        ));
-      }
-    } catch (err) {
-      console.error("Error updating prayer count:", err);
-    }
-  };
-
-const handleMarkAnswered = async (id) => {
-    try {
-      // Pass 'role' as the second parameter so the backend block doesn't throw a 403
       const response = await api.markAnswered(id, role);
       if (response.status === 200) {
         setRequests(prevRequests => 
@@ -194,9 +176,6 @@ const handleMarkAnswered = async (id) => {
           <p style={{ color: '#64748b', fontStyle: 'italic' }}>No prayer requests found.</p>
         ) : requests.map((r) => {
           const isCreator = loggedInId && r.userId && String(loggedInId) === String(r.userId);
-
-          // 🔒 UI Safety Guard: In case backend filter hasn't been implemented yet, 
-          // this client filter ensures regular members still won't see other users' cards on screen.
           if (!isCreator && !isAdminOrMinistry) {
             return null;
           }
@@ -221,21 +200,10 @@ const handleMarkAnswered = async (id) => {
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '15px' }}>
                 <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                  📅 {new Date(r.date).toLocaleDateString()} • 👥 {r.praying} praying
+                  📅 {new Date(r.date).toLocaleDateString()}
                 </span>
                 
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {/* Allow clicking "I'm Praying" if it's their own, or if a Leader is viewing */}
-                  {r.status === "Active" && (
-                    <button 
-                      onClick={() => handlePraying(r._id)} 
-                      style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #dbeafe', color: '#2563eb', background: '#eff6ff', cursor: 'pointer', fontWeight: '600' }}
-                    >
-                      I'm Praying
-                    </button>
-                  )}
-                  
-                  {/* Only Admin/Ministry leaders can see the "Mark Answered" management control */}
                   {r.status === "Active" && isAdminOrMinistry && (
                     <button 
                       onClick={() => handleMarkAnswered(r._id)} 
