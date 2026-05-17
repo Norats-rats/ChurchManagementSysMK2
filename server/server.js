@@ -141,8 +141,6 @@ const Inventory = mongoose.model('Inventory', new mongoose.Schema({
   condition: { type: String, default: 'Good' }
 }, { timestamps: true }));
 
-const Inventory = mongoose.model('Inventory', InventorySchema);
-
 
 app.get('/', (req, res) => {
   res.send('Church Management API is Online and Running');
@@ -244,7 +242,7 @@ app.post('/reset-password', async (req, res) => {
   }
 });
 
-// --- INVENTORY ROUTES ---
+//inventory routes
 app.post('/api/inventory', async (req, res) => {
   try {
     const payload = {
