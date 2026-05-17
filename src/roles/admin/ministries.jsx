@@ -245,8 +245,18 @@ const Ministries = ({ role }) => {
                       ))}
                     </select>
                     <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                      <button onClick={() => handleUpdateLeader(m._id)} style={{ ...btnPrimary, padding: '6px 12px', fontSize: '12px' }}>Save</button>
-                      <button onClick={() => setEditingId(null)} style={{ ...btnSecondary, padding: '6px 12px', fontSize: '12px' }}>Cancel</button>
+                      <button 
+                        onClick={() => handleUpdateLeader(m._id)} 
+                        style={{ padding: '6px 14px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        Save
+                      </button>
+                      <button 
+                        onClick={() => setEditingId(null)} 
+                        style={{ padding: '6px 14px', backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -302,7 +312,7 @@ const Ministries = ({ role }) => {
                         </select>
                         <button 
                           onClick={() => handleAddMember(selectedMemberId, m.name)}
-                          style={{ ...btnPrimary, padding: '6px 12px', fontSize: '12px' }}
+                          style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
                           disabled={!selectedMemberId}
                         >
                           Add
@@ -316,16 +326,26 @@ const Ministries = ({ role }) => {
               {canManage && (
                 <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
                   {editingId === m._id ? (
-                    <button style={btnSecondary} onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingId(null);
-                    }}>Cancel Edit</button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingId(null);
+                      }}
+                      style={{ padding: '8px 16px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                      Cancel Edit
+                    </button>
                   ) : (
-                    <button style={btnSecondary} onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingId(m._id); 
-                      setEditLeaderData(m.leader);
-                    }}>Edit</button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingId(m._id); 
+                        setEditLeaderData(m.leader);
+                      }}
+                      style={{ padding: '8px 16px', backgroundColor: '#ffffff', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                      Edit
+                    </button>
                   )}
                   
                   <button 
@@ -333,7 +353,16 @@ const Ministries = ({ role }) => {
                       e.stopPropagation();
                       handleToggleStatus(m);
                     }} 
-                    style={m.status === 'Deactive' ? btnActivate : btnDeactivate}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      border: '1px solid',
+                      backgroundColor: m.status === 'Deactive' ? '#ecfdf5' : '#fef2f2',
+                      color: m.status === 'Deactive' ? '#059669' : '#dc2626',
+                      borderColor: m.status === 'Deactive' ? '#a7f3d0' : '#fecaca'
+                    }}
                   >
                     {m.status === 'Deactive' ? 'Activate' : 'Deactivate'}
                   </button>
@@ -353,11 +382,6 @@ const labelStyle = { fontSize: '12px', fontWeight: '700', color: '#475569', text
 const inputStyle = { padding: '10px', borderRadius: '8px', border: '1px solid #085dc3', backgroundColor: 'white' };
 const btnSubmit = { padding: '12px 30px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
 const btnCancel = { padding: '12px 20px', backgroundColor: '#d20700', border: 'none', borderRadius: '8px', cursor: 'pointer' };
-const btnPrimary = { padding: '8px 16px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' };
-const btnSecondary = { padding: '8px 16px', backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer' };
-
-const btnDeactivate = { ...btnSecondary, color: '#ef4444', borderColor: '#fecaca' };
-const btnActivate = { ...btnSecondary, color: '#10b981', borderColor: '#a7f3d0' };
 
 const removeMemberLink = { background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', padding: 0 };
 const inactivePill = { fontSize: '10px', backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' };
