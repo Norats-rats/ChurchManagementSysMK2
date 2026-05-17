@@ -131,15 +131,15 @@ const Ministry = mongoose.model('Ministry', new mongoose.Schema({
   status: { type: String, default: "Active" } 
 }, { timestamps: true }));
 
-const InventorySchema = new mongoose.Schema({
-  itemName: { type: String, required: true },
-  category: { type: String, required: true },
+const Inventory = mongoose.model('Inventory', new mongoose.Schema({
+  item: { type: String, required: true },
   quantity: { type: Number, required: true, default: 0 },
-  condition: { type: String, enum: ['Excellent', 'Good', 'Fair', 'Poor'], default: 'Good' },
-  location: { type: String, required: true },
-  assignedTo: { type: String, default: 'None' },
-  lastMaintenance: { type: String }
-}, { timestamps: true });
+  location: { type: String },
+  assignedTo: { type: String },
+  lastMaintenance: { type: String }, 
+  category: { type: String, default: 'Miscellaneous' },
+  condition: { type: String, default: 'Good' }
+}, { timestamps: true }));
 
 const Inventory = mongoose.model('Inventory', InventorySchema);
 
@@ -245,33 +245,44 @@ app.post('/reset-password', async (req, res) => {
 });
 
 // --- INVENTORY ROUTES ---
-app.get('/api/inventory', async (req, res) => {
-  try {
-    const items = await Inventory.find().sort({ createdAt: -1 });
-    res.json(items);
-  } catch (err) { res.status(500).json({ error: "Failed to fetch inventory items" }); }
-});
-
 app.post('/api/inventory', async (req, res) => {
   try {
     const newItem = new Inventory(req.body);
     await newItem.save();
     res.status(201).json(newItem);
-  } catch (err) { res.status(400).json({ error: "Failed to create item" }); }
+  } catch (err) {
+    console.error("Failed to create inventory item:", err);
+    res.status(400).json({ error: "Failed to create inventory item", details: err.message });
+  }
+});
+
+app.get('/api/inventory', async (req, res) => {
+  try {
+    const items = await Inventory.find().sort({ createdAt: -1 });
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch inventory items" });
+  }
 });
 
 app.put('/api/inventory/:id', async (req, res) => {
   try {
     const updated = await Inventory.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updated) return res.status(404).json({ error: "Item not found" });
     res.json(updated);
-  } catch (err) { res.status(400).json({ error: "Failed to update item" }); }
+  } catch (err) {
+    res.status(400).json({ error: "Failed to update inventory item" });
+  }
 });
 
 app.delete('/api/inventory/:id', async (req, res) => {
   try {
-    await Inventory.findByIdAndDelete(req.params.id);
+    const deleted = await Inventory.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ error: "Item not found" });
     res.json({ message: "Deleted successfully" });
-  } catch (err) { res.status(500).json({ error: "Failed to delete item" }); }
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete item" });
+  }
 });
 
 // --- MINISTRY ROUTES ---
@@ -513,7 +524,6 @@ app.post('/api/prayers', async (req, res) => {
     res.status(400).json({ error: "Failed to create prayer request." }); 
   }
 });
-
 
 app.patch('/api/prayers/:id/answer', async (req, res) => {
   try {

@@ -13,9 +13,9 @@ export const api = {
 
   // Inventory
   getInventory: () => apiClient.get('/api/inventory'),
-  createInventoryItem: (itemData) => apiClient.post('/api/inventory', itemData),
-  updateInventoryItem: (id, itemData) => apiClient.put(`/api/inventory/${id}`, itemData),
-  deleteInventoryItem: (id) => apiClient.delete(`/api/inventory/${id}`),
+  createInventory: (itemData) => apiClient.post('/api/inventory', itemData),
+  updateInventory: (id, itemData) => apiClient.put(`/api/inventory/${id}`, itemData),
+  deleteInventory: (id) => apiClient.delete(`/api/inventory/${id}`),
 
 
   //announcement
