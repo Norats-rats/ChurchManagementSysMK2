@@ -462,7 +462,6 @@ app.post('/api/events/scan-qr', async (req, res) => {
   try {
     let eventId = req.body.eventId;
     let userId = req.body.userId;
-
     const rawQrString = req.body.qrData || req.body.text || req.body.data || req.body.qrCode;
     if (rawQrString && typeof rawQrString === 'string' && rawQrString.includes('eventId=')) {
       try {
@@ -498,23 +497,38 @@ app.post('/api/events/scan-qr', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Event record not found in database.' });
     }
 
-    const alreadyAttending = event.attendees.includes(userId);
-    if (alreadyAttending) {
-      return res.status(200).json({ success: true, message: 'User attendance is already recorded for this event.' });
+    const existingAttendance = await Attendance.findOne({ eventId, userId });
+    if (existingAttendance) {
+      return res.status(200).json({ 
+        success: true, 
+        message: 'User attendance is already recorded in logs.',
+        eventTitle: event.titleSelection || event.title 
+      });
     }
 
-    event.attendees.push(userId);
-    await event.save();
+    const newAttendanceLog = new Attendance({
+      userId: userId,
+      eventId: eventId,
+      date: event.date || new Date().toISOString().split('T')[0],
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      status: 'Present'
+    });
+
+    await newAttendanceLog.save();
+    if (!event.attendees.includes(userId)) {
+      event.attendees.push(userId);
+      await event.save();
+    }
 
     return res.status(200).json({ 
       success: true, 
-      message: 'Attendance checked in successfully!',
+      message: 'Attendance successfully added to live logs!',
       eventTitle: event.titleSelection || event.title 
     });
 
   } catch (error) {
-    console.error("❌ Scan QR Route Error:", error);
-    return res.status(500).json({ success: false, message: 'Internal server validation error.' });
+    console.error("❌ Scan QR Attendance Route Error:", error);
+    return res.status(500).json({ success: false, message: 'Internal server schema configuration error.' });
   }
 });
 
