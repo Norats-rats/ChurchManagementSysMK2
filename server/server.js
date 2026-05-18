@@ -361,11 +361,11 @@ app.delete('/api/members/:id', async (req, res) => {
 // --- ATTENDANCE & EVENTS ---
 app.get('/api/attendance', async (req, res) => {
   try {
-    // Fetches documents and sorts them. If fields are missing, Mongoose treats them gracefully.
-    const records = await Attendance.find({}).sort({ createdAt: -1 });
+    const Attendance = mongoose.model('Attendance', AttendanceSchema);
+    const records = await AttendanceModel.find({}).sort({ createdAt: -1 });
     return res.json(records);
   } catch (err) { 
-    console.error("❌ GET Attendance Error:", err.message);
+    console.error("❌ GET Attendance Route Error:", err.message);
     return res.status(500).json({ error: "Failed to fetch attendance records safely" }); 
   }
 });
@@ -390,10 +390,13 @@ app.post('/api/attendance', async (req, res) => {
     if (!userId || userId === 'undefined' || userId === 'null') {
       return res.status(400).json({ success: false, message: 'Invalid or missing User ID sequence.' });
     }
-    const alreadyLogged = await Attendance.findOne({ eventId, userId });
+
+    const Attendance = mongoose.model('Attendance', AttendanceSchema);
+    const alreadyLogged = await AttendanceModel.findOne({ eventId, userId });
     if (alreadyLogged) {
       return res.status(200).json({ success: true, message: 'Attendance already recorded!' });
     }
+
     let userName = "Unknown Member";
     try {
       const memberDoc = await Member.findById(userId);
@@ -404,7 +407,7 @@ app.post('/api/attendance', async (req, res) => {
       console.error("Name lookup tracking error:", err.message);
     }
 
-    const newAttendance = new Attendance({
+    const newAttendance = new AttendanceModel({
       userId,
       eventId,
       userName,
