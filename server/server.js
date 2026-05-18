@@ -101,14 +101,15 @@ const Event = mongoose.model('events', new mongoose.Schema({
   status: { type: String, default: 'active' }
 }, { timestamps: true }));
 
-const AttendanceSchema = new mongoose.Schema({
+const Attendance = mongoose.model('attendance', new mongoose.Schema({
   userId: { type: String, required: true },
-  eventId: { type: String, required: true },
-  userName: { type: String, default: "Unknown Member" }, 
-  date: { type: String, required: true },
-  time: { type: String, required: true },
-  status: { type: String, default: 'Present' }
-}, { timestamps: true });
+  eventId: String,                     
+  userName: String,                    
+  service: String,
+  date: String,
+  time: String,
+  status: { type: String, enum: ['Present', 'Late', 'Absent'], default: 'Present' }
+}, { timestamps: true }));
 
 const Prayer = mongoose.model('prayers', new mongoose.Schema({
   name: String,
@@ -361,66 +362,11 @@ app.delete('/api/members/:id', async (req, res) => {
 // --- ATTENDANCE & EVENTS ---
 app.get('/api/attendance', async (req, res) => {
   try {
-    const Attendance = mongoose.model('Attendance', AttendanceSchema);
-    const records = await AttendanceModel.find({}).sort({ createdAt: -1 });
+    const records = await Attendance.find({}).sort({ createdAt: -1 });
     return res.json(records);
   } catch (err) { 
     console.error("❌ GET Attendance Route Error:", err.message);
     return res.status(500).json({ error: "Failed to fetch attendance records safely" }); 
-  }
-});
-
-app.post('/api/attendance', async (req, res) => {
-  try {
-    let { userId, eventId, date, time, status } = req.body;
-
-    const rawQrString = req.body.qrData || req.body.text || req.body.data;
-    if (rawQrString && typeof rawQrString === 'string' && rawQrString.includes('eventId=')) {
-      const queryString = rawQrString.split('?')[1];
-      if (queryString) {
-        const urlParams = new URLSearchParams(queryString);
-        if (!eventId || eventId === 'undefined') eventId = urlParams.get('eventId');
-        if (!userId || userId === 'undefined') userId = urlParams.get('userId');
-      }
-    }
-
-    if (!eventId || eventId === 'undefined' || eventId === 'null') {
-      return res.status(400).json({ success: false, message: 'Invalid or missing Event ID sequence.' });
-    }
-    if (!userId || userId === 'undefined' || userId === 'null') {
-      return res.status(400).json({ success: false, message: 'Invalid or missing User ID sequence.' });
-    }
-
-    const Attendance = mongoose.model('Attendance', AttendanceSchema);
-    const alreadyLogged = await AttendanceModel.findOne({ eventId, userId });
-    if (alreadyLogged) {
-      return res.status(200).json({ success: true, message: 'Attendance already recorded!' });
-    }
-
-    let userName = "Unknown Member";
-    try {
-      const memberDoc = await Member.findById(userId);
-      if (memberDoc) {
-        userName = `${memberDoc.firstName || ''} ${memberDoc.lastName || ''}`.trim();
-      }
-    } catch (err) {
-      console.error("Name lookup tracking error:", err.message);
-    }
-
-    const newAttendance = new AttendanceModel({
-      userId,
-      eventId,
-      userName,
-      date: date || new Date().toISOString().split('T')[0],
-      time: time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-      status: status || 'Present'
-    });
-
-    await newAttendance.save();
-    return res.status(201).json({ success: true, data: newAttendance });
-  } catch (error) {
-    console.error("Attendance log creation error:", error);
-    return res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -454,7 +400,7 @@ app.post('/api/attendance', async (req, res) => {
     try {
       const memberDoc = await Member.findById(userId);
       if (memberDoc) {
-        userName = `${memberDoc.firstName || ''} ${memberDoc.lastName || ''}`.trim();
+        userName = `${memberDoc.firstName || ''} ${memberDoc.lastName || ''}`.trim() || memberDoc.email || "Unknown Member";
       }
     } catch (err) {
       console.error("Name lookup tracking error:", err.message);
