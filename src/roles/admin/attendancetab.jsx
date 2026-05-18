@@ -56,16 +56,17 @@ const AttendanceTab = ({ role, userId, user }) => {
             <div style={styles.qrCard}>
               <p style={styles.instructionText}>Members: Scan with your Phone Camera</p>
 <div style={styles.qrWrapper}>
-<QRCodeCanvas 
-  value={JSON.stringify({
-    eventId: todaysEvent._id,
-    title: todaysEvent.title,
-    type: 'event'
-  })}
-  size={260}
-  level={"H"}
-  includeMargin={true}
-/>
+  <QRCodeCanvas 
+    value={JSON.stringify({
+      id: todaysEvent._id,
+      eventId: todaysEvent._id,
+      title: todaysEvent.title,
+      type: 'event'
+    })}
+    size={260}
+    level={"H"}
+    includeMargin={true}
+  />
 </div>
               <h3 style={styles.eventTitle}>{todaysEvent.title}</h3>
               <p style={styles.eventDetail}>{todaysEvent.time} • {todaysEvent.room}</p>
