@@ -460,12 +460,20 @@ app.patch('/api/events/:id/archive', async (req, res) => {
 // --- ATTENDANCE & EVENTS ---
 app.post('/api/events/scan-qr', async (req, res) => {
   try {
-    const eventId = req.body.eventId || req.body.id || req.query.eventId || req.query.id;
-    const userId = req.body.userId || req.body._id || req.body.id || req.query.userId;
+    let eventId = req.body.eventId || req.body.id || req.body._id || req.query.eventId || req.query.id;
+    let userId = req.body.userId || req.body._id || req.body.id || req.query.userId;
+
+    if (req.body.data && typeof req.body.data === 'string') {
+      try {
+        const parsed = JSON.parse(req.body.data);
+        eventId = eventId || parsed.eventId || parsed.id || parsed._id;
+      } catch (e) {
+      }
+    }
 
     console.log("➡️ Processing incoming scan request logic:", { eventId, userId });
 
-    if (!eventId || !userId) {
+    if (!eventId || !userId || eventId === "undefined" || userId === "undefined") {
       return res.status(400).json({ 
         message: `Missing parameters. Received eventId: ${eventId}, userId: ${userId}` 
       });

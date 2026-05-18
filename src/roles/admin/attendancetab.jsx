@@ -36,7 +36,21 @@ const AttendanceTab = ({ role, userId, user }) => {
     }
   };
 
-  const todaysEvent = upcomingEvents.find(event => event.date === todayStr);
+const todaysEvent = upcomingEvents.find(event => {
+  if (!event.date) return false;
+  const cleanEventDate = event.date.replace(/\//g, '-');
+  const cleanTodayStr = todayStr.replace(/\//g, '-');
+  return cleanEventDate === cleanTodayStr || new Date(event.date).toDateString() === new Date().toDateString();
+});
+
+const qrPayload = todaysEvent 
+  ? JSON.stringify({
+      id: todaysEvent._id,
+      eventId: todaysEvent._id,
+      _id: todaysEvent._id,
+      title: todaysEvent.titleSelection || todaysEvent.title || "Worship Service"
+    })
+  : "";
 
   const exportToExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(checkIns);
@@ -56,18 +70,24 @@ const AttendanceTab = ({ role, userId, user }) => {
             <div style={styles.qrCard}>
               <p style={styles.instructionText}>Members: Scan with your Phone Camera</p>
 <div style={styles.qrWrapper}>
-  <QRCodeCanvas
-    value={JSON.stringify({
-      id: todaysEvent?._id || todaysEvent?.id,
-      eventId: todaysEvent?._id || todaysEvent?.id,
-      eventID: todaysEvent?._id || todaysEvent?.id,
-      title: todaysEvent?.titleSelection || todaysEvent?.title || "Service",
-      type: 'event'
-    })}
-    size={260}
-    level={"H"}
-    includeMargin={true}
-  />
+  {todaysEvent ? (
+    todaysEvent._id ? (
+      <QRCodeCanvas 
+        value={qrPayload}
+        size={260}
+        level={"H"}
+        includeMargin={true}
+      />
+    ) : (
+      <div style={{ color: '#dc2626', padding: '15px', maxWidth: '260px', fontSize: '13px' }}>
+        ⚠️ Error: Database entry missing an operational '_id' key. Check your cluster documents.
+      </div>
+    )
+  ) : (
+    <div style={styles.noEventCard}>
+      <p>No active events scheduled on the calendar dashboard for today.</p>
+    </div>
+  )}
 </div>
               <h3 style={styles.eventTitle}>{todaysEvent.title}</h3>
               <p style={styles.eventDetail}>{todaysEvent.time} • {todaysEvent.room}</p>
