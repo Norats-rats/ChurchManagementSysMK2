@@ -36,12 +36,13 @@ const AttendanceTab = ({ role, userId, user }) => {
     }
   };
 
-  const todaysEvent = upcomingEvents.find(event => {
-    if (!event.date) return false;
-    const cleanEventDate = event.date.replace(/\//g, '-');
-    const cleanTodayStr = todayStr.replace(/\//g, '-');
-    return cleanEventDate === cleanTodayStr;
-  });
+const todaysEvent = upcomingEvents.find(event => {
+  if (!event.date) return false;
+  const cleanEventDate = String(event.date).replace(/\//g, '-');
+  const cleanTodayStr = String(todayStr).replace(/\//g, '-');
+  return cleanEventDate === cleanTodayStr;
+});
+  
 
   const qrValue = todaysEvent 
     ? `${window.location.origin}?checkIn=true&eventId=${todaysEvent._id || todaysEvent.id}&eventTitle=${encodeURIComponent(todaysEvent.titleSelection || todaysEvent.title || 'Event')}` 
