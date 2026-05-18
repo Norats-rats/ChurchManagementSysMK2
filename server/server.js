@@ -462,6 +462,7 @@ app.post('/api/events/scan-qr', async (req, res) => {
   try {
     let eventId = req.body.eventId;
     let userId = req.body.userId;
+
     const rawQrString = req.body.qrData || req.body.text || req.body.data || req.body.qrCode;
     if (rawQrString && typeof rawQrString === 'string' && rawQrString.includes('eventId=')) {
       try {
@@ -496,7 +497,15 @@ app.post('/api/events/scan-qr', async (req, res) => {
     if (!event) {
       return res.status(404).json({ success: false, message: 'Event record not found in database.' });
     }
-
+    let userName = "Unknown Member";
+    try {
+      const memberDoc = await Member.findById(userId);
+      if (memberDoc) {
+        userName = `${memberDoc.firstName || ''} ${memberDoc.lastName || ''}`.trim() || memberDoc.email || "Unknown Member";
+      }
+    } catch (memErr) {
+      console.error("⚠️ Failed to look up member profile name:", memErr.message);
+    }
     const existingAttendance = await Attendance.findOne({ eventId, userId });
     if (existingAttendance) {
       return res.status(200).json({ 
@@ -505,16 +514,17 @@ app.post('/api/events/scan-qr', async (req, res) => {
         eventTitle: event.titleSelection || event.title 
       });
     }
-
     const newAttendanceLog = new Attendance({
       userId: userId,
       eventId: eventId,
+      userName: userName,
       date: event.date || new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
       status: 'Present'
     });
 
     await newAttendanceLog.save();
+
     if (!event.attendees.includes(userId)) {
       event.attendees.push(userId);
       await event.save();
@@ -522,7 +532,7 @@ app.post('/api/events/scan-qr', async (req, res) => {
 
     return res.status(200).json({ 
       success: true, 
-      message: 'Attendance successfully added to live logs!',
+      message: `Attendance successfully recorded for ${userName}!`,
       eventTitle: event.titleSelection || event.title 
     });
 
