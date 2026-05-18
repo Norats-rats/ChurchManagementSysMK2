@@ -101,14 +101,14 @@ const Event = mongoose.model('events', new mongoose.Schema({
   status: { type: String, default: 'active' }
 }, { timestamps: true }));
 
-const Attendance = mongoose.model('attendance', new mongoose.Schema({
+const AttendanceSchema = new mongoose.Schema({
   userId: { type: String, required: true },
-  name: String, 
-  service: String,
-  date: String,
-  time: String,
-  status: { type: String, enum: ['Present', 'Late', 'Absent'], default: 'Present' }
-}, { timestamps: true }));
+  eventId: { type: String, required: true },
+  userName: { type: String, default: "Unknown Member" },
+  date: { type: String, required: true },
+  time: { type: String, required: true },
+  status: { type: String, default: 'Present' }
+}, { timestamps: true });
 
 const Prayer = mongoose.model('prayers', new mongoose.Schema({
   name: String,

@@ -72,8 +72,8 @@ const AttendanceTab = ({ role, userId, user }) => {
           </h2>
           <p style={{ opacity: 0.9, fontSize: '15px', lineHeight: '1.5' }}>
             {hasCheckedInToday 
-              ? 'Your attendance record has been compiled and saved for today\'s session logs.' 
-              : 'Please approach the front administration booth monitor station and scan the active QR code to verify your presence.'}
+              ? "Your attendance record has been compiled and saved for today's session logs." 
+              : "Please approach the front administration booth monitor station and scan the active QR code to verify your presence."}
           </p>
         </div>
       </div>
@@ -125,29 +125,29 @@ const AttendanceTab = ({ role, userId, user }) => {
 
           <div style={styles.logSection}>
             <div style={styles.logHeaderRow}>
-              <span>Attendee ID Reference</span>
+              <span>Attendee Profile Name</span>
               <span>Timestamp</span>
             </div>
             
-<div style={styles.logContainer}>
-  {checkIns.length === 0 ? (
-    <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '14px' }}>
-      No members have scanned through this console terminal gateway today yet.
-    </div>
-  ) : (
-    [...checkIns].reverse().map((log, index) => (
-      <div key={log._id || index} style={styles.logRow}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={styles.avatarPlaceholder}>👤</div>
-          <span style={styles.userIdText}>
-            {log.userName || log.userId}
-          </span>
-        </div>
-        <span style={styles.timestampText}>{log.time || 'Logged'}</span>
-      </div>
-    ))
-  )}
-</div>
+            <div style={styles.logContainer}>
+              {checkIns.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '14px' }}>
+                  No members have scanned through this console terminal gateway today yet.
+                </div>
+              ) : (
+                [...checkIns].reverse().map((log, index) => (
+                  <div key={log._id || index} style={styles.logRow}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={styles.avatarPlaceholder}>👤</div>
+                      <span style={styles.userIdText}>
+                        {log.userName || log.userId}
+                      </span>
+                    </div>
+                    <span style={styles.timestampText}>{log.time || 'Logged'}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
