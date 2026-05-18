@@ -460,70 +460,61 @@ app.patch('/api/events/:id/archive', async (req, res) => {
 // --- ATTENDANCE & EVENTS ---
 app.post('/api/events/scan-qr', async (req, res) => {
   try {
-    let eventId = req.body.eventId || req.body.id || req.body._id || req.query.eventId || req.query.id;
-    let userId = req.body.userId || req.body._id || req.body.id || req.query.userId;
+    let eventId = req.body.eventId;
+    let userId = req.body.userId;
 
-    if (req.body.data && typeof req.body.data === 'string') {
+    const rawQrString = req.body.qrData || req.body.text || req.body.data || req.body.qrCode;
+    if (rawQrString && typeof rawQrString === 'string' && rawQrString.includes('eventId=')) {
       try {
-        const parsed = JSON.parse(req.body.data);
-        eventId = eventId || parsed.eventId || parsed.id || parsed._id;
-      } catch (e) {
+        const queryString = rawQrString.split('?')[1];
+        if (queryString) {
+          const urlParams = new URLSearchParams(queryString);
+          if (!eventId || eventId === 'undefined') {
+            eventId = urlParams.get('eventId');
+          }
+          if (!userId || userId === 'undefined') {
+            userId = urlParams.get('userId');
+          }
+        }
+      } catch (urlErr) {
+        console.error("⚠️ Error parsing QR URL string:", urlErr.message);
       }
     }
 
+    if (eventId === 'undefined' || !eventId) eventId = undefined;
+    if (userId === 'undefined' || !userId) userId = undefined;
+
     console.log("➡️ Processing incoming scan request logic:", { eventId, userId });
 
-    if (!eventId || !userId || eventId === "undefined" || userId === "undefined") {
+    if (!eventId || !userId) {
       return res.status(400).json({ 
+        success: false, 
         message: `Missing parameters. Received eventId: ${eventId}, userId: ${userId}` 
       });
     }
 
     const event = await Event.findById(eventId);
     if (!event) {
-      console.log(`❌ Event lookup failed for ID: ${eventId}`);
-      return res.status(404).json({ message: "Requested event was not found." });
+      return res.status(404).json({ success: false, message: 'Event record not found in database.' });
     }
 
-    let memberName = "Registered Member";
-    const member = await Member.findById(userId);
-    if (member) {
-      memberName = member.firstName && member.lastName 
-        ? `${member.firstName} ${member.lastName}` 
-        : (member.firstName || "Registered Member");
+    const alreadyAttending = event.attendees.includes(userId);
+    if (alreadyAttending) {
+      return res.status(200).json({ success: true, message: 'User attendance is already recorded for this event.' });
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const existingLog = await Attendance.findOne({ userId: String(userId), date: todayStr });
-
-    if (existingLog) {
-      console.log(`ℹ️ Check-in skipped: User ${userId} already registered for today.`);
-      return res.status(400).json({ message: "You have already checked into this event today." });
-    }
-
-    const newAttendanceLog = new Attendance({
-      userId: String(userId),
-      name: memberName,
-      service: event.titleSelection || event.title || "Worship Service",
-      date: todayStr,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-      status: 'Present'
-    });
-
-    await newAttendanceLog.save();
-    console.log("✅ Database status updated: Attendance successfully logged.");
+    event.attendees.push(userId);
+    await event.save();
 
     return res.status(200).json({ 
       success: true, 
-      message: "Attendance recorded successfully!" 
+      message: 'Attendance checked in successfully!',
+      eventTitle: event.titleSelection || event.title 
     });
 
-  } catch (err) {
-    console.error("❌ Scan QR critical breakdown path:", err);
-    return res.status(500).json({ 
-      message: "Internal Server Processing Error.", 
-      details: err.message 
-    });
+  } catch (error) {
+    console.error("❌ Scan QR Route Error:", error);
+    return res.status(500).json({ success: false, message: 'Internal server validation error.' });
   }
 });
 
