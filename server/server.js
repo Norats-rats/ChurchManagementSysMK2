@@ -361,10 +361,63 @@ app.delete('/api/members/:id', async (req, res) => {
 // --- ATTENDANCE & EVENTS ---
 app.get('/api/attendance', async (req, res) => {
   try {
-    const records = await Attendance.find().sort({ createdAt: -1 });
-    res.json(records);
+    // Fetches documents and sorts them. If fields are missing, Mongoose treats them gracefully.
+    const records = await Attendance.find({}).sort({ createdAt: -1 });
+    return res.json(records);
   } catch (err) { 
-    res.status(500).json({ error: "Failed to fetch attendance" }); 
+    console.error("❌ GET Attendance Error:", err.message);
+    return res.status(500).json({ error: "Failed to fetch attendance records safely" }); 
+  }
+});
+
+app.post('/api/attendance', async (req, res) => {
+  try {
+    let { userId, eventId, date, time, status } = req.body;
+
+    const rawQrString = req.body.qrData || req.body.text || req.body.data;
+    if (rawQrString && typeof rawQrString === 'string' && rawQrString.includes('eventId=')) {
+      const queryString = rawQrString.split('?')[1];
+      if (queryString) {
+        const urlParams = new URLSearchParams(queryString);
+        if (!eventId || eventId === 'undefined') eventId = urlParams.get('eventId');
+        if (!userId || userId === 'undefined') userId = urlParams.get('userId');
+      }
+    }
+
+    if (!eventId || eventId === 'undefined' || eventId === 'null') {
+      return res.status(400).json({ success: false, message: 'Invalid or missing Event ID sequence.' });
+    }
+    if (!userId || userId === 'undefined' || userId === 'null') {
+      return res.status(400).json({ success: false, message: 'Invalid or missing User ID sequence.' });
+    }
+    const alreadyLogged = await Attendance.findOne({ eventId, userId });
+    if (alreadyLogged) {
+      return res.status(200).json({ success: true, message: 'Attendance already recorded!' });
+    }
+    let userName = "Unknown Member";
+    try {
+      const memberDoc = await Member.findById(userId);
+      if (memberDoc) {
+        userName = `${memberDoc.firstName || ''} ${memberDoc.lastName || ''}`.trim();
+      }
+    } catch (err) {
+      console.error("Name lookup tracking error:", err.message);
+    }
+
+    const newAttendance = new Attendance({
+      userId,
+      eventId,
+      userName,
+      date: date || new Date().toISOString().split('T')[0],
+      time: time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      status: status || 'Present'
+    });
+
+    await newAttendance.save();
+    return res.status(201).json({ success: true, data: newAttendance });
+  } catch (error) {
+    console.error("Attendance log creation error:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 });
 
