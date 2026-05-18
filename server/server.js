@@ -457,6 +457,52 @@ app.patch('/api/events/:id/archive', async (req, res) => {
   }
 });
 
+app.post('/api/events/scan-qr', async (req, res) => {
+  try {
+    const eventId = req.body.id || req.body.eventId;
+    const { userId } = req.body;
+
+    if (!eventId || !userId) {
+      return res.status(400).json({ message: "Missing eventId or userId in request." });
+    }
+
+    const event = await mongoose.model('Event').findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+    const member = await mongoose.model('User').findById(userId); 
+    const memberName = member ? `${member.firstName} ${member.lastName}` : "Registered Member";
+
+    const AttendanceModel = mongoose.model('Attendance');
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    const existingLog = await AttendanceModel.findOne({ userId, date: todayStr });
+
+    if (existingLog) {
+      return res.status(400).json({ message: "You have already checked into this event today." });
+    }
+
+    const newAttendanceLog = new AttendanceModel({
+      userId: String(userId),
+      name: memberName,
+      service: event.titleSelection || event.title,
+      date: todayStr,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      status: 'Present'
+    });
+
+    await newAttendanceLog.save();
+    return res.status(200).json({ 
+      success: true,
+      message: "Attendance recorded successfully!" 
+    });
+
+  } catch (err) {
+    console.error("❌ Scan QR Code Processing Error:", err);
+    return res.status(500).json({ message: "Internal Server Error during scan processing." });
+  }
+});
+
 // --- PRAYER ROUTES ---
 app.get('/api/prayers', async (req, res) => { 
   try {
