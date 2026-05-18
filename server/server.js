@@ -459,41 +459,31 @@ app.patch('/api/events/:id/archive', async (req, res) => {
 
 app.post('/api/events/scan-qr', async (req, res) => {
   try {
-    const eventId = req.body.eventId || req.body.id;
-    
-    const userId = req.body.userId || req.body._id || req.body.id;
+    const eventId = req.body.eventId || req.body.id || req.query.eventId || req.query.id;
+    const userId = req.body.userId || req.body._id || req.body.id || req.query.userId;
 
-    console.log("➡️ Incoming scan request body:", req.body);
+    console.log("➡️ Restructured Scan Request incoming payload:", { body: req.body, query: req.query });
 
     if (!eventId || !userId) {
       return res.status(400).json({ 
         message: `Missing parameters. Received eventId: ${eventId}, userId: ${userId}` 
       });
     }
-
     const event = await mongoose.model('Event').findById(eventId);
-    if (!event) {
-      return res.status(404).json({ message: "Event not found." });
-    }
+    if (!event) return res.status(404).json({ message: "Event not found." });
 
     let memberName = "Registered Member";
     try {
-      const UserModel = mongoose.model('User') || mongoose.model('Member');
+      const UserModel = mongoose.model('User');
       const member = await UserModel.findById(userId);
-      if (member) {
-        memberName = member.firstName && member.lastName 
-          ? `${member.firstName} ${member.lastName}`
-          : (member.name || "Registered Member");
-      }
-    } catch (e) {
-      console.log("User lookup model notice:", e.message);
-    }
+      if (member) memberName = `${member.firstName} ${member.lastName}`;
+    } catch (e) { console.log("User lookup notice:", e.message); }
+
     const AttendanceModel = mongoose.model('Attendance');
     const todayStr = new Date().toISOString().split('T')[0];
+
     const existingLog = await AttendanceModel.findOne({ userId: String(userId), date: todayStr });
-    if (existingLog) {
-      return res.status(400).json({ message: "You have already checked into this event today." });
-    }
+    if (existingLog) return res.status(400).json({ message: "You have already checked into this event today." });
 
     const newAttendanceLog = new AttendanceModel({
       userId: String(userId),
@@ -505,17 +495,14 @@ app.post('/api/events/scan-qr', async (req, res) => {
     });
 
     await newAttendanceLog.save();
-
-    return res.status(200).json({ 
-      success: true,
-      message: "Attendance recorded successfully!" 
-    });
+    return res.status(200).json({ success: true, message: "Attendance recorded successfully!" });
 
   } catch (err) {
-    console.error("❌ Scan QR Code Processing Error:", err);
-    return res.status(500).json({ message: "Internal Server Error during scan processing." });
+    console.error("❌ Scan processing crash:", err);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 // --- PRAYER ROUTES ---
 app.get('/api/prayers', async (req, res) => { 
   try {
