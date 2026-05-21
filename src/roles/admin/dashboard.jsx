@@ -611,7 +611,8 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
     <div className="dashboard-wrapper">
       <nav className="top-nav">
         <div className="nav-left">
-          <img src={churchLogo} alt="Dashboard Graphic" />
+          {/* Replaced the emoji with the imported image and sized it cleanly */}
+          <img src={churchLogo} alt="Church Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} />
           <div className="church-title">
             <h4>Free Believers in Christ Fellowship Inc.</h4>
             <small>{role} Portal • Taguig City</small>
@@ -665,6 +666,8 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
           {currentTab === 'dashboard' && (
             <>
               <div className="bulletin-board">
+                
+                {/* ADMIN / LEADER DASHBOARD EXTENSIONS */}
                 {isLeader && (
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '20px' }}>
