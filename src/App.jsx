@@ -1,7 +1,7 @@
+import churchLogo from '.src/assets/church-logo.png';
 import { useEffect, useState } from 'react';
 import api from './api';
 import './App.css';
-import churchLogo from './assets/church-logo.png';
 import Signup from './components/shared/signup';
 import Dashboard from './roles/admin/dashboard';
 
