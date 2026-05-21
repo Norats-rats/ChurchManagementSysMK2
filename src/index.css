@@ -28,7 +28,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Responsive font sizes */
 @media (max-width: 1024px) {
   :root {
     font-size: 16px;
@@ -72,47 +71,41 @@ body {
 }
 
 #root {
-  max-width: 1126px;
-  width: 100%;
-  margin: 0 auto;
+ width: 100%;
+  margin: 0;
   text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding: 0 16px;
+max-width: 100%;
+  padding: 0;
 }
-
-/* Tablet breakpoint (640px - 1024px) */
 @media (max-width: 1024px) {
   #root {
-    padding: 0 16px;
+    padding: 0;
   }
 }
 
-/* Small tablet breakpoint (481px - 768px) */
 @media (max-width: 768px) {
   :root {
     font-size: 16px;
   }
   #root {
-    padding: 0 12px;
+    padding: 0;
     border-inline: none;
   }
 }
 
-/* Mobile breakpoint (481px - 640px) */
 @media (max-width: 640px) {
   #root {
-    padding: 0 10px;
+    padding: 0; 
   }
 }
 
-/* Small mobile breakpoint (max-width 480px) */
 @media (max-width: 480px) {
   #root {
-    padding: 0 8px;
+    padding: 0;
     border-inline: none;
   }
 }
