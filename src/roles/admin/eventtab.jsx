@@ -11,6 +11,13 @@ const EventTab = ({ role, userId }) => {
 
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState(null); 
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  const [sortOrder, setSortOrder] = useState('nearest');
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
   const [formData, setFormData] = useState({
     titleSelection: 'Worship Service', 
@@ -224,9 +231,9 @@ const handleCreateOrUpdate = async (e) => {
     container: { padding: '20px', backgroundColor: '#f7fafc', minHeight: '100vh', display: 'flex', gap: '25px', alignItems: 'flex-start', flexWrap: 'wrap' },
     
     sidebar: { flex: '0 0 300px', backgroundColor: '#18181b', padding: '15px', borderRadius: '12px', color: '#f4f4f5', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
-    calHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' },
+    calHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' },
     calNavBtn: { background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '16px', padding: '5px 10px' },
-    calTitle: { margin: 0, fontSize: '18px', fontWeight: '600' },
+    calTitle: { margin: 0, fontSize: '18px', fontWeight: '600', cursor: 'pointer' },
     calGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center' },
     calDayHeader: { fontSize: '12px', fontWeight: 'bold', color: '#a1a1aa', paddingBottom: '6px' },
     calDayCell: (day, isSelected) => ({
@@ -267,6 +274,11 @@ const handleCreateOrUpdate = async (e) => {
   };
 
   const selectedEvents = getEventsForSelectedDate();
+  const sortedSelectedEvents = [...selectedEvents].sort((a, b) => {
+    const aTime = new Date(`${a.date} ${a.time}`);
+    const bTime = new Date(`${b.date} ${b.time}`);
+    return sortOrder === 'furthest' ? bTime - aTime : aTime - bTime;
+  });
   const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
@@ -275,14 +287,35 @@ const handleCreateOrUpdate = async (e) => {
       {/* LEFT SIDEBAR */}
       <div style={styles.sidebar}>
         <div style={styles.calHeader}>
-          <h3 style={styles.calTitle}>
+          <h3 style={styles.calTitle} onClick={() => setMonthPickerOpen(prev => !prev)} title="Click to change month and year">
             {currentCalendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
           </h3>
-          <div>
-            <button style={styles.calNavBtn} onClick={handlePrevMonth}>↑</button>
-            <button style={styles.calNavBtn} onClick={handleNextMonth}>↓</button>
-          </div>
         </div>
+
+        {monthPickerOpen && (
+          <div style={{ marginBottom: '12px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={currentMonth}
+              onChange={(e) => setCurrentCalendarDate(new Date(currentYear, Number(e.target.value), 1))}
+              style={styles.input}
+            >
+              {monthNames.map((name, idx) => (
+                <option key={name} value={idx}>{name}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="1990"
+              max="2100"
+              value={currentYear}
+              onChange={(e) => setCurrentCalendarDate(new Date(Number(e.target.value), currentMonth, 1))}
+              style={{ ...styles.input, width: '120px' }}
+            />
+            <button type="button" onClick={() => setMonthPickerOpen(false)} style={{ ...styles.calNavBtn, border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#1f2937' }}>
+              Done
+            </button>
+          </div>
+        )}
 
         <div style={styles.calGrid}>
           {daysOfWeek.map((day, idx) => (
@@ -320,6 +353,14 @@ const handleCreateOrUpdate = async (e) => {
         <p style={styles.headerSub}>
           Events for {selectedDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
         </p>
+
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: '600' }}>Sort Events:</span>
+          <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ ...styles.input, width: '170px' }}>
+            <option value="nearest">Nearest First</option>
+            <option value="furthest">Furthest First</option>
+          </select>
+        </div>
 
         {canManage && (
           <div style={styles.formCard}>
@@ -377,13 +418,13 @@ const handleCreateOrUpdate = async (e) => {
 
         {loading ? (
           <p style={{ fontSize: '14px', color: '#718096' }}>Loading activities...</p>
-        ) : selectedEvents.length === 0 ? (
+        ) : sortedSelectedEvents.length === 0 ? (
           <div style={{ padding: '40px 20px', textAlign: 'center', background: 'white', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
             <p style={{ color: '#94a3b8', margin: 0, fontSize: '15px' }}>No events scheduled for this day.</p>
           </div>
         ) : (
           <div style={styles.grid}>
-            {selectedEvents.map((event) => {
+            {sortedSelectedEvents.map((event) => {
               const isAttending = event.attendees?.includes(userId);
               
               const eventDateObj = new Date(event.date + 'T00:00:00');
