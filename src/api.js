@@ -38,6 +38,7 @@ export const api = {
 
   // Members
   getMembers: () => apiClient.get('/api/members'),
+  getMember: (id) => apiClient.get(`/api/members/${id}`),
   createMember: (memberData) => apiClient.post('/api/members', memberData),
   updateMember: (id, memberData) => apiClient.put(`/api/members/${id}`, memberData),
   deleteMember: (id) => apiClient.delete(`/api/members/${id}`),

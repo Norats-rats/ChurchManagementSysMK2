@@ -80,6 +80,9 @@ const Member = mongoose.model('members', new mongoose.Schema({
   password: { type: String, required: true },
   role: { type: String, default: 'Member' },
   ministry:{ type: String, default: 'None' },
+  phone: { type: String },
+  birthdate: { type: Date },
+  profilePicture: { type: String },
   otp: { type: String },
   isVerified: { type: Boolean, default: false },
   status: { type: String, default: 'Inactive' }, 
@@ -329,6 +332,14 @@ app.get('/api/members', async (req, res) => {
     const members = await Member.find().sort({ date: -1 });
     res.json(members);
   } catch (err) { res.status(500).json({ error: "Failed to fetch members" }); }
+});
+
+app.get('/api/members/:id', async (req, res) => {
+  try {
+    const m = await Member.findById(req.params.id);
+    if (!m) return res.status(404).json({ error: 'Member not found' });
+    res.json(m);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/members', async (req, res) => {
