@@ -64,6 +64,8 @@ const AttendanceTab = ({ role, userId, user }) => {
     }
   }, [todaysEvents, selectedTodayEventId]);
 
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+
   const selectedTodayEvent = todaysEvents.find(event => String(event._id || event.id) === String(selectedTodayEventId)) || null;
 
   const qrValueForEvent = (event) => `${window.location.origin}?checkIn=true&eventId=${event._id || event.id}&eventTitle=${encodeURIComponent(event.titleSelection || event.title || 'Event')}`;
@@ -71,11 +73,6 @@ const AttendanceTab = ({ role, userId, user }) => {
   const selectedEventAttendees = selectedTodayEvent
     ? checkIns.filter(record => String(record.eventId) === String(selectedTodayEvent._id || selectedTodayEvent.id))
     : [];
-
-  const attendanceHistoryByEvent = todaysEvents.map((event) => ({
-    event,
-    attendees: checkIns.filter(record => String(record.eventId) === String(event._id || event.id))
-  }));
 
   const handleCreateEvent = async (e) => {
     e.preventDefault();
@@ -95,7 +92,8 @@ const AttendanceTab = ({ role, userId, user }) => {
   };
 
   const exportToExcel = () => {
-    const formattedRows = checkIns.map((record) => {
+    const targetRecords = selectedTodayEvent ? selectedEventAttendees : checkIns;
+    const formattedRows = targetRecords.map((record) => {
       const event = upcomingEvents.find(ev => String(ev._id || ev.id) === String(record.eventId));
       return {
         Event: event ? (event.titleSelection || event.title) : (record.service || `Event ${record.eventId}`),
@@ -142,218 +140,190 @@ const AttendanceTab = ({ role, userId, user }) => {
 
   return (
     <div style={styles.container}>
-      <div style={styles.grid}>
-        <div style={styles.card}>
-          <h3 style={styles.cardTitle}>Station Check-In Gateway</h3>
-          <p style={styles.cardSubtitle}>Position this screen clearly for arriving members to complete check-ins.</p>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '250px 1fr', gap: '20px', marginTop: '10px' }}>
-            <div style={styles.eventSidebar}>
-              <h4 style={{ margin: '0 0 12px 0', color: '#0f172a' }}>Today's Events</h4>
-              {todaysEvents.length === 0 ? (
-                <div style={styles.noEventCard}>
-                  <p style={{ margin: 0, color: '#475569' }}>No events scheduled for today.</p>
-                </div>
-              ) : (
-                todaysEvents.map((event) => {
-                  const eventId = event._id || event.id;
-                  const count = checkIns.filter(record => String(record.eventId) === String(eventId)).length;
-                  const selected = String(selectedTodayEventId) === String(eventId);
-                  return (
-                    <button
-                      key={eventId}
-                      type="button"
-                      onClick={() => setSelectedTodayEventId(eventId)}
-                      style={{
-                        ...styles.eventToggle,
-                        ...(selected ? styles.eventToggleActive : {})
-                      }}
-                    >
-                      <span>{event.titleSelection || event.title || 'Untitled Event'}</span>
-                      <span style={styles.eventCount}>{count} checked in</span>
-                    </button>
-                  );
-                })
-              )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '24px' }}>
+        <div style={{ ...styles.card, padding: '20px', minWidth: sidebarExpanded ? '320px' : '86px', transition: 'min-width 0.25s ease' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+            {sidebarExpanded ? (
+              <div>
+                <h3 style={styles.cardTitle}>Today's Event Selector</h3>
+                <p style={styles.cardSubtitle}>Pick an event, then close the sidebar to free screen space.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>Today's Events</span>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>{todaysEvents.length} available</span>
+              </div>
+            )}
 
+            <button
+              type="button"
+              onClick={() => setSidebarExpanded(prev => !prev)}
+              style={styles.toggleSidebarBtn}
+            >
+              {sidebarExpanded ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
+
+          <div style={{ ...styles.eventSidebar, ...(sidebarExpanded ? styles.sidebarExpanded : styles.sidebarCollapsed) }}>
+            {todaysEvents.length === 0 ? (
+              <div style={styles.noEventCard}>
+                <p style={{ margin: 0, color: '#475569' }}>No events scheduled for today.</p>
+              </div>
+            ) : (
+              todaysEvents.map((event) => {
+                const eventId = event._id || event.id;
+                const count = checkIns.filter(record => String(record.eventId) === String(eventId)).length;
+                const selected = String(selectedTodayEventId) === String(eventId);
+                return (
+                  <button
+                    key={eventId}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTodayEventId(eventId);
+                      setSidebarExpanded(false);
+                    }}
+                    style={{
+                      ...(sidebarExpanded ? styles.eventToggle : styles.eventToggleCompact),
+                      ...(selected ? styles.eventToggleActive : {})
+                    }}
+                  >
+                    <span>{sidebarExpanded ? (event.titleSelection || event.title || 'Untitled Event') : (event.titleSelection || event.title || 'Event').slice(0, 1)}</span>
+                    {sidebarExpanded && <span style={styles.eventCount}>{count} checked in</span>}
+                  </button>
+                );
+              })
+            )}
+
+            {sidebarExpanded ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateEventModal(prev => !prev)}
+                  style={{ ...styles.formButton, marginTop: '16px' }}
+                >
+                  {showCreateEventModal ? 'Hide Event Creator' : 'Create New Event QR Screen'}
+                </button>
+
+                {showCreateEventModal && (
+                  <div style={{ marginTop: '16px', padding: '18px', borderRadius: '18px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
+                    <h4 style={{ margin: 0, marginBottom: '12px', color: '#0f172a' }}>Create Event</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                      <input
+                        style={styles.formInput}
+                        placeholder="Event Title"
+                        value={newEventData.titleSelection}
+                        onChange={(e) => setNewEventData({ ...newEventData, titleSelection: e.target.value })}
+                      />
+                      <input
+                        style={styles.formInput}
+                        placeholder="Reservation Name"
+                        value={newEventData.reservationName}
+                        onChange={(e) => setNewEventData({ ...newEventData, reservationName: e.target.value })}
+                      />
+                      <input
+                        type="date"
+                        style={styles.formInput}
+                        value={newEventData.date}
+                        onChange={(e) => setNewEventData({ ...newEventData, date: e.target.value })}
+                      />
+                      <input
+                        style={styles.formInput}
+                        placeholder="Time (e.g. 08:00 AM)"
+                        value={newEventData.time}
+                        onChange={(e) => setNewEventData({ ...newEventData, time: e.target.value })}
+                      />
+                      <input
+                        style={styles.formInput}
+                        placeholder="Room/Hall"
+                        value={newEventData.room}
+                        onChange={(e) => setNewEventData({ ...newEventData, room: e.target.value })}
+                      />
+                      <input
+                        style={styles.formInput}
+                        placeholder="Lead Role"
+                        value={newEventData.role}
+                        onChange={(e) => setNewEventData({ ...newEventData, role: e.target.value })}
+                      />
+                    </div>
+                    <div style={{ marginTop: '14px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={handleCreateEvent}
+                        disabled={creatingEvent}
+                        style={{ padding: '10px 16px', borderRadius: '10px', border: 'none', background: '#10b981', color: 'white', cursor: creatingEvent ? 'not-allowed' : 'pointer', opacity: creatingEvent ? 0.65 : 1, fontWeight: '700' }}
+                      >
+                        {creatingEvent ? 'Creating...' : 'Save Event'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateEventModal(false)}
+                        style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid #cbd5e0', background: '#ffffff', color: '#0f172a', cursor: 'pointer', fontWeight: '700' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
               <button
                 type="button"
-                onClick={() => setShowCreateEventModal(prev => !prev)}
-                style={{ ...styles.formButton, marginTop: '16px' }}
+                onClick={() => setSidebarExpanded(true)}
+                style={styles.formButton}
               >
-                {showCreateEventModal ? 'Hide Event Creator' : 'Create New Event QR Screen'}
+                Open Event Panel
               </button>
-
-              {showCreateEventModal && (
-                <div style={{ marginTop: '16px', padding: '18px', borderRadius: '18px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
-                  <h4 style={{ margin: 0, marginBottom: '12px', color: '#0f172a' }}>Create Event</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                    <input
-                      style={styles.formInput}
-                      placeholder="Event Title"
-                      value={newEventData.titleSelection}
-                      onChange={(e) => setNewEventData({ ...newEventData, titleSelection: e.target.value })}
-                    />
-                    <input
-                      style={styles.formInput}
-                      placeholder="Reservation Name"
-                      value={newEventData.reservationName}
-                      onChange={(e) => setNewEventData({ ...newEventData, reservationName: e.target.value })}
-                    />
-                    <input
-                      type="date"
-                      style={styles.formInput}
-                      value={newEventData.date}
-                      onChange={(e) => setNewEventData({ ...newEventData, date: e.target.value })}
-                    />
-                    <input
-                      style={styles.formInput}
-                      placeholder="Time (e.g. 08:00 AM)"
-                      value={newEventData.time}
-                      onChange={(e) => setNewEventData({ ...newEventData, time: e.target.value })}
-                    />
-                    <input
-                      style={styles.formInput}
-                      placeholder="Room/Hall"
-                      value={newEventData.room}
-                      onChange={(e) => setNewEventData({ ...newEventData, room: e.target.value })}
-                    />
-                    <input
-                      style={styles.formInput}
-                      placeholder="Lead Role"
-                      value={newEventData.role}
-                      onChange={(e) => setNewEventData({ ...newEventData, role: e.target.value })}
-                    />
-                  </div>
-                  <div style={{ marginTop: '14px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      onClick={handleCreateEvent}
-                      disabled={creatingEvent}
-                      style={{ padding: '10px 16px', borderRadius: '10px', border: 'none', background: '#10b981', color: 'white', cursor: creatingEvent ? 'not-allowed' : 'pointer', opacity: creatingEvent ? 0.65 : 1, fontWeight: '700' }}
-                    >
-                      {creatingEvent ? 'Creating...' : 'Save Event'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateEventModal(false)}
-                      style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid #cbd5e0', background: '#ffffff', color: '#0f172a', cursor: 'pointer', fontWeight: '700' }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-              {selectedTodayEvent ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', padding: '18px', borderRadius: '20px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                  <QRCodeCanvas 
-                    value={qrValueForEvent(selectedTodayEvent)}
-                    size={260}
-                    level={"H"}
-                    includeMargin={true}
-                  />
-                  <div>
-                    <h4 style={styles.eventTitle}>{selectedTodayEvent.titleSelection || selectedTodayEvent.title || 'Event'}</h4>
-                    <p style={styles.eventDetail}>🕒 {selectedTodayEvent.time || 'TBD'} | 🏛️ {selectedTodayEvent.room || 'Main Sanctuary'}</p>
-                  </div>
-                </div>
-              ) : (
-                <div style={styles.qrWrapper}>
-                  <p style={{ margin: 0, color: '#475569' }}>Select an event from the left sidebar to display its QR and history.</p>
-                </div>
-              )}
-
-              <div style={{ padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
-                <h4 style={{ margin: '0 0 12px 0', color: '#0f172a' }}>Attendance History</h4>
-                {selectedTodayEvent ? (
-                  selectedEventAttendees.length === 0 ? (
-                    <p style={{ color: '#64748b', fontSize: '14px' }}>No attendees have checked in yet for this event.</p>
-                  ) : (
-                    <div style={styles.historyTable}>
-                      {selectedEventAttendees.map((att, idx) => (
-                        <div key={`${selectedTodayEvent._id || selectedTodayEvent.id}-${idx}`} style={styles.historyRow}>
-                          <span>{att.name}</span>
-                          <span>{att.time}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                ) : (
-                  <p style={{ color: '#64748b', fontSize: '14px' }}>Select an event from the sidebar to view its attendance history.</p>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
         <div style={styles.card}>
           <div style={styles.headerRow}>
             <div>
-              <h3 style={styles.cardTitle}>Live Tracking Logs</h3>
-              <p style={styles.cardSubtitle}>Total verified check-ins logged today: {checkIns.length}</p>
+              <h3 style={styles.cardTitle}>Selected Event Check-In</h3>
+              <p style={styles.cardSubtitle}>{selectedTodayEvent ? `${selectedEventAttendees.length} checked in for this event` : 'Choose an event from the left to view the QR and logs.'}</p>
             </div>
-            <button style={styles.exportBtn} onClick={exportToExcel} disabled={checkIns.length === 0}>
+            <button style={styles.exportBtn} onClick={exportToExcel} disabled={!selectedTodayEvent || selectedEventAttendees.length === 0}>
               📥 Export Sheet
             </button>
           </div>
 
-          <div style={styles.logSection}>
-            <div style={styles.logHeaderRow}>
-              <span>Attendee Profile Name</span>
-              <span>Timestamp</span>
-            </div>
-            
-            <div style={styles.logContainer}>
-              {checkIns.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '14px' }}>
-                  No members have scanned through this console terminal gateway today yet.
+          {selectedTodayEvent ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '22px', marginTop: '18px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', padding: '18px', borderRadius: '20px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <QRCodeCanvas 
+                  value={qrValueForEvent(selectedTodayEvent)}
+                  size={260}
+                  level={"H"}
+                  includeMargin={true}
+                />
+                <div>
+                  <h4 style={styles.eventTitle}>{selectedTodayEvent.titleSelection || selectedTodayEvent.title || 'Event'}</h4>
+                  <p style={styles.eventDetail}>🕒 {selectedTodayEvent.time || 'TBD'} | 🏛️ {selectedTodayEvent.room || 'Main Sanctuary'}</p>
                 </div>
-              ) : (
-                [...checkIns].reverse().map((log, index) => (
-                  <div key={log._id || index} style={styles.logRow}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={styles.avatarPlaceholder}>👤</div>
-                      <span style={styles.userIdText}>
-                        {log.userName || log.userId}
-                      </span>
-                    </div>
-                    <span style={styles.timestampText}>{log.time || 'Logged'}</span>
-                  </div>
-                ))
-              )}
-            </div>
+              </div>
 
-            <div style={{ marginTop: '24px' }}>
-              <h4 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '12px', color: '#0f172a' }}>Attendance History</h4>
-              {attendanceHistoryByEvent.length === 0 ? (
-                <p style={{ color: '#64748b', fontSize: '14px' }}>No attendance history available for today&apos;s events.</p>
-              ) : (
-                attendanceHistoryByEvent.map((history) => (
-                  <div key={history.event._id || history.event.id} style={{ marginBottom: '18px', padding: '16px', borderRadius: '16px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                    <div style={{ marginBottom: '10px' }}>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#1f2937' }}>{history.event.titleSelection || history.event.title || 'Event'}</div>
-                      <div style={{ fontSize: '12px', color: '#64748b' }}>🕒 {history.event.time || 'TBD'} | 🏛️ {history.event.room || 'Main Sanctuary'}</div>
-                    </div>
-                    {history.attendees.length === 0 ? (
-                      <p style={{ color: '#64748b', fontSize: '13px' }}>No attendees have checked in yet for this event.</p>
-                    ) : (
-                      <div style={styles.historyTable}>
-                        {history.attendees.map((att, idx) => (
-                          <div key={`${history.event._id || history.event.id}-${idx}`} style={styles.historyRow}>
-                            <span>{att.name}</span>
-                            <span>{att.time}</span>
-                          </div>
-                        ))}
+              <div style={{ padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 12px 0', color: '#0f172a' }}>Attendance History</h4>
+                {selectedEventAttendees.length === 0 ? (
+                  <p style={{ color: '#64748b', fontSize: '14px' }}>No attendees have checked in yet for this event.</p>
+                ) : (
+                  <div style={styles.historyTable}>
+                    {selectedEventAttendees.map((att, idx) => (
+                      <div key={`${selectedTodayEvent._id || selectedTodayEvent.id}-${idx}`} style={styles.historyRow}>
+                        <span>{att.name || att.userName || att.userId}</span>
+                        <span>{att.time}</span>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div style={{ padding: '40px', borderRadius: '20px', background: '#f8fafc', border: '1px dashed #cbd5e0', textAlign: 'center' }}>
+              <p style={{ margin: 0, color: '#475569', fontSize: '15px' }}>Select an event from the left sidebar to display its QR code, attendance summary, and event-specific log.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -393,7 +363,11 @@ const styles = {
   historyRow: { display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '12px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', fontSize: '13px' },
   eventSidebar: { padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '12px' },
   eventToggle: { width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' },
+  eventToggleCompact: { width: '100%', textAlign: 'center', padding: '12px 10px', borderRadius: '18px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '12px' },
   eventToggleActive: { background: '#2563eb', color: 'white', borderColor: '#1d4ed8' },
+  sidebarExpanded: { width: '100%', transition: 'width 0.25s ease' },
+  sidebarCollapsed: { width: '100%', display: 'grid', gap: '10px', justifyContent: 'center' },
+  toggleSidebarBtn: { padding: '10px 14px', borderRadius: '14px', border: '1px solid #cbd5e0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', fontWeight: '700', fontSize: '12px' },
   eventCount: { fontSize: '12px', opacity: 0.85 },
   formButton: { width: '100%', padding: '12px 16px', borderRadius: '16px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }
 };
