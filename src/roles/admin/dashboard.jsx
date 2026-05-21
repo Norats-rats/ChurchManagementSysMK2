@@ -27,17 +27,17 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
 
   const navigationConfig = [
-    { id: 'dashboard', label: role === 'Member' ? '📌 Home' : '📊 Dashboard', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'ebible', label: '📖 EBible', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'members', label: '👥 Member Management', roles: ['Admin', 'Ministry Leader'] },
-    { id: 'events', label: '📅 Events', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'attendance', label: '📋 Attendance', roles: ['Admin', 'Member', 'Staff'] },
-    { id: 'ministries', label: '❤️ Ministries', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'prayers', label: '🙏 Prayers', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'advising', label: '📝 Advising', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'finances', label: '💰 Finances', roles: ['Admin', 'Ministry Leader', 'Staff'] },
-    { id: 'analytics', label: '📈 Analytics', roles: ['Admin', 'Ministry Leader'] },
-    { id: 'inventory', label: '📦 Inventory', roles: ['Admin', 'Ministry Leader', 'Staff'] },
+    { id: 'dashboard', label: role === 'Member' ? 'Home' : 'Dashboard', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'ebible', label: 'Bible', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'members', label: 'Members', roles: ['Admin', 'Ministry Leader'] },
+    { id: 'events', label: 'Events', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'attendance', label: 'Attendance', roles: ['Admin', 'Member', 'Staff'] },
+    { id: 'ministries', label: 'Ministries', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'prayers', label: 'Prayers', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'advising', label: 'Advising', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'finances', label: 'Finances', roles: ['Admin', 'Ministry Leader', 'Staff'] },
+    { id: 'analytics', label: 'Reports', roles: ['Admin', 'Ministry Leader'] },
+    { id: 'inventory', label: 'Inventory', roles: ['Admin', 'Ministry Leader', 'Staff'] },
   ];
 
   const visibleTabs = navigationConfig.filter(tab => tab.roles.includes(role));
@@ -619,7 +619,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
         </div>
         <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {notifications.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px', border: '1px solid #c7d2fe', background: '#eff6ff', borderRadius: '18px', maxWidth: '320px' }}>
+            <div role="region" aria-label="Notifications" title="Notifications" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px', border: '1px solid #c7d2fe', background: '#eff6ff', borderRadius: '18px', maxWidth: '320px', maxHeight: '200px', overflowY: 'auto' }}>
               {notifications.map((item, index) => (
                 <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span style={{ color: '#1d4ed8', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.title}</span>
@@ -655,7 +655,13 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
       <div className="dashboard-content">
         <div className="menu-bar">
           {visibleTabs.map(tab => (
-            <button key={tab.id} className={`menu-item ${currentTab === tab.id ? 'active' : ''}`} onClick={() => setCurrentTab(tab.id)}>
+            <button
+              key={tab.id}
+              className={`menu-item ${currentTab === tab.id ? 'active' : ''}`}
+              onClick={() => setCurrentTab(tab.id)}
+              title={tab.label}
+              aria-current={currentTab === tab.id ? 'page' : undefined}
+            >
               {tab.label}
             </button>
           ))}
@@ -665,8 +671,6 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
           {currentTab === 'dashboard' && (
             <>
               <div className="bulletin-board">
-                
-                {/* ADMIN / LEADER DASHBOARD EXTENSIONS */}
                 {isLeader && (
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '20px' }}>
