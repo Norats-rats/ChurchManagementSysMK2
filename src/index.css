@@ -26,9 +26,24 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
 
-  @media (max-width: 1024px) {
+/* Responsive font sizes */
+@media (max-width: 1024px) {
+  :root {
     font-size: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    font-size: 14px;
   }
 }
 
@@ -69,11 +84,37 @@ body {
   padding: 0 16px;
 }
 
+/* Tablet breakpoint (640px - 1024px) */
+@media (max-width: 1024px) {
+  #root {
+    padding: 0 16px;
+  }
+}
+
+/* Small tablet breakpoint (481px - 768px) */
 @media (max-width: 768px) {
   :root {
     font-size: 16px;
   }
-  #root { padding: 0 12px; }
+  #root {
+    padding: 0 12px;
+    border-inline: none;
+  }
+}
+
+/* Mobile breakpoint (481px - 640px) */
+@media (max-width: 640px) {
+  #root {
+    padding: 0 10px;
+  }
+}
+
+/* Small mobile breakpoint (max-width 480px) */
+@media (max-width: 480px) {
+  #root {
+    padding: 0 8px;
+    border-inline: none;
+  }
 }
 
 h1,
@@ -87,18 +128,42 @@ h1 {
   font-size: 56px;
   letter-spacing: -1.68px;
   margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
 }
+
 h2 {
   font-size: 24px;
   line-height: 118%;
   letter-spacing: -0.24px;
   margin: 0 0 8px;
-  @media (max-width: 1024px) {
+}
+
+@media (max-width: 1024px) {
+  h1 {
+    font-size: 40px;
+    margin: 24px 0;
+  }
+  h2 {
     font-size: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 32px;
+    margin: 20px 0;
+  }
+  h2 {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 24px;
+    margin: 16px 0;
+  }
+  h2 {
+    font-size: 16px;
   }
 }
 p {
