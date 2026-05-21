@@ -1,4 +1,4 @@
-import churchLogo from '.src/assets/church-logo.png';
+import churchLogo from '.src/assets/churchlogo.jpg';
 import { useEffect, useState } from 'react';
 import api from './api';
 import './App.css';

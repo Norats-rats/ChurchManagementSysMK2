@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import api from '../../api';
-import churchLogo from '../../assets/church-logo.png';
+import churchLogo from '../../assets/churchlogo.jpg';
 
 const Signup = ({ onGoToLogin }) => {
   const [step, setStep] = useState('register');
