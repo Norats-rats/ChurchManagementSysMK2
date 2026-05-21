@@ -107,15 +107,9 @@ const EBible = () => {
         <div>
           <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: '600' }}>Bible Version:</span>
-            <select
-              value={version}
-              onChange={(e) => setVersion(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-            >
-              {versions.map((v) => (
-                <option key={v.id} value={v.id}>{v.label}</option>
-              ))}
-            </select>
+            <span style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc' }}>
+              {versionLabel}
+            </span>
           </div>
 
           {!selectedBook ? (
