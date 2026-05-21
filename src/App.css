@@ -512,6 +512,27 @@ body, .App {
 .theme-dark .daily-verse p, .theme-dark .announcement-box p { color: #dbeafe !important; }
 .theme-dark .services-card li { background: rgba(255,255,255,0.03) !important; color: #e6eef8 !important; border-color: rgba(255,255,255,0.03) !important; }
 
+/* Top header and notifications styling */
+.notif-title { color: var(--color-primary); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.notif-message { color: #0f172a; font-size: 13px; line-height: 1.4; }
+
+.top-nav .church-logo { height: 70px; width: auto; object-fit: contain; border-radius: 4px; }
+.top-nav .church-title .church-name { color: #0f172a; font-weight: 700; }
+.top-nav .church-title .church-meta { color: var(--color-muted); font-size: 13px; }
+.admin-info .user-name { color: #0f172a; }
+.admin-info .user-role { color: #60a5fa; font-size: 11px; display: block; }
+.theme-toggle { padding: 8px 10px; border-radius: 8px; }
+
+/* Dark-mode top area overrides */
+.theme-dark .top-nav .church-title .church-name { color: #dbeafe !important; }
+.theme-dark .top-nav .church-title .church-meta { color: #93c5fd !important; }
+.theme-dark .admin-info .user-name { color: #e6eef8 !important; }
+.theme-dark .admin-info .user-role { color: #60f0d9 !important; }
+.theme-dark .notif-message { color: #d1e8ff !important; }
+.theme-dark .notif-title { color: #60f0d9 !important; }
+.theme-dark .logout-btn { background: rgba(255,255,255,0.06); color: #e6eef8; border-color: rgba(255,255,255,0.06); }
+.theme-dark .profile-avatar { border-color: rgba(255,255,255,0.06) !important; }
+
 @media (max-width: 640px) {
   .login-card {
     max-width: 100%;

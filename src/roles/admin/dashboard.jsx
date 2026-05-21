@@ -611,10 +611,10 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
     <div className="dashboard-wrapper">
       <nav className="top-nav">
         <div className="nav-left">
-          <img src={churchLogo} alt="Church Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} />
+          <img src={churchLogo} alt="Church Logo" className="church-logo" />
           <div className="church-title">
-            <h4>Free Believers in Christ Fellowship Inc.</h4>
-            <small>{role} Portal • Taguig City</small>
+            <h4 className="church-name">Free Believers in Christ Fellowship Inc.</h4>
+            <small className="church-meta">{role} Portal • Taguig City</small>
           </div>
         </div>
         <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -622,16 +622,16 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
             <div className="notifications-panel" role="region" aria-label="Notifications" title="Notifications" style={{ maxWidth: '340px' }}>
               {notifications.map((item, index) => (
                 <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ color: 'var(--color-primary)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.title}</span>
-                  <span style={{ color: '#0f172a', fontSize: '13px', lineHeight: '1.4', whiteSpace: 'normal' }}>{item.message}</span>
-                </div>
+                      <span className="notif-title">{item.title}</span>
+                      <span className="notif-message">{item.message}</span>
+                    </div>
               ))}
             </div>
           )}
           <div className="admin-info" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <strong>{user.firstName} {user.lastName}</strong>
-              <span style={{ color: '#60a5fa', fontSize: '11px', display: 'block' }}>{role}</span>
+              <strong className="user-name">{user.firstName} {user.lastName}</strong>
+              <span className="user-role">{role}</span>
             </div>
             <button
               type="button"
@@ -648,15 +648,14 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
               )}
             </button>
           </div>
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            className="logout-btn"
-            title="Toggle theme"
-            style={{ marginRight: '8px' }}
-          >
-            {theme === 'dark' ? '🌙 Dark' : '☀️ Light'}
-          </button>
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className="logout-btn theme-toggle"
+              title="Toggle theme"
+            >
+              {theme === 'dark' ? '🌙 Dark' : '☀️ Light'}
+            </button>
 
           <button className="logout-btn" onClick={onLogout}>Logout</button>
         </div>
