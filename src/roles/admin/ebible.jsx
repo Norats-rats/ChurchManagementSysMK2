@@ -28,12 +28,10 @@ const EBible = () => {
   };
 
   const versions = [
-    { id: 'web', label: 'Web (WEB)' },
-    { id: 'kjv', label: 'King James Version (KJV)' },
-    { id: 'esv', label: 'English Standard Version (ESV)' }
+    { id: 'web', label: 'New International Version (NIV)' }
   ];
 
-  const versionLabel = versions.find(v => v.id === version)?.label || 'Web (WEB)';
+  const versionLabel = versions.find(v => v.id === version)?.label || 'New International Version (NIV)';
 
   const oldTestament = [
     'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth',
