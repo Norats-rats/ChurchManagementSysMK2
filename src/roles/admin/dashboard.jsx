@@ -26,7 +26,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
 
   const navigationConfig = [
-    { id: 'dashboard', label: role === 'Member' ? '📌 Bulletin Board' : '📊 Dashboard', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'dashboard', label: role === 'Member' ? '📌 Home' : '📊 Dashboard', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'ebible', label: '📖 eBible', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'members', label: '👥 Church Members', roles: ['Admin', 'Ministry Leader'] },
     { id: 'events', label: '📅 Events', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
@@ -610,7 +610,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
     <div className="dashboard-wrapper">
       <nav className="top-nav">
         <div className="nav-left">
-          <div className="logo-small">⛪</div>
+          <img src={churchlogo} alt="Church Logo" />
           <div className="church-title">
             <h4>Free Believers in Christ Fellowship Inc.</h4>
             <small>{role} Portal • Taguig City</small>
