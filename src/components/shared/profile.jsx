@@ -12,7 +12,6 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
     const load = async () => {
       setLoading(true);
       try {
-        // Fetch single member by id
         const res = await api.getMember(userId);
         setMember(res.data || null);
       } catch (err) {
@@ -59,7 +58,6 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
       const id = member._id || member.id;
       await api.updateMember(id, member);
       setError(null);
-      // optional: re-fetch or show success briefly
     } catch (err) {
       console.error('Save profile error', err);
       setError('Failed to save profile');
