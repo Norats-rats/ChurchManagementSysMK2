@@ -187,7 +187,15 @@ const AttendanceTab = ({ role, userId, user }) => {
                       ...(selected ? styles.eventToggleActive : {})
                     }}
                   >
-                    <span style={ sidebarExpanded ? { maxWidth: '100%', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : { display: 'inline-block', whiteSpace: 'normal', textAlign: 'center', maxWidth: '140px', wordBreak: 'break-word' } }>
+                    <span style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: sidebarExpanded ? 'left' : 'center',
+                      whiteSpace: sidebarExpanded ? 'nowrap' : 'normal',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      wordBreak: sidebarExpanded ? 'normal' : 'break-word'
+                    }}>
                       {event.title || event.titleSelection || event.reservationName || event.category || 'Untitled Event'}
                     </span>
                     {sidebarExpanded && <span style={styles.eventCount}>{count} checked in</span>}
@@ -284,7 +292,7 @@ const styles = {
   historyRow: { display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '12px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', fontSize: '13px' },
   eventSidebar: { padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '12px' },
   eventToggle: { width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' },
-  eventToggleCompact: { width: '100%', textAlign: 'center', padding: '10px 8px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '13px', boxSizing: 'border-box', overflow: 'hidden', flexDirection: 'column', gap: '6px' },
+  eventToggleCompact: { width: '100%', textAlign: 'center', padding: '10px 10px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '13px', boxSizing: 'border-box', overflow: 'hidden', flexDirection: 'column', gap: '6px', margin: '6px 0' },
   eventToggleActive: { background: '#2563eb', color: 'white', borderColor: '#1d4ed8' },
   sidebarExpanded: { width: '100%', transition: 'width 0.25s ease' },
   sidebarCollapsed: { width: '100%', display: 'grid', gap: '8px', justifyContent: 'center', padding: '6px' },
