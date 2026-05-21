@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
+import Profile from '../../components/shared/profile';
 import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
 import EBible from './ebible';
@@ -24,6 +25,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const navigationConfig = [
     { id: 'dashboard', label: role === 'Member' ? '📌 Bulletin Board' : '📊 Dashboard', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'ebible', label: '📖 eBible', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'profile', label: '👤 Profile', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'members', label: '👥 Church Members', roles: ['Admin', 'Ministry Leader'] },
     { id: 'events', label: '📅 Events', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'attendance', label: '📋 Attendance', roles: ['Admin', 'Member', 'Staff'] },
@@ -485,11 +487,12 @@ const trivias = [
             <small>{role} Portal • Taguig City</small>
           </div>
         </div>
-        <div className="nav-right">
-          <div className="admin-info">
+        <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="admin-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <strong>{user.firstName} {user.lastName}</strong>
             <span style={{ color: '#60a5fa', fontSize: '11px', display: 'block' }}>{role}</span>
           </div>
+          <button className="profile-open-btn" onClick={() => setCurrentTab('profile')} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', color: '#1e293b', cursor: 'pointer' }}>My Profile</button>
           <button className="logout-btn" onClick={onLogout}>Logout</button>
         </div>
       </nav>
@@ -561,6 +564,7 @@ const trivias = [
           )}
 
           {currentTab === 'ebible' && <EBible />}
+          {currentTab === 'profile' && <Profile userId={user._id} currentUserId={user._id} />}
           {currentTab === 'members' && role === 'Admin' && <MemberForm />}
           {currentTab === 'events' && <EventTab role={role} userId={user._id} />}
           {currentTab === 'attendance' && <AttendanceTab role={role} userId={user._id} user={user} />}

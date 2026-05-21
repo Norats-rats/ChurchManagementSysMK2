@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../../api';
 
-const Profile = ({ userId, compact = false }) => {
+const Profile = ({ userId, currentUserId, compact = false }) => {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,8 +50,10 @@ const Profile = ({ userId, compact = false }) => {
     reader.readAsDataURL(f);
   };
 
+  const isEditable = !currentUserId || String(currentUserId) === String(userId);
+
   const handleSave = async () => {
-    if (!member) return;
+    if (!member || !isEditable) return;
     setSaving(true);
     try {
       const id = member._id || member.id;
@@ -80,7 +82,9 @@ const Profile = ({ userId, compact = false }) => {
           </div>
         )}
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
-        <button type="button" onClick={handlePickPhoto} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e6edf3', background: '#fff', cursor: 'pointer', fontSize: 13 }}>Change Photo</button>
+        {isEditable && (
+          <button type="button" onClick={handlePickPhoto} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e6edf3', background: '#fff', cursor: 'pointer', fontSize: 13 }}>Change Photo</button>
+        )}
       </div>
 
       <div style={{ flex: 1 }}>
@@ -102,14 +106,14 @@ const Profile = ({ userId, compact = false }) => {
           </div>
           <div>
             <label style={{ fontSize: 12, color: '#475569' }}>Phone</label>
-            <input style={{ width: '100%', marginTop: 6, padding: '8px 10px', borderRadius: 8, border: '1px solid #e6edf3' }} value={member.phone || ''} onChange={(e) => handleChange('phone', e.target.value)} />
+            <input disabled={!isEditable} style={{ width: '100%', marginTop: 6, padding: '8px 10px', borderRadius: 8, border: '1px solid #e6edf3', background: !isEditable ? '#f8fafc' : '#fff' }} value={member.phone || ''} onChange={(e) => handleChange('phone', e.target.value)} />
           </div>
         </div>
 
         <div style={{ marginTop: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: 12, color: '#475569' }}>Birthdate</label>
-            <input type="date" style={{ width: '100%', marginTop: 6, padding: '8px 10px', borderRadius: 8, border: '1px solid #e6edf3' }} value={member.birthdate ? (typeof member.birthdate === 'string' ? member.birthdate.split('T')[0] : new Date(member.birthdate).toISOString().split('T')[0]) : ''} onChange={(e) => handleChange('birthdate', e.target.value)} />
+            <input disabled={!isEditable} type="date" style={{ width: '100%', marginTop: 6, padding: '8px 10px', borderRadius: 8, border: '1px solid #e6edf3', background: !isEditable ? '#f8fafc' : '#fff' }} value={member.birthdate ? (typeof member.birthdate === 'string' ? member.birthdate.split('T')[0] : new Date(member.birthdate).toISOString().split('T')[0]) : ''} onChange={(e) => handleChange('birthdate', e.target.value)} />
           </div>
           <div style={{ width: 120 }}>
             <label style={{ fontSize: 12, color: '#475569' }}>Computed Age</label>
@@ -119,7 +123,9 @@ const Profile = ({ userId, compact = false }) => {
 
         <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           {error && <div style={{ color: 'crimson', marginRight: 'auto' }}>{error}</div>}
-          <button onClick={handleSave} disabled={saving} style={{ padding: '8px 12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
+          {isEditable && (
+            <button onClick={handleSave} disabled={saving} style={{ padding: '8px 12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
+          )}
         </div>
       </div>
     </div>
