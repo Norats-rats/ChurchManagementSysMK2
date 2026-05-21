@@ -6,7 +6,6 @@ const EventTab = ({ role, userId }) => {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   
-  // Calendar States
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -17,7 +16,7 @@ const EventTab = ({ role, userId }) => {
     titleSelection: 'Worship Service', 
     reservationName: '',
     category: 'Worship',
-    date: new Date().toISOString().split('T')[0], // Default to today
+    date: new Date().toISOString().split('T')[0],
     time: '08:00 AM',
     room: '',
     type: 'Once',
@@ -26,6 +25,9 @@ const EventTab = ({ role, userId }) => {
   });
 
   const canManage = role === 'Admin' || role === 'Ministry Leader';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   useEffect(() => {
     fetchEvents();
@@ -43,7 +45,6 @@ const EventTab = ({ role, userId }) => {
     }
   };
 
-  // --- Calendar Logic ---
   const currentYear = currentCalendarDate.getFullYear();
   const currentMonth = currentCalendarDate.getMonth();
   
@@ -67,7 +68,6 @@ const EventTab = ({ role, userId }) => {
     const newSelected = new Date(currentYear, currentMonth, day);
     setSelectedDate(newSelected);
     
-    // Automatically update the form date to match selected calendar day
     const offset = newSelected.getTimezoneOffset();
     const localDate = new Date(newSelected.getTime() - (offset*60*1000)).toISOString().split('T')[0];
     setFormData(prev => ({ ...prev, date: localDate }));
@@ -89,7 +89,6 @@ const EventTab = ({ role, userId }) => {
     }).sort((a, b) => new Date(`${a.date} ${a.time}`) - new Date(`${b.date} ${b.time}`));
   };
 
-  // --- API Handlers ---
   const handleAIRecommendation = async () => {
     if (!formData.reservationName) {
       alert('Please enter a Booking/Reservation Name first!');
@@ -134,7 +133,6 @@ const EventTab = ({ role, userId }) => {
       room: foundRoom ? foundRoom : prev.room
     }));
 
-    // Jump calendar to AI suggested date
     if (dateMatch) {
       const aiDateObj = new Date(newDate);
       setCurrentCalendarDate(aiDateObj);
@@ -146,8 +144,27 @@ const EventTab = ({ role, userId }) => {
 
   const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
-    const combinedTitle = `${formData.titleSelection} for ${formData.reservationName}`;
     
+    const selectedDateObj = new Date(formData.date + 'T00:00:00');
+    if (selectedDateObj < today && !editingId) {
+      alert("Cannot schedule new events for past dates.");
+      return;
+    }
+
+    const combinedTitle = `${formData.titleSelection} for ${formData.reservationName}`;
+    const isDuplicate = events.some(ev => 
+      ev.title === combinedTitle &&
+      ev.date === formData.date &&
+      ev.time === formData.time &&
+      ev.room === formData.room &&
+      ev._id !== editingId 
+    );
+
+    if (isDuplicate) {
+      alert("A duplicate event is already scheduled for this date, time, and room.");
+      return;
+    }
+
     const submissionData = { 
         ...formData, 
         title: combinedTitle, 
@@ -193,19 +210,17 @@ const EventTab = ({ role, userId }) => {
     }
   };
 
-  // --- Styles ---
   const styles = {
     container: { padding: '20px', backgroundColor: '#f7fafc', minHeight: '100vh', display: 'flex', gap: '25px', alignItems: 'flex-start', flexWrap: 'wrap' },
     
-    // Calendar Sidebar Styles
-    sidebar: { flex: '0 0 320px', backgroundColor: '#18181b', padding: '20px', borderRadius: '12px', color: '#f4f4f5', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
-    calHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
+    sidebar: { flex: '0 0 300px', backgroundColor: '#18181b', padding: '15px', borderRadius: '12px', color: '#f4f4f5', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
+    calHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' },
     calNavBtn: { background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '16px', padding: '5px 10px' },
     calTitle: { margin: 0, fontSize: '18px', fontWeight: '600' },
-    calGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center' },
-    calDayHeader: { fontSize: '12px', fontWeight: 'bold', color: '#a1a1aa', paddingBottom: '10px' },
+    calGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center' },
+    calDayHeader: { fontSize: '12px', fontWeight: 'bold', color: '#a1a1aa', paddingBottom: '6px' },
     calDayCell: (day, isSelected) => ({
-      padding: '10px 0',
+      padding: '6px 0',
       cursor: day ? 'pointer' : 'default',
       borderRadius: '6px',
       backgroundColor: isSelected ? '#4f46e5' : 'transparent',
@@ -215,9 +230,8 @@ const EventTab = ({ role, userId }) => {
       transition: 'background-color 0.2s',
       ':hover': { backgroundColor: day && !isSelected ? '#27272a' : '' }
     }),
-    eventDot: { height: '4px', width: '4px', backgroundColor: '#10b981', borderRadius: '50%', position: 'absolute', bottom: '3px', left: '50%', transform: 'translateX(-50%)' },
+    eventDot: { height: '4px', width: '4px', backgroundColor: '#10b981', borderRadius: '50%', position: 'absolute', bottom: '1px', left: '50%', transform: 'translateX(-50%)' },
 
-    // Main Content Styles
     mainContent: { flex: '1', minWidth: '300px' },
     headerTitle: { margin: '0 0 5px 0', color: '#2d3748', fontSize: '24px' },
     headerSub: { color: '#718096', margin: '0 0 20px 0', fontSize: '14px' },
@@ -248,7 +262,7 @@ const EventTab = ({ role, userId }) => {
   return (
     <div style={styles.container}>
       
-      {/* LEFT SIDEBAR: Teams-style Calendar */}
+      {/* LEFT SIDEBAR */}
       <div style={styles.sidebar}>
         <div style={styles.calHeader}>
           <h3 style={styles.calTitle}>
@@ -290,7 +304,7 @@ const EventTab = ({ role, userId }) => {
         </div>
       </div>
 
-      {/* RIGHT MAIN CONTENT: Forms and Events for Selected Date */}
+      {/* RIGHT MAIN CONTENT */}
       <div style={styles.mainContent}>
         <h2 style={styles.headerTitle}>Daily Schedule</h2>
         <p style={styles.headerSub}>
@@ -361,7 +375,10 @@ const EventTab = ({ role, userId }) => {
           <div style={styles.grid}>
             {selectedEvents.map((event) => {
               const isAttending = event.attendees?.includes(userId);
-              const isArchived = event.status === 'archived';
+              
+              const eventDateObj = new Date(event.date + 'T00:00:00');
+              const isPastEvent = eventDateObj < today;
+              const isArchived = event.status === 'archived' || isPastEvent;
               
               return (
                 <div key={event._id} style={styles.card(isArchived)}>
