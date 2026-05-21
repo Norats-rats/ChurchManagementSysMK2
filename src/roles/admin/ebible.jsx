@@ -4,6 +4,7 @@ const EBible = () => {
   const [view, setView] = useState('toc'); 
   const [selectedBook, setSelectedBook] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
+  const [version, setVersion] = useState('web');
   
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -26,13 +27,34 @@ const EBible = () => {
     "3 John": 1, "Jude": 1, "Revelation": 22
   };
 
-  const books = Object.keys(bookData);
+  const versions = [
+    { id: 'web', label: 'Web (WEB)' },
+    { id: 'kjv', label: 'King James Version (KJV)' },
+    { id: 'esv', label: 'English Standard Version (ESV)' }
+  ];
+
+  const versionLabel = versions.find(v => v.id === version)?.label || 'Web (WEB)';
+
+  const oldTestament = [
+    'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth',
+    '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra',
+    'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Solomon',
+    'Isaiah', 'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos',
+    'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi'
+  ];
+
+  const newTestament = [
+    'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans', '1 Corinthians', '2 Corinthians',
+    'Galatians', 'Ephesians', 'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians',
+    '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter', '2 Peter',
+    '1 John', '2 John', '3 John', 'Jude', 'Revelation'
+  ];
 
   const fetchScripture = async (book, chapter) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`https://bible-api.com/${book}+${chapter}?translation=web`);
+      const response = await fetch(`https://bible-api.com/${book}+${chapter}?translation=${version}`);
       if (!response.ok) throw new Error("Could not find this chapter.");
       const data = await response.json();
       setContent(data);
@@ -85,15 +107,43 @@ const EBible = () => {
       
       {view === 'toc' && (
         <div>
+          <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: '600' }}>Bible Version:</span>
+            <select
+              value={version}
+              onChange={(e) => setVersion(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+            >
+              {versions.map((v) => (
+                <option key={v.id} value={v.id}>{v.label}</option>
+              ))}
+            </select>
+          </div>
+
           {!selectedBook ? (
             <>
               <h3>Select a Book</h3>
-              <div style={styles.grid}>
-                {books.map(book => (
-                  <div key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
-                    {book}
+              <div>
+                <div>
+                  <h4 style={{ marginBottom: '10px' }}>Old Testament</h4>
+                  <div style={styles.grid}>
+                    {oldTestament.map((book) => (
+                      <div key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
+                        {book}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+                <div style={{ marginTop: '30px' }}>
+                  <h4 style={{ marginBottom: '10px' }}>New Testament</h4>
+                  <div style={styles.grid}>
+                    {newTestament.map((book) => (
+                      <div key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
+                        {book}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </>
           ) : (
@@ -118,6 +168,7 @@ const EBible = () => {
       {view === 'reading' && content && (
         <div>
           <h3 style={{ textAlign: 'center', fontSize: '24px' }}>{content.reference}</h3>
+          <p style={{ textAlign: 'center', fontSize: '14px', color: '#475569', marginTop: '6px' }}>Translation: {versionLabel}</p>
           <div style={{ marginTop: '30px' }}>
             {content.verses.map((v) => (
               <p key={v.verse} style={styles.verse}>
