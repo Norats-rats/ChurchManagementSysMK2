@@ -12,13 +12,12 @@ import MemberForm from './memberform';
 import Ministries from './ministries';
 import Prayers from './prayers';
 
-
 const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const role = rawRole?.toLowerCase().includes('member') ? 'Member' : rawRole;
   const isLeader = role === 'Admin' || role === 'Ministry Leader';
 
   const [currentTab, setCurrentTab] = useState('dashboard');
-  const [stats, setStats] = useState({ memberCount: 0, attendanceCount: 0 });
+  const [stats, setStats] = useState({ memberCount: 0, attendanceCount: 0, eventCount: 0, ministryCount: 0 });
   const [nextEvent, setNextEvent] = useState(null);
   const [announcement, setAnnouncement] = useState("Loading church updates...");
   const [newAnnouncement, setNewAnnouncement] = useState("");
@@ -161,34 +160,42 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
     }
   };
 
-const fetchBulletinData = async () => {
-  try {
-    const [membersRes, eventsRes, attendanceRes, announceRes] = await Promise.all([
-      api.getMembers(), 
-      api.getEvents(), 
-      api.getAttendance(),
-      api.getAnnouncement().catch(() => ({ data: { text: "Welcome to our Fellowship!" } })) 
-    ]);
+  const fetchBulletinData = async () => {
+    try {
+      const [membersRes, eventsRes, attendanceRes, announceRes, ministriesRes] = await Promise.all([
+        api.getMembers(), 
+        api.getEvents(), 
+        api.getAttendance(),
+        api.getAnnouncement().catch(() => ({ data: { text: "Welcome to our Fellowship!" } })),
+        api.getMinistries().catch(() => ({ data: [] }))
+      ]);
 
-    const allEvents = eventsRes.data || [];
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const futureEvents = allEvents
-      .filter(e => {
-        const eventDate = new Date(e.date);
-        return eventDate >= now;
-      })
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
-    setStats({
-      memberCount: Array.isArray(membersRes.data) ? membersRes.data.length : 0,
-      attendanceCount: Array.isArray(attendanceRes.data) ? attendanceRes.data.length : 0,
-    });
-    setNextEvent(futureEvents[0] || null);
-    setAnnouncement(announceRes.data?.text || "Peace be with you!");
-  } catch (err) {
-    console.error("Data fetch error:", err);
-  }
-};
+      const allEvents = eventsRes.data || [];
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      
+      const futureEvents = allEvents
+        .filter(e => {
+          const eventDate = new Date(e.date);
+          return eventDate >= now;
+        })
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+      const activeMinistries = Array.isArray(ministriesRes.data) ? ministriesRes.data.filter(m => m.status !== 'Deactive').length : 0;
+
+      setStats({
+        memberCount: Array.isArray(membersRes.data) ? membersRes.data.length : 0,
+        attendanceCount: Array.isArray(attendanceRes.data) ? attendanceRes.data.length : 0,
+        eventCount: allEvents.length,
+        ministryCount: activeMinistries
+      });
+      
+      setNextEvent(futureEvents[0] || null);
+      setAnnouncement(announceRes.data?.text || "Peace be with you!");
+    } catch (err) {
+      console.error("Data fetch error:", err);
+    }
+  };
 
   const postAnnouncement = async () => {
     if (!newAnnouncement.trim()) return;
@@ -204,15 +211,21 @@ const fetchBulletinData = async () => {
 
   const fetchDailyVerse = async () => {
     try {
-      const bibleStructure = [{ name: "Psalms", chapters: 150 }, { name: "Proverbs", chapters: 31 }, { name: "John", chapters: 21 }];
+      const dailyReferences = [
+        "John 3:16", "Jeremiah 29:11", "Romans 8:28", "Philippians 4:13", 
+        "Proverbs 3:5-6", "Isaiah 41:10", "Matthew 11:28", "Joshua 1:9", 
+        "2 Corinthians 5:17", "Galatians 5:22-23"
+      ];
       const today = new Date();
       const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-      const selectedBook = bibleStructure[dateSeed % bibleStructure.length];
-      const response = await fetch(`https://bible-api.com/${selectedBook.name}+${(dateSeed % selectedBook.chapters) + 1}`);
+      const selectedRef = dailyReferences[dateSeed % dailyReferences.length];
+      
+      const response = await fetch(`https://bible-api.com/${encodeURIComponent(selectedRef)}`);
       const data = await response.json();
-      if (data.verses) {
-        const v = data.verses[dateSeed % data.verses.length];
-        setDailyVerse({ text: v.text, reference: `${v.book_name} ${v.chapter}:${v.verse}` });
+      
+      if (data.verses && data.verses.length > 0) {
+        const combinedText = data.verses.map(v => v.text.trim()).join(" ");
+        setDailyVerse({ text: combinedText, reference: data.reference });
       }
     } catch (err) {
       setDailyVerse({ text: "For God so loved the world...", reference: "John 3:16" });
@@ -652,18 +665,39 @@ const fetchBulletinData = async () => {
             <>
               <div className="bulletin-board">
                 {isLeader && (
-                  <div style={leaderInputCard}>
-                    <h4 style={{ margin: '0 0 10px 0', color: '#1e40af' }}>📢 Update Bulletin Announcement</h4>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <input 
-                        style={inputStyle} 
-                        placeholder="Type a message for all members..." 
-                        value={newAnnouncement}
-                        onChange={(e) => setNewAnnouncement(e.target.value)}
-                      />
-                      <button onClick={postAnnouncement} style={postBtnStyle}>Sync Bulletin</button>
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+                      <div style={kpiCardStyle}>
+                        <div style={kpiLabelStyle}>TOTAL MEMBERS</div>
+                        <div style={kpiValueStyle}>{stats.memberCount}</div>
+                      </div>
+                      <div style={kpiCardStyle}>
+                        <div style={kpiLabelStyle}>ACTIVE MINISTRIES</div>
+                        <div style={kpiValueStyle}>{stats.ministryCount}</div>
+                      </div>
+                      <div style={kpiCardStyle}>
+                        <div style={kpiLabelStyle}>TOTAL EVENTS</div>
+                        <div style={kpiValueStyle}>{stats.eventCount}</div>
+                      </div>
+                      <div style={kpiCardStyle}>
+                        <div style={kpiLabelStyle}>TOTAL ATTENDANCE</div>
+                        <div style={kpiValueStyle}>{stats.attendanceCount}</div>
+                      </div>
                     </div>
-                  </div>
+                  
+                    <div style={leaderInputCard}>
+                      <h4 style={{ margin: '0 0 10px 0', color: '#1e40af' }}>📢 Update Bulletin Announcement</h4>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <input 
+                          style={inputStyle} 
+                          placeholder="Type a message for all members..." 
+                          value={newAnnouncement}
+                          onChange={(e) => setNewAnnouncement(e.target.value)}
+                        />
+                        <button onClick={postAnnouncement} style={postBtnStyle}>Sync Bulletin</button>
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
@@ -714,8 +748,6 @@ const fetchBulletinData = async () => {
           {currentTab === 'advising' && <Advising role={role} user={user} />}
           {currentTab === 'finances' && <Finances role={role} userId={user._id} user={user} />}
           {currentTab === 'analytics' && isLeader && <Analytics />}
-          
-          {/* Render InventoryForm safely checking dynamic navigation visibility permissions */}
           {currentTab === 'inventory' && ['Admin', 'Ministry Leader', 'Staff'].includes(role) && <InventoryForm />}
         </div>
       </div>
@@ -727,6 +759,9 @@ const bulletinCardStyle = { background: '#fff', padding: '30px', borderRadius: '
 const announcementBoxStyle = { background: '#f8fafc', padding: '25px', borderRadius: '16px', borderLeft: '5px solid #3b82f6', fontSize: '19px', color: '#1e293b', margin: '20px 0' };
 const triviaBoxStyle = { marginTop: '20px', padding: '15px', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fef3c7' };
 const leaderInputCard = { background: '#eff6ff', padding: '20px', borderRadius: '16px', border: '2px solid #bfdbfe', marginBottom: '20px' };
+const kpiCardStyle = { background: '#fff', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center' };
+const kpiLabelStyle = { fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' };
+const kpiValueStyle = { fontSize: '24px', fontWeight: '800', marginTop: '8px', color: '#0f172a' };
 const inputStyle = { flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '15px' };
 const postBtnStyle = { background: '#2563eb', color: '#fff', border: 'none', padding: '0 25px', borderRadius: '10px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' };
 const quoteContainerStyle = { marginTop: '30px', padding: '40px', background: '#f1f5f9', borderRadius: '24px', textAlign: 'center', position: 'relative' };
