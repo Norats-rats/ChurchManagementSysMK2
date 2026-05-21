@@ -141,8 +141,8 @@ const AttendanceTab = ({ role, userId, user }) => {
   return (
     <div style={styles.container}>
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '24px' }}>
-        <div style={{ ...styles.card, padding: '20px', minWidth: sidebarExpanded ? '320px' : '86px', transition: 'min-width 0.25s ease' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+        <div style={{ ...styles.card, padding: '16px', minWidth: sidebarExpanded ? '290px' : '72px', transition: 'min-width 0.25s ease' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             {sidebarExpanded ? (
               <div>
                 <h3 style={styles.cardTitle}>Today's Event Selector</h3>
@@ -150,8 +150,8 @@ const AttendanceTab = ({ role, userId, user }) => {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>Today's Events</span>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>{todaysEvents.length} available</span>
+                <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '13px' }}>Today's Events</span>
+                <span style={{ fontSize: '11px', color: '#64748b' }}>{todaysEvents.length} available</span>
               </div>
             )}
 
@@ -192,87 +192,6 @@ const AttendanceTab = ({ role, userId, user }) => {
                   </button>
                 );
               })
-            )}
-
-            {sidebarExpanded ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateEventModal(prev => !prev)}
-                  style={{ ...styles.formButton, marginTop: '16px' }}
-                >
-                  {showCreateEventModal ? 'Hide Event Creator' : 'Create New Event QR Screen'}
-                </button>
-
-                {showCreateEventModal && (
-                  <div style={{ marginTop: '16px', padding: '18px', borderRadius: '18px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ margin: 0, marginBottom: '12px', color: '#0f172a' }}>Create Event</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                      <input
-                        style={styles.formInput}
-                        placeholder="Event Title"
-                        value={newEventData.titleSelection}
-                        onChange={(e) => setNewEventData({ ...newEventData, titleSelection: e.target.value })}
-                      />
-                      <input
-                        style={styles.formInput}
-                        placeholder="Reservation Name"
-                        value={newEventData.reservationName}
-                        onChange={(e) => setNewEventData({ ...newEventData, reservationName: e.target.value })}
-                      />
-                      <input
-                        type="date"
-                        style={styles.formInput}
-                        value={newEventData.date}
-                        onChange={(e) => setNewEventData({ ...newEventData, date: e.target.value })}
-                      />
-                      <input
-                        style={styles.formInput}
-                        placeholder="Time (e.g. 08:00 AM)"
-                        value={newEventData.time}
-                        onChange={(e) => setNewEventData({ ...newEventData, time: e.target.value })}
-                      />
-                      <input
-                        style={styles.formInput}
-                        placeholder="Room/Hall"
-                        value={newEventData.room}
-                        onChange={(e) => setNewEventData({ ...newEventData, room: e.target.value })}
-                      />
-                      <input
-                        style={styles.formInput}
-                        placeholder="Lead Role"
-                        value={newEventData.role}
-                        onChange={(e) => setNewEventData({ ...newEventData, role: e.target.value })}
-                      />
-                    </div>
-                    <div style={{ marginTop: '14px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        onClick={handleCreateEvent}
-                        disabled={creatingEvent}
-                        style={{ padding: '10px 16px', borderRadius: '10px', border: 'none', background: '#10b981', color: 'white', cursor: creatingEvent ? 'not-allowed' : 'pointer', opacity: creatingEvent ? 0.65 : 1, fontWeight: '700' }}
-                      >
-                        {creatingEvent ? 'Creating...' : 'Save Event'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowCreateEventModal(false)}
-                        style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid #cbd5e0', background: '#ffffff', color: '#0f172a', cursor: 'pointer', fontWeight: '700' }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setSidebarExpanded(true)}
-                style={styles.formButton}
-              >
-                Open Event Panel
-              </button>
             )}
           </div>
         </div>
