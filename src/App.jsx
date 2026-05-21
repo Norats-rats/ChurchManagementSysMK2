@@ -96,6 +96,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -103,7 +104,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
       const response = await api.login({ email, password });
       const data = response.data;
       if (data.success) {
-        onLoginSuccess(data.role, data.user);
+        onLoginSuccess(data.role, data.user, remember);
       }
     } catch (err) {
       alert(err.response?.data?.message || "Connection error");
@@ -163,7 +164,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
 
           <div className="form-options">
             <label className="remember-me">
-              <input type="checkbox" /> Remember me
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember me
             </label>
             <button 
               type="button" 
@@ -195,6 +196,7 @@ export default function App() {
   const [view, setView] = useState('login');
   const [userRole, setUserRole] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [theme, setTheme] = useState('light');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -222,11 +224,49 @@ export default function App() {
     }
   }, [userData]); 
 
-  const handleLoginSuccess = (role, user) => {
+  useEffect(() => {
+    // Load persisted theme
+    const storedTheme = localStorage.getItem('theme');
+    if (storedTheme) {
+      setTheme(storedTheme);
+      document.documentElement.classList.toggle('theme-dark', storedTheme === 'dark');
+    }
+
+    // Auto-login from remembered credentials
+    const remembered = localStorage.getItem('rememberedUser');
+    const rememberedRole = localStorage.getItem('rememberedRole');
+    if (remembered && rememberedRole) {
+      try {
+        const user = JSON.parse(remembered);
+        setUserData(user);
+        setUserRole(rememberedRole);
+        sessionStorage.setItem('loginTimestamp', Date.now().toString());
+        setView('dashboard');
+      } catch (err) {
+        console.warn('Failed to parse remembered user', err);
+      }
+    }
+  }, []);
+
+  const handleLoginSuccess = (role, user, remember) => {
     setUserRole(role);
     setUserData(user);
     sessionStorage.setItem('loginTimestamp', Date.now().toString());
+    if (remember) {
+      localStorage.setItem('rememberedUser', JSON.stringify(user));
+      localStorage.setItem('rememberedRole', role);
+    } else {
+      localStorage.removeItem('rememberedUser');
+      localStorage.removeItem('rememberedRole');
+    }
     setView('dashboard');
+  };
+
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem('theme', next);
+    document.documentElement.classList.toggle('theme-dark', next === 'dark');
   };
 
   const renderView = () => {
@@ -236,11 +276,14 @@ export default function App() {
           <Dashboard 
             role={userRole} 
             user={userData} 
+            theme={theme}
+            onToggleTheme={toggleTheme}
             onLogout={() => {
               setView('login');
               setUserData(null);
               setUserRole(null);
               sessionStorage.removeItem('loginTimestamp');
+              // keep remembered credentials unless user clears them explicitly
             }} 
           />
         );

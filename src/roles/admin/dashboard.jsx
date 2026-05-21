@@ -13,7 +13,7 @@ import MemberForm from './memberform';
 import Ministries from './ministries';
 import Prayers from './prayers';
 
-const Dashboard = ({ user, role: rawRole, onLogout }) => {
+const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const role = rawRole?.toLowerCase().includes('member') ? 'Member' : rawRole;
   const isLeader = role === 'Admin' || role === 'Ministry Leader';
 
@@ -648,6 +648,16 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
               )}
             </button>
           </div>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="logout-btn"
+            title="Toggle theme"
+            style={{ marginRight: '8px' }}
+          >
+            {theme === 'dark' ? '🌙 Dark' : '☀️ Light'}
+          </button>
+
           <button className="logout-btn" onClick={onLogout}>Logout</button>
         </div>
       </nav>

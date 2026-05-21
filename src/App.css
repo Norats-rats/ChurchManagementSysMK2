@@ -399,8 +399,9 @@
 }
 
 :root {
-  --color-primary: #2563eb; /* blue */
-  --color-accent: #60a5fa; /* light blue */
+  /* restored original green -> black transition colors */
+  --color-primary: #064e3b; /* deep green */
+  --color-accent: #000000; /* black */
   --color-bg: #f8fafc;
   --color-muted: #64748b;
   --card-radius: 16px;
@@ -455,6 +456,25 @@
 @media (max-width: 768px) {
   .menu-item { padding: 10px 12px; margin: 6px 6px; }
 }
+
+.theme-dark {
+  --color-primary: #0ea5a4;
+  --color-accent: #065f46;
+  --color-bg: #0f172a;
+  --color-muted: #93c5fd;
+  background: #071028;
+  color: #e6eef8;
+}
+
+.theme-dark .login-card,
+.theme-dark .bulletin-card {
+  background: #0b1220;
+  color: #e6eef8;
+  border-color: rgba(255,255,255,0.04);
+}
+
+.theme-dark .menu-item { color: #cfe9ff; }
+.theme-dark .menu-item.active { background: #063b3b; }
 
 @media (max-width: 640px) {
   .login-card {
