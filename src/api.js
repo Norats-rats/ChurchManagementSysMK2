@@ -83,8 +83,8 @@ export const api = {
   createMinistry: (ministryData) => apiClient.post('/api/ministries', ministryData),
   updateMinistry: (id, editFormData) => apiClient.patch(`/api/ministries/${id}`, editFormData),
   deleteMinistry: (id) => apiClient.delete(`/api/ministries/${id}`),
-  announceToMinistry: (id, announcementText, role) => apiClient.post(`/api/ministries/${id}/announcement`, { announcementText }, {
-    headers: { 'x-user-role': role }
+  announceToMinistry: (id, announcementText, role, userName) => apiClient.post(`/api/ministries/${id}/announcement`, { announcementText }, {
+    headers: { 'x-user-role': role, 'x-user-name': userName || '' }
   }),
   applyForMinistry: (id, requestData) => apiClient.post(`/api/ministries/${id}/join-request`, requestData),
   approveMinistryRequest: (ministryId, requestId, role) => apiClient.patch(`/api/ministries/${ministryId}/join-request/${requestId}/approve`, {}, {

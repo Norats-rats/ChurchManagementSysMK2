@@ -22,7 +22,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const [nextEvent, setNextEvent] = useState(null);
   const [announcement, setAnnouncement] = useState("Loading church updates...");
   const [newAnnouncement, setNewAnnouncement] = useState("");
-  const [ministryAnnouncement, setMinistryAnnouncement] = useState("");
+  const [notifications, setNotifications] = useState([]);
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
 
   const navigationConfig = [
@@ -49,20 +49,59 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   }, [currentTab]);
 
   useEffect(() => {
-    fetchMinistryNotification();
-  }, [user?.ministry]);
+    fetchNotificationBar();
+  }, [user, role]);
 
-  const fetchMinistryNotification = async () => {
-    if (!user?.ministry) {
-      setMinistryAnnouncement("");
-      return;
-    }
+  const fetchNotificationBar = async () => {
     try {
-      const response = await api.getMinistryByName(user.ministry, role);
-      setMinistryAnnouncement(response.data?.announcementText || "");
+      const notifications = [];
+      const [announceRes] = await Promise.all([
+        api.getAnnouncement().catch(() => ({ data: { text: 'No bulletin updates yet.' } }))
+      ]);
+      const bulletinText = announceRes.data?.text || 'No bulletin updates yet.';
+      notifications.push({ title: 'Bulletin Board', message: bulletinText });
+
+      const userName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+      let ministryAnnouncementText = undefined;
+      if (user?.ministry) {
+        try {
+          const ministryRes = await api.getMinistryByName(user.ministry, role);
+          ministryAnnouncementText = ministryRes.data?.announcementText;
+        } catch (err) {
+          console.warn('No ministry board data available', err);
+        }
+      }
+
+      if (role === 'Ministry Leader') {
+        try {
+          const ministriesRes = await api.getMinistries(role);
+          const leaderMinistries = Array.isArray(ministriesRes.data)
+            ? ministriesRes.data.filter(m => m.leader?.trim().toLowerCase() === userName.toLowerCase())
+            : [];
+          if (!ministryAnnouncementText && leaderMinistries.length > 0) {
+            ministryAnnouncementText = leaderMinistries[0].announcementText;
+          }
+          const pendingRequests = leaderMinistries.reduce((count, m) => {
+            const pending = Array.isArray(m.joinRequests)
+              ? m.joinRequests.filter(r => r.status === 'Pending').length
+              : 0;
+            return count + pending;
+          }, 0);
+          if (pendingRequests > 0) {
+            notifications.push({ title: 'Join Applications', message: `${pendingRequests} pending request${pendingRequests === 1 ? '' : 's'}` });
+          }
+        } catch (err) {
+          console.warn('Failed to fetch ministry leader notifications', err);
+        }
+      }
+
+      if (ministryAnnouncementText !== undefined) {
+        notifications.push({ title: 'Ministry Board', message: ministryAnnouncementText || 'No ministry board updates yet.' });
+      }
+
+      setNotifications(notifications);
     } catch (err) {
-      console.error("Failed to fetch ministry announcement", err);
-      setMinistryAnnouncement("");
+      console.error('Notification bar fetch failed', err);
     }
   };
 
@@ -509,12 +548,16 @@ const fetchBulletinData = async () => {
           </div>
         </div>
         <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {ministryAnnouncement ? (
-            <div style={{ border: '1px solid #c7d2fe', background: '#eff6ff', padding: '10px 14px', borderRadius: '14px', color: '#1d4ed8', fontSize: '12px', maxWidth: '300px' }}>
-              <strong style={{ display: 'block', marginBottom: '4px' }}>Ministry Notice</strong>
-              <span>{ministryAnnouncement}</span>
+          {notifications.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px', border: '1px solid #c7d2fe', background: '#eff6ff', borderRadius: '18px', maxWidth: '320px' }}>
+              {notifications.map((item, index) => (
+                <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ color: '#1d4ed8', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.title}</span>
+                  <span style={{ color: '#0f172a', fontSize: '13px', lineHeight: '1.4', whiteSpace: 'normal' }}>{item.message}</span>
+                </div>
+              ))}
             </div>
-          ) : null}
+          )}
           <div className="admin-info" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <strong>{user.firstName} {user.lastName}</strong>

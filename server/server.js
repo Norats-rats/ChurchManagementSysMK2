@@ -472,13 +472,19 @@ app.patch('/api/ministries/:id', async (req, res) => {
 app.post('/api/ministries/:id/announcement', async (req, res) => {
   try {
     const userRole = req.headers['x-user-role'];
-    if (!['Admin', 'Ministry Leader'].includes(userRole)) {
-      return res.status(403).json({ error: 'Forbidden: only ministry leaders and admin can announce.' });
+    const userName = (req.headers['x-user-name'] || '').trim();
+    if (userRole !== 'Ministry Leader') {
+      return res.status(403).json({ error: 'Forbidden: only assigned ministry leaders can announce.' });
+    }
+    const ministry = await Ministry.findById(req.params.id);
+    if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
+    if (!userName || ministry.leader?.trim().toLowerCase() !== userName.toLowerCase()) {
+      return res.status(403).json({ error: 'Forbidden: only the assigned ministry leader can update this announcement.' });
     }
     const { announcementText } = req.body;
-    const updated = await Ministry.findByIdAndUpdate(req.params.id, { announcementText }, { new: true });
-    if (!updated) return res.status(404).json({ error: 'Ministry not found' });
-    res.json(updated);
+    ministry.announcementText = announcementText;
+    await ministry.save();
+    res.json(ministry);
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 

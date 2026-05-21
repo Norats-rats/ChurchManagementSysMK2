@@ -24,6 +24,8 @@ const Ministries = ({ role, user }) => {
   });
 
   const canManage = role === 'Admin' || role === 'Ministry Leader';
+  const userFullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim().toLowerCase();
+  const userName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
 
   useEffect(() => {
     fetchInitialData();
@@ -165,7 +167,8 @@ const Ministries = ({ role, user }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-role': role
+          'x-user-role': role,
+          'x-user-name': userName
         },
         body: JSON.stringify({ announcementText: text })
       });
@@ -186,11 +189,12 @@ const Ministries = ({ role, user }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-role': role
+          'x-user-role': role,
+          'x-user-name': userName
         },
         body: JSON.stringify({
           userId: user._id,
-          userName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          userName,
           userRole: role
         })
       });
@@ -291,6 +295,7 @@ const Ministries = ({ role, user }) => {
           );
           const normalizedUserMinistry = user?.ministry?.trim().toLowerCase();
           const isMemberOfThisMinistry = normalizedUserMinistry && m.name && normalizedUserMinistry === m.name.trim().toLowerCase();
+          const isMyMinistryLeader = role === 'Ministry Leader' && userFullName && m.leader?.trim().toLowerCase() === userFullName;
           const pendingRequests = Array.isArray(m.joinRequests) ? m.joinRequests.filter(req => req.status === 'Pending') : [];
           const userExistingRequest = Array.isArray(m.joinRequests) ? m.joinRequests.find(req => req.userId === user?._id) : null;
           const isExpanded = expandedId === m._id;
@@ -422,7 +427,7 @@ const Ministries = ({ role, user }) => {
                 <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', marginTop: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                     <h4 style={{ margin: 0, fontSize: '13px', color: '#334155' }}>Ministry Announcement</h4>
-                    {canManage && (
+                    {isMyMinistryLeader && (
                       <button
                         onClick={() => submitAnnouncement(m)}
                         style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', backgroundColor: '#2563eb', color: 'white', cursor: 'pointer', fontSize: '12px' }}
@@ -431,7 +436,7 @@ const Ministries = ({ role, user }) => {
                       </button>
                     )}
                   </div>
-                  {canManage ? (
+                  {isMyMinistryLeader ? (
                     <textarea
                       value={announcementDraft[m._id] ?? m.announcementText ?? ''}
                       onChange={(e) => handleAnnouncementChange(m._id, e.target.value)}
@@ -443,7 +448,7 @@ const Ministries = ({ role, user }) => {
                     <p style={{ margin: 0, color: '#475569', fontSize: '13px' }}>{m.announcementText || 'No announcement yet.'}</p>
                   )}
 
-                  {canManage && pendingRequests.length > 0 && (
+                  {isMyMinistryLeader && pendingRequests.length > 0 && (
                     <div style={{ marginTop: '14px' }}>
                       <h5 style={{ margin: '0 0 8px 0', fontSize: '12px', textTransform: 'uppercase', color: '#64748b' }}>Pending Join Requests</h5>
                       <ul style={{ margin: 0, paddingLeft: '18px', color: '#334155' }}>
