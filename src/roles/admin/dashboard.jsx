@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
+import churchLogo from '../../assets/churchlogo.jpg';
 import Advising from '../../components/shared/advisinglist';
 import Profile from '../../components/shared/profile';
 import Analytics from './analyticz';
@@ -610,7 +611,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
     <div className="dashboard-wrapper">
       <nav className="top-nav">
         <div className="nav-left">
-          <img src={churchlogo} alt="Church Logo" />
+          <img src={churchLogo} alt="Dashboard Graphic" />
           <div className="church-title">
             <h4>Free Believers in Christ Fellowship Inc.</h4>
             <small>{role} Portal • Taguig City</small>
