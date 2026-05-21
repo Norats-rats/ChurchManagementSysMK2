@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
+import Advising from '../../components/shared/advisinglist';
 import Profile from '../../components/shared/profile';
 import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
