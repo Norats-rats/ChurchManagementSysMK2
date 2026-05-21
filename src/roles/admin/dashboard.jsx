@@ -3,6 +3,15 @@ import api from '../../api';
 import churchLogo from '../../assets/churchlogo.jpg';
 import Advising from '../../components/shared/advisinglist';
 import Profile from '../../components/shared/profile';
+import {
+  canManageAttendance,
+  canManageEvents,
+  canManageMinistries,
+  canViewAnalytics,
+  canViewInventory,
+  hasPermission,
+  normalizeRole
+} from '../../permissions';
 import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
 import EBible from './ebible';
@@ -14,8 +23,10 @@ import Ministries from './ministries';
 import Prayers from './prayers';
 
 const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
-  const role = rawRole?.toLowerCase().includes('member') ? 'Member' : rawRole;
+  const role = normalizeRole(rawRole);
   const isLeader = role === 'Admin' || role === 'Ministry Leader';
+  const isAdmin = role === 'Admin';
+  const canManage = canManageEvents(role) || canManageAttendance(role) || canManageMinistries(role);
 
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [stats, setStats] = useState({ memberCount: 0, attendanceCount: 0, eventCount: 0, ministryCount: 0 });
@@ -27,20 +38,26 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
 
   const navigationConfig = [
-    { id: 'dashboard', label: role === 'Member' ? 'Home' : 'Dashboard', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'ebible', label: 'Bible', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'members', label: 'Members', roles: ['Admin', 'Ministry Leader'] },
-    { id: 'events', label: 'Events', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'attendance', label: 'Attendance', roles: ['Admin', 'Member', 'Staff'] },
-    { id: 'ministries', label: 'Ministries', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'prayers', label: 'Prayers', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'advising', label: 'Advising', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'finances', label: 'Finances', roles: ['Admin', 'Ministry Leader', 'Staff'] },
-    { id: 'analytics', label: 'Reports', roles: ['Admin', 'Ministry Leader'] },
-    { id: 'inventory', label: 'Inventory', roles: ['Admin', 'Ministry Leader', 'Staff'] },
+    { id: 'dashboard', label: role === 'Member' ? 'Home' : 'Dashboard', permission: 'dashboard' },
+    { id: 'ebible', label: 'Bible', permission: 'bible' },
+    { id: 'members', label: 'Members', permission: 'members' },
+    { id: 'events', label: 'Events', permission: 'events' },
+    { id: 'attendance', label: 'Attendance', permission: 'attendance' },
+    { id: 'ministries', label: 'Ministries', permission: 'ministries' },
+    { id: 'prayers', label: 'Prayers', permission: 'prayers' },
+    { id: 'advising', label: 'Advising', permission: 'advising' },
+    { id: 'finances', label: 'Finances', permission: 'finances' },
+    { id: 'analytics', label: 'Reports', permission: 'analytics' },
+    { id: 'inventory', label: 'Inventory', permission: 'inventory' },
   ];
 
-  const visibleTabs = navigationConfig.filter(tab => tab.roles.includes(role));
+  const visibleTabs = navigationConfig.filter(tab => hasPermission(role, tab.permission));
+
+  useEffect(() => {
+    if (currentTab !== 'profile' && !visibleTabs.some(tab => tab.id === currentTab)) {
+      setCurrentTab('dashboard');
+    }
+  }, [currentTab, visibleTabs]);
 
   const getLoginTimestamp = () => {
     const stored = sessionStorage.getItem('loginTimestamp');
@@ -763,15 +780,15 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
           {currentTab === 'ebible' && <EBible />}
           {currentTab === 'profile' && <Profile userId={user._id} currentUserId={user._id} />}
-          {currentTab === 'members' && role === 'Admin' && <MemberForm />}
-          {currentTab === 'events' && <EventTab role={role} userId={user._id} />}
-          {currentTab === 'attendance' && <AttendanceTab role={role} userId={user._id} user={user} />}
-          {currentTab === 'ministries' && <Ministries role={role} user={user} />}
-          {currentTab === 'prayers' && <Prayers role={role} user={user} />}
-          {currentTab === 'advising' && <Advising role={role} user={user} />}
-          {currentTab === 'finances' && <Finances role={role} userId={user._id} user={user} />}
-          {currentTab === 'analytics' && isLeader && <Analytics />}
-          {currentTab === 'inventory' && ['Admin', 'Ministry Leader', 'Staff'].includes(role) && <InventoryForm />}
+          {currentTab === 'members' && hasPermission(role, 'members') && <MemberForm />}
+          {currentTab === 'events' && hasPermission(role, 'events') && <EventTab role={role} userId={user._id} />}
+          {currentTab === 'attendance' && hasPermission(role, 'attendance') && <AttendanceTab role={role} userId={user._id} user={user} />}
+          {currentTab === 'ministries' && hasPermission(role, 'ministries') && <Ministries role={role} user={user} />}
+          {currentTab === 'prayers' && hasPermission(role, 'prayers') && <Prayers role={role} user={user} />}
+          {currentTab === 'advising' && hasPermission(role, 'advising') && <Advising role={role} user={user} />}
+          {currentTab === 'finances' && hasPermission(role, 'finances') && <Finances role={role} userId={user._id} user={user} />}
+          {currentTab === 'analytics' && canViewAnalytics(role) && <Analytics />}
+          {currentTab === 'inventory' && canViewInventory(role) && <InventoryForm />}
         </div>
       </div>
     </div>

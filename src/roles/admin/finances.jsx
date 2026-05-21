@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
+import { canManageFinances } from '../../permissions';
 
 const Finances = ({ role, userId, user }) => {
   const [transactions, setTransactions] = useState([]);
@@ -86,7 +87,7 @@ const Finances = ({ role, userId, user }) => {
         <p style={{ color: 'var(--color-primary)' }}>Tracking church financial health and recorded transactions</p>
       </header>
 
-      {role !== 'Member' && (
+      {canManageFinances(role) && (
         <div style={styles.statsGrid}>
           <div style={styles.card}>
             <span style={styles.label}>Total Church Income</span>

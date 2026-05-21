@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
+import { canManagePrayers } from '../../permissions';
 
 const PrayerRequests = ({ user, role }) => {
   const [showModal, setShowModal] = useState(false);
@@ -12,7 +13,7 @@ const PrayerRequests = ({ user, role }) => {
   const categories = ["Health", "Career", "Financial", "Family", "Testimony", "Ministry", "Relationships", "Travel"];
   
   const loggedInId = user?._id || user?.id;
-  const isAdminOrMinistry = role === 'Admin' || role === 'Ministry Leader';
+  const isAdminOrMinistry = canManagePrayers(role);
 
   useEffect(() => {
     fetchRequests();

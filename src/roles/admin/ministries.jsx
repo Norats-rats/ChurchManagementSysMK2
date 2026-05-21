@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { canManageMinistries } from '../../permissions';
 
 const API_BASE_RAW = import.meta.env.VITE_API_URL;
 const API_BASE = API_BASE_RAW?.endsWith('/') ? API_BASE_RAW.slice(0, -1) : API_BASE_RAW;
@@ -23,7 +24,7 @@ const Ministries = ({ role, user }) => {
     color: '#2563eb'
   });
 
-  const canManage = role === 'Admin' || role === 'Ministry Leader';
+  const canManage = canManageMinistries(role);
   const userFullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim().toLowerCase();
   const userName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
 

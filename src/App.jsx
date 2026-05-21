@@ -3,6 +3,7 @@ import api from './api';
 import './App.css';
 import churchLogo from './assets/churchlogo.jpg';
 import Signup from './components/shared/signup';
+import { normalizeRole } from './permissions';
 import Dashboard from './roles/admin/dashboard';
 
 const ForgotPasswordView = ({ onGoToLogin }) => {
@@ -225,21 +226,18 @@ export default function App() {
   }, [userData]); 
 
   useEffect(() => {
-    // Load persisted theme
     const storedTheme = localStorage.getItem('theme');
     if (storedTheme) {
       setTheme(storedTheme);
       document.documentElement.classList.toggle('theme-dark', storedTheme === 'dark');
     }
-
-    // Auto-login from remembered credentials
     const remembered = localStorage.getItem('rememberedUser');
     const rememberedRole = localStorage.getItem('rememberedRole');
     if (remembered && rememberedRole) {
       try {
         const user = JSON.parse(remembered);
         setUserData(user);
-        setUserRole(rememberedRole);
+        setUserRole(normalizeRole(rememberedRole));
         sessionStorage.setItem('loginTimestamp', Date.now().toString());
         setView('dashboard');
       } catch (err) {
@@ -249,12 +247,13 @@ export default function App() {
   }, []);
 
   const handleLoginSuccess = (role, user, remember) => {
-    setUserRole(role);
+    const normalizedRole = normalizeRole(role);
+    setUserRole(normalizedRole);
     setUserData(user);
     sessionStorage.setItem('loginTimestamp', Date.now().toString());
     if (remember) {
       localStorage.setItem('rememberedUser', JSON.stringify(user));
-      localStorage.setItem('rememberedRole', role);
+      localStorage.setItem('rememberedRole', normalizedRole);
     } else {
       localStorage.removeItem('rememberedUser');
       localStorage.removeItem('rememberedRole');
@@ -283,7 +282,6 @@ export default function App() {
               setUserData(null);
               setUserRole(null);
               sessionStorage.removeItem('loginTimestamp');
-              // keep remembered credentials unless user clears them explicitly
             }} 
           />
         );

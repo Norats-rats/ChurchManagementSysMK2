@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
+import { canManageEvents } from '../../permissions';
 
 const EventTab = ({ role, userId }) => {
   const [events, setEvents] = useState([]);
@@ -31,7 +32,7 @@ const EventTab = ({ role, userId }) => {
     status: 'active'
   });
 
-  const canManage = role === 'Admin' || role === 'Ministry Leader';
+  const canManage = canManageEvents(role);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

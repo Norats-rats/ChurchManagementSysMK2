@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
+import { canManageAdvising, canSubmitAdvising } from '../../permissions';
 
 const Advising = ({ user, role }) => {
   const [requests, setRequests] = useState([]);
@@ -18,7 +19,8 @@ const Advising = ({ user, role }) => {
   const loggedInId = user?._id || user?.id;
   const isLeader = role === 'Ministry Leader';
   const isAdmin = role === 'Admin';
-  const canSubmit = role === 'Member' || role === 'Staff';
+  const canSubmit = canSubmitAdvising(role);
+  const canManage = canManageAdvising(role);
   const userDisplayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Guest';
 
   useEffect(() => {

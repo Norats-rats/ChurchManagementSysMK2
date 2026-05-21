@@ -2,6 +2,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { api } from '../../api';
+import { canManageAttendance } from '../../permissions';
 
 const AttendanceTab = ({ role, userId, user }) => {
   const [checkIns, setCheckIns] = useState([]);
@@ -22,7 +23,7 @@ const AttendanceTab = ({ role, userId, user }) => {
     status: 'active'
   });
 
-  const canManage = role === 'Admin' || role === 'Ministry Leader';
+  const canManage = canManageAttendance(role);
   const todayStr = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
