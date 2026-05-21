@@ -55,6 +55,21 @@ export const api = {
   getAttendance: () => apiClient.get('/api/attendance'),
   recordAttendance: (checkInData) => apiClient.post('/api/attendance', checkInData),
 
+  // Finances
+  getFinances: (userId, role) => apiClient.get('/api/finances', {
+    headers: {
+      'x-user-id': userId,
+      'x-user-role': role
+    }
+  }),
+  addFinanceRecord: (recordData, role, userId) => apiClient.post('/api/finances', recordData, {
+    headers: {
+      'x-user-role': role,
+      'x-user-id': userId
+    }
+  }),
+  createCheckoutSession: (checkoutData) => apiClient.post('/api/checkout', checkoutData),
+
   // Ministries
   getMinistries: () => apiClient.get('/api/ministries'),
   createMinistry: (ministryData) => apiClient.post('/api/ministries', ministryData),

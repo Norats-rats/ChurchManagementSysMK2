@@ -162,6 +162,91 @@ const Inventory = mongoose.model('Inventory', new mongoose.Schema({
   condition: { type: String, default: 'Good' }
 }, { timestamps: true }));
 
+// --- FINANCE SCHEMA & ROUTES ---
+const Finance = mongoose.model('finances', new mongoose.Schema({
+  description: { type: String, required: true },
+  type: { type: String, enum: ['Income', 'Expense'], required: true },
+  amount: { type: Number, required: true },
+  date: { type: Date, default: Date.now },
+  userId: { type: String }, // for member donations
+  addedBy: { type: String }, // staff/admin who recorded it
+  createdAt: { type: Date, default: Date.now }
+}));
+
+app.get('/api/finances', async (req, res) => {
+  try {
+    const loggedInUserId = req.headers['x-user-id'];
+    const loggedInUserRole = req.headers['x-user-role'];
+
+    let query = {};
+    if (loggedInUserRole === 'Member') {
+      // members only see their own transactions (donations)
+      query = { userId: loggedInUserId };
+    }
+
+    const transactions = await Finance.find(query).sort({ createdAt: -1 });
+
+    const totalIncome = transactions.filter(t => t.type === 'Income').reduce((s, t) => s + (t.amount || 0), 0);
+    const totalExpenses = transactions.filter(t => t.type === 'Expense').reduce((s, t) => s + (t.amount || 0), 0);
+    const stats = { totalIncome, totalExpenses, netBalance: totalIncome - totalExpenses };
+
+    res.json({ transactions, stats });
+  } catch (err) {
+    console.error('Failed to fetch finances:', err);
+    res.status(500).json({ error: 'Failed to fetch finances' });
+  }
+});
+
+app.post('/api/finances', async (req, res) => {
+  try {
+    const loggedInUserRole = req.headers['x-user-role'];
+    const loggedInUserId = req.headers['x-user-id'];
+
+    if (!['Admin', 'Ministry Leader', 'Staff'].includes(loggedInUserRole)) {
+      return res.status(403).json({ error: 'Forbidden: only staff, ministry leaders or admin can record finances.' });
+    }
+
+    const { description, type, amount, date } = req.body;
+    if (!description || !type || typeof amount === 'undefined') {
+      return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    if (!['Income', 'Expense'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid transaction type.' });
+    }
+
+    const newRecord = new Finance({
+      description,
+      type,
+      amount: Number(amount),
+      date: date ? new Date(date) : new Date(),
+      addedBy: loggedInUserId || req.body.addedBy || '',
+      userId: req.body.userId || null
+    });
+
+    await newRecord.save();
+    res.status(201).json(newRecord);
+  } catch (err) {
+    console.error('Failed to create finance record:', err);
+    res.status(400).json({ error: 'Failed to create finance record.' });
+  }
+});
+
+// Simple checkout session endpoint (returns a checkout URL or error). Replace with real payment integration.
+app.post('/api/checkout', async (req, res) => {
+  try {
+    const { amount, description, userId } = req.body;
+    if (!amount || Number(amount) <= 0) return res.status(400).json({ error: 'Invalid amount' });
+
+    const checkoutUrl = process.env.CHECKOUT_BASE_URL || `https://example.com/checkout?amount=${encodeURIComponent(amount)}&desc=${encodeURIComponent(description || '')}&user=${encodeURIComponent(userId || '')}`;
+
+    return res.json({ data: { attributes: { checkout_url: checkoutUrl } } });
+  } catch (err) {
+    console.error('Checkout creation failed:', err);
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
 
 app.get('/', (req, res) => {
   res.send('Church Management API is Online and Running');
@@ -948,7 +1033,15 @@ app.post('/api/ai/analyze-metrics', async (req, res) => {
       - Active Ministry Departments: ${activeMinistries}
       - Upcoming Events Scheduled: ${upcomingEvents}
       - Top Ministry Distribution Breakdown: ${JSON.stringify(ministryDistribution)}
-      
+      - Top 3 Most Popular Ministries by Membership: ${JSON.stringify(Object.keys(ministryDistribution).slice(0, 3))}
+      - Top 3 Least Popular Ministries by Membership: ${JSON.stringify(Object.keys(ministryDistribution).slice(-3))}
+      - Top Age Demographic Group: ${ministryDistribution.ageGroups ? Object.keys(ministryDistribution.ageGroups).reduce((a, b) => ministryDistribution.ageGroups[a] > ministryDistribution.ageGroups[b] ? a : b) : 'N/A'}
+      - Least Engaged Age Demographic Group: ${ministryDistribution.ageGroups ? Object.keys(ministryDistribution.ageGroups).reduce((a, b) => ministryDistribution.ageGroups[a] < ministryDistribution.ageGroups[b] ? a : b) : 'N/A'}
+      - Top attendance rate for events: ${ministryDistribution.eventAttendance ? Object.keys(ministryDistribution.eventAttendance).reduce((a, b) => ministryDistribution.eventAttendance[a] > ministryDistribution.eventAttendance[b] ? a : b) : 'N/A'}
+      - Lowest attendance rate for events: ${ministryDistribution.eventAttendance ? Object.keys(ministryDistribution.eventAttendance).reduce((a, b) => ministryDistribution.eventAttendance[a] < ministryDistribution.eventAttendance[b] ? a : b) : 'N/A'}
+      - Top gender demographic: ${ministryDistribution.gender ? Object.keys(ministryDistribution.gender).reduce((a, b) => ministryDistribution.gender[a] > ministryDistribution.gender[b] ? a : b) : 'N/A'}
+      - Least Engaged gender demographic: ${ministryDistribution.gender ? Object.keys(ministryDistribution.gender).reduce((a, b) => ministryDistribution.gender[a] < ministryDistribution.gender[b] ? a : b) : 'N/A'}
+
       Task: Provide a sophisticated, cohesive system analysis summary (approx 2-3 sentences). Detail structural strengths based on the membership count vs active channels, assess if event volume is sufficient to maintain community engagement, and offer one highly actionable development recommendation.
       
       Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown formatting, do not wrap your answer in triple backticks, and do not write introduction or conversational text.

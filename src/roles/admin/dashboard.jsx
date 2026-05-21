@@ -6,6 +6,7 @@ import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
 import EBible from './ebible';
 import EventTab from './eventtab';
+import Finances from './finances';
 import InventoryForm from './invento';
 import MemberForm from './memberform';
 import Ministries from './ministries';
@@ -32,6 +33,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
     { id: 'ministries', label: '❤️ Ministries', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'prayers', label: '🙏 Prayers', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'advising', label: '📝 Advising', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'finances', label: '💰 Finances', roles: ['Admin', 'Ministry Leader', 'Staff'] },
     { id: 'analytics', label: '📈 Analytics', roles: ['Admin', 'Ministry Leader'] },
     { id: 'inventory', label: '📦 Inventory', roles: ['Admin', 'Ministry Leader', 'Staff'] },
   ];
@@ -586,6 +588,7 @@ const fetchBulletinData = async () => {
           {currentTab === 'ministries' && <Ministries role={role} />}
           {currentTab === 'prayers' && <Prayers role={role} user={user} />}
           {currentTab === 'advising' && <Advising role={role} user={user} />}
+          {currentTab === 'finances' && <Finances role={role} userId={user._id} user={user} />}
           {currentTab === 'analytics' && isLeader && <Analytics />}
           
           {/* Render InventoryForm safely checking dynamic navigation visibility permissions */}
