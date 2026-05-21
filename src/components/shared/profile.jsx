@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../../../api';
+import { api } from '../../api';
 
 const Profile = ({ userId, currentUserId, compact = false }) => {
   const [member, setMember] = useState(null);
