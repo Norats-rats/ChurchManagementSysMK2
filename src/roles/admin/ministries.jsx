@@ -27,6 +27,11 @@ const Ministries = ({ role, user }) => {
   const canManage = canManageMinistries(role);
   const userFullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim().toLowerCase();
   const userName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+  const normalizeMemberMinistries = (member) => {
+    if (Array.isArray(member?.ministries)) return member.ministries;
+    if (member?.ministry) return [member.ministry];
+    return [];
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -129,10 +134,15 @@ const Ministries = ({ role, user }) => {
   const handleAddMember = async (memberId, ministryName) => {
     if (!memberId) return;
     try {
+      const member = allMembers.find(m => m._id === memberId);
+      const currentMinistries = normalizeMemberMinistries(member);
+      const nextMinistries = currentMinistries.includes(ministryName)
+        ? currentMinistries
+        : [...currentMinistries, ministryName];
       const res = await fetch(`${API_BASE}/api/members/${memberId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ministry: ministryName })
+        body: JSON.stringify({ ministries: nextMinistries, ministry: nextMinistries[0] || 'None' })
       });
       if (res.ok) {
         setSelectedMemberId('');
@@ -141,13 +151,16 @@ const Ministries = ({ role, user }) => {
     } catch (err) { alert("Failed to add member"); }
   };
 
-  const handleRemoveMember = async (memberId) => {
+  const handleRemoveMember = async (memberId, ministryName) => {
     if (!window.confirm("Remove this member from the ministry?")) return;
     try {
+      const member = allMembers.find(m => m._id === memberId);
+      const currentMinistries = normalizeMemberMinistries(member);
+      const nextMinistries = currentMinistries.filter(name => name !== ministryName);
       const res = await fetch(`${API_BASE}/api/members/${memberId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ministry: '' }) 
+        body: JSON.stringify({ ministries: nextMinistries, ministry: nextMinistries[0] || 'None' })
       });
       if (res.ok) fetchInitialData();
     } catch (err) { alert("Failed to remove member"); }
@@ -232,8 +245,6 @@ const Ministries = ({ role, user }) => {
 
   if (loading) return <div style={{padding: '40px'}}>Connecting to database...</div>;
 
-  const unassignedMembers = allMembers.filter(m => !m.ministry);
-
   return (
     <div style={{ padding: '30px', backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px' }}>
@@ -291,11 +302,13 @@ const Ministries = ({ role, user }) => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         {ministryList.map((m) => {
-          const ministryMembers = allMembers.filter(member => 
-            member.ministry && m.name && member.ministry.trim().toLowerCase() === m.name.trim().toLowerCase()
-          );
-          const normalizedUserMinistry = user?.ministry?.trim().toLowerCase();
-          const isMemberOfThisMinistry = normalizedUserMinistry && m.name && normalizedUserMinistry === m.name.trim().toLowerCase();
+          const ministryMembers = allMembers.filter(member => {
+            const memberMinistries = normalizeMemberMinistries(member);
+            return memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
+          });
+          const userMinistries = normalizeMemberMinistries(user);
+          const normalizedUserMinistries = userMinistries.map(min => min.trim().toLowerCase());
+          const isMemberOfThisMinistry = normalizedUserMinistries.includes(m.name?.trim().toLowerCase());
           const isMyMinistryLeader = role === 'Ministry Leader' && userFullName && m.leader?.trim().toLowerCase() === userFullName;
           const pendingRequests = Array.isArray(m.joinRequests) ? m.joinRequests.filter(req => req.status === 'Pending') : [];
           const userExistingRequest = Array.isArray(m.joinRequests) ? m.joinRequests.find(req => req.userId === user?._id) : null;
@@ -370,7 +383,7 @@ const Ministries = ({ role, user }) => {
                             <span><strong>{member.firstName} {member.lastName}</strong></span>
                             {canManage && (
                               <button 
-                                onClick={() => handleRemoveMember(member._id)} 
+                                onClick={() => handleRemoveMember(member._id, m.name)} 
                                 style={removeMemberLink}
                                 title="Remove member from ministry"
                               >
@@ -391,11 +404,16 @@ const Ministries = ({ role, user }) => {
                         onChange={e => setSelectedMemberId(e.target.value)}
                       >
                         <option value="">+ Add Member</option>
-                        {unassignedMembers.map(mem => (
-                          <option key={mem._id} value={mem._id}>
-                            {mem.firstName} {mem.lastName}
-                          </option>
-                        ))}
+                        {allMembers
+                          .filter(mem => {
+                            const memberMinistries = normalizeMemberMinistries(mem);
+                            return !memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
+                          })
+                          .map(mem => (
+                            <option key={mem._id} value={mem._id}>
+                              {mem.firstName} {mem.lastName}
+                            </option>
+                          ))}
                       </select>
                       <button 
                         onClick={() => handleAddMember(selectedMemberId, m.name)}

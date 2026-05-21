@@ -24,7 +24,7 @@ const MemberForm = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState(""); 
     const [address, setAddress] = useState("");
-    const [ministry, setMinistry] = useState("Worship Team");
+    const [selectedMinistries, setSelectedMinistries] = useState(["Worship Team"]);
     const [role, setRole] = useState("Member");
     
     const [searchQuery, setSearchQuery] = useState("");
@@ -52,17 +52,25 @@ const MemberForm = () => {
         }
     };
 
+    const normalizeMemberMinistries = (member) => {
+        if (Array.isArray(member?.ministries)) return member.ministries;
+        if (member?.ministry) return [member.ministry];
+        return [];
+    };
+
     const handleAction = async () => {
         if (!firstName || !lastName || !email || (!isEditing && !password)) {
             return alert("Please fill in Names, Email, and Password");
         }
 
+        const validMinistries = selectedMinistries.filter(Boolean);
         const memberData = { 
             firstName,
             lastName,
             email, 
             address, 
-            ministry,
+            ministries: validMinistries,
+            ministry: validMinistries[0] || 'None',
             role,
             category: role === "Admin" ? "Admin" : "Member",
             ...(password && { password }) 
@@ -83,7 +91,7 @@ const MemberForm = () => {
 
     const resetForm = () => {
         setFirstName(""); setLastName(""); setEmail(""); setPassword("");
-        setAddress(""); setMinistry("Worship Team"); setRole("Member");
+        setAddress(""); setSelectedMinistries(["Worship Team"]); setRole("Member");
         setIsEditing(false); setEditId(null);
     };
 
@@ -118,7 +126,8 @@ const MemberForm = () => {
         setLastName(member.lastName || "");
         setEmail(member.email || "");
         setAddress(member.address || "");
-        setMinistry(member.ministry || "Worship Team");
+        const currentMinistries = normalizeMemberMinistries(member);
+        setSelectedMinistries(currentMinistries.length > 0 ? currentMinistries : []);
         setRole(member.role || "Member");
         setPassword(""); 
     };
@@ -139,11 +148,12 @@ const MemberForm = () => {
         const lName = m.lastName || "";
         const mEmail = m.email || "";
         const fullName = `${fName} ${lName}`.toLowerCase();
+        const ministries = normalizeMemberMinistries(m);
         
         const matchesSearch = fullName.includes(searchQuery.toLowerCase()) || 
         mEmail.toLowerCase().includes(searchQuery.toLowerCase());
         
-        const matchesMinistry = filterMinistry === "All Ministries" || m.ministry === filterMinistry;
+        const matchesMinistry = filterMinistry === "All Ministries" || ministries.includes(filterMinistry);
         return matchesSearch && matchesMinistry;
     });
 
@@ -208,12 +218,20 @@ const MemberForm = () => {
                 <option value="Ministry Leader">Ministry Leader</option>
             </select>
 
-            <select value={ministry} onChange={(e) => setMinistry(e.target.value)}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '220px' }}>
+              <label style={{ margin: 0, fontSize: '12px', color: '#475569' }}>Assigned Ministries</label>
+              <select
+                multiple
+                size={5}
+                value={selectedMinistries}
+                onChange={(e) => setSelectedMinistries(Array.from(e.target.selectedOptions, option => option.value))}
+                style={{ minWidth: '220px', borderRadius: '8px', border: '1px solid #ddd', padding: '8px', background: 'white', color: '#111' }}
+              >
                 {MINISTRY_OPTIONS.filter(min => min !== "None").map((min) => (
-                    <option key={min} value={min}>{min}</option>
+                  <option key={min} value={min}>{min}</option>
                 ))}
-                <option value="None">None</option>
-            </select>
+              </select>
+            </div>
             
             <button className="add-btn-primary" onClick={handleAction}>
                 {isEditing ? "Update Account" : "Create Account"}
@@ -257,7 +275,11 @@ const MemberForm = () => {
                                     {m.role || 'Member'}
                                 </span>
                             </td>
-                            <td><span className="ministry-tag">{m.ministry}</span></td>
+                            <td>
+                                <span className="ministry-tag">
+                                  {normalizeMemberMinistries(m).length > 0 ? normalizeMemberMinistries(m).join(', ') : 'None'}
+                                </span>
+                            </td>
                             <td>
                                 <button 
                                     className={`status-pill ${m.status?.toLowerCase() || 'inactive'}`}

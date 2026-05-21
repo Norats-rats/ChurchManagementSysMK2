@@ -36,10 +36,14 @@ const Analytics = () => {
 
       const ministryCounts = {};
       members.forEach(member => {
-        const minName = member.ministry || 'None';
-        if (minName !== 'None') {
-          ministryCounts[minName] = (ministryCounts[minName] || 0) + 1;
-        }
+        const memberMinistries = Array.isArray(member?.ministries)
+          ? member.ministries
+          : member?.ministry ? [member.ministry] : [];
+        memberMinistries.forEach(minName => {
+          if (minName && minName !== 'None') {
+            ministryCounts[minName] = (ministryCounts[minName] || 0) + 1;
+          }
+        });
       });
 
       const distribution = ministries.slice(0, 5).map(m => {

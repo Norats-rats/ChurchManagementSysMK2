@@ -79,6 +79,7 @@ const Member = mongoose.model('members', new mongoose.Schema({
   email: { type: String, unique: true, required: true },
   password: { type: String, required: true },
   role: { type: String, default: 'Member' },
+  ministries: { type: [String], default: [] },
   ministry:{ type: String, default: 'None' },
   phone: { type: String },
   birthdate: { type: Date },
@@ -529,7 +530,19 @@ app.patch('/api/ministries/:id/join-request/:requestId/approve', async (req, res
     request.respondedAt = new Date();
     ministry.members = (ministry.members || 0) + 1;
     await ministry.save();
-    await Member.findByIdAndUpdate(request.userId, { ministry: ministry.name });
+    const member = await Member.findById(request.userId);
+    if (member) {
+      const currentMinistries = Array.isArray(member.ministries)
+        ? [...member.ministries]
+        : member.ministry ? [member.ministry] : [];
+      if (!currentMinistries.includes(ministry.name)) {
+        currentMinistries.push(ministry.name);
+      }
+      await Member.findByIdAndUpdate(request.userId, {
+        ministries: currentMinistries,
+        ministry: currentMinistries[0] || 'None'
+      });
+    }
     res.json({ success: true, request });
   } catch (err) { console.error(err); res.status(400).json({ error: err.message }); }
 });
@@ -576,8 +589,15 @@ app.get('/api/members/:id', async (req, res) => {
 
 app.post('/api/members', async (req, res) => {
   try {
-    const data = req.body;
+    const data = { ...req.body };
     if (data.password) data.password = await bcrypt.hash(data.password, 10);
+    if (!Array.isArray(data.ministries)) {
+      data.ministries = Array.isArray(data.ministry) ? data.ministry : data.ministry ? [data.ministry] : [];
+    }
+    data.ministries = data.ministries.filter(Boolean);
+    if (!data.ministry) {
+      data.ministry = data.ministries[0] || 'None';
+    }
     const newMember = new Member(data);
     await newMember.save();
     res.status(201).json(newMember);
@@ -590,6 +610,18 @@ app.put('/api/members/:id', async (req, res) => {
     if (data.password && data.password.trim() !== "") {
       data.password = await bcrypt.hash(data.password, 10);
     } else { delete data.password; }
+    if (data.ministries && !Array.isArray(data.ministries)) {
+      data.ministries = [data.ministries].filter(Boolean);
+    }
+    if (!Array.isArray(data.ministries) && data.ministry) {
+      data.ministries = [data.ministry];
+    }
+    if (Array.isArray(data.ministries)) {
+      data.ministries = data.ministries.filter(Boolean);
+      if (!data.ministry) {
+        data.ministry = data.ministries[0] || 'None';
+      }
+    }
     const updated = await Member.findByIdAndUpdate(req.params.id, data, { new: true });
     res.json(updated);
   } catch (err) { res.status(400).json({ error: "Failed to update record" }); }

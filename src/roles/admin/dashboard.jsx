@@ -124,12 +124,17 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
       const userName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
       let ministryAnnouncementText = undefined;
-      if (user?.ministry) {
+      const userMinistries = Array.isArray(user?.ministries)
+        ? user.ministries
+        : user?.ministry ? [user.ministry] : [];
+      for (const ministryName of userMinistries) {
+        if (!ministryName) continue;
         try {
-          const ministryRes = await api.getMinistryByName(user.ministry, role);
+          const ministryRes = await api.getMinistryByName(ministryName, role);
           ministryAnnouncementText = ministryRes.data?.announcementText;
+          if (ministryAnnouncementText) break;
         } catch (err) {
-          console.warn('No ministry board data available', err);
+          console.warn('No ministry board data available for', ministryName, err);
         }
       }
 
