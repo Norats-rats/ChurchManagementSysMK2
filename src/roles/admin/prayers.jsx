@@ -7,6 +7,7 @@ const PrayerRequests = ({ user, role }) => {
   const [selectedCategories, setSelectedCategories] = useState([]); 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const categories = ["Health", "Career", "Financial", "Family", "Testimony", "Ministry", "Relationships", "Travel"];
   
@@ -21,11 +22,9 @@ const PrayerRequests = ({ user, role }) => {
     try {
       setLoading(true);
       
-      // Pass the logged-in ID and the role into our secure api call
       const response = await api.getPrayers(loggedInId, role);
       const data = response.data;
       
-      // Cleaned up: No longer mapping item.prayingCount
       const formattedData = Array.isArray(data) ? data : [];
 
       setRequests(formattedData);
@@ -48,6 +47,7 @@ const PrayerRequests = ({ user, role }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     if (!newRequestText.trim() || selectedCategories.length === 0) {
       return alert("Please provide a request and at least one category.");
     }
@@ -67,16 +67,19 @@ const PrayerRequests = ({ user, role }) => {
       date: new Date().toISOString()
     };
 
+    setSubmitting(true);
     try {
       const response = await api.submitPrayer(newEntry);
       if (response.status === 201 || response.status === 200) {
-        fetchRequests(); 
+        await fetchRequests(); 
         setNewRequestText("");
         setSelectedCategories([]);
         setShowModal(false);
       }
     } catch (err) {
       console.error("Error submitting prayer:", err);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -161,8 +164,12 @@ const PrayerRequests = ({ user, role }) => {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: '15px' }}>
-                <button type="submit" style={{ ...styles.btnPrimary, flex: 1 }}>Submit</button>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, background: 'none', border: 'none', color: '#64748b', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" disabled={submitting} style={{ ...styles.btnPrimary, flex: 1, opacity: submitting ? 0.6 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }}>
+                  {submitting ? 'Submitting...' : 'Submit'}
+                </button>
+                <button type="button" onClick={() => setShowModal(false)} disabled={submitting} style={{ flex: 1, background: 'none', border: 'none', color: '#64748b', fontWeight: '600', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1 }}>
+                  Cancel
+                </button>
               </div>
             </form>
           </div>
@@ -197,12 +204,9 @@ const PrayerRequests = ({ user, role }) => {
                 </div>
               </div>
               
-              {/* User Prayer Request Text Block */}
               <p style={{ color: '#475569', fontSize: '14px', lineHeight: '1.6', marginBottom: '20px', minHeight: '60px' }}>
                 {r.text}
               </p>
-              
-              {/* ✨ Integrated AI Prayer Assistant Feedback Block */}
               {r.aiResponse && (
                 <div style={{ backgroundColor: '#f1f5f9', padding: '12px 16px', borderRadius: '8px', marginBottom: '15px', borderLeft: '4px solid #6366f1', textAlign: 'left' }}>
                   <p style={{ margin: 0, fontSize: '13px', color: '#475569', fontStyle: 'italic', lineHeight: '1.5' }}>
