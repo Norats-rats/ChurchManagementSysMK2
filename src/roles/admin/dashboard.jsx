@@ -619,10 +619,10 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
         </div>
         <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {notifications.length > 0 && (
-            <div role="region" aria-label="Notifications" title="Notifications" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px', border: '1px solid #c7d2fe', background: '#eff6ff', borderRadius: '18px', maxWidth: '320px', maxHeight: '200px', overflowY: 'auto' }}>
+            <div className="notifications-panel" role="region" aria-label="Notifications" title="Notifications" style={{ maxWidth: '340px' }}>
               {notifications.map((item, index) => (
                 <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ color: '#1d4ed8', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.title}</span>
+                  <span style={{ color: 'var(--color-primary)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.title}</span>
                   <span style={{ color: '#0f172a', fontSize: '13px', lineHeight: '1.4', whiteSpace: 'normal' }}>{item.message}</span>
                 </div>
               ))}
@@ -708,7 +708,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
                 )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-                  <div style={bulletinCardStyle}>
+                  <div className="bulletin-card" style={bulletinCardStyle}>
                     <h2 style={{ color: '#1e3a8a', marginTop: 0 }}>Community Bulletin</h2>
                     <div style={announcementBoxStyle}>
                       <p>{announcement}</p>
@@ -721,7 +721,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
                     </div>
                   </div>
 
-                  <div style={{ ...bulletinCardStyle, background: '#1e293b', color: '#fff' }}>
+                  <div className="bulletin-card bulletin-card-accent" style={{ ...bulletinCardStyle, background: '#1e293b', color: '#fff' }}>
                     <h4 style={{ margin: '0 0 15px 0', color: '#94a3b8' }}>Next Gathering</h4>
                     {nextEvent ? (
                       <>
@@ -738,7 +738,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
                 </div>
               </div>
 
-              <div style={{ marginTop: '30px', padding: '30px', background: '#f8fafc', borderRadius: '20px' }}>
+              <div className="services-card" style={{ marginTop: '30px', padding: '30px', background: '#f8fafc', borderRadius: '20px' }}>
                 <h4 style={{ margin: '0 0 12px 0', color: '#1e3a8a' }}>Service Times</h4>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '8px' }}>
                   <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Sunday Morning Worship — 9:00 AM</li>
