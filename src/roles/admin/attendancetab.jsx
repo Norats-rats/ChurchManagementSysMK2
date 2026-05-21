@@ -141,7 +141,7 @@ const AttendanceTab = ({ role, userId, user }) => {
   return (
     <div style={styles.container}>
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '24px' }}>
-        <div style={{ ...styles.card, padding: '14px', minWidth: sidebarExpanded ? '300px' : '92px', transition: 'min-width 0.25s ease' }}>
+        <div style={{ ...styles.card, padding: '14px', minWidth: sidebarExpanded ? '300px' : '160px', transition: 'min-width 0.25s ease' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             {sidebarExpanded ? (
               <div>
@@ -187,8 +187,8 @@ const AttendanceTab = ({ role, userId, user }) => {
                       ...(selected ? styles.eventToggleActive : {})
                     }}
                   >
-                    <span style={{ maxWidth: sidebarExpanded ? '100%' : '78px', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {sidebarExpanded ? (event.titleSelection || event.title || event.reservationName || event.category || 'Untitled Event') : (event.titleSelection || event.title || event.reservationName || event.category || 'Event').slice(0, 2)}
+                    <span style={ sidebarExpanded ? { maxWidth: '100%', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : { display: 'inline-block', whiteSpace: 'normal', textAlign: 'center', maxWidth: '140px', wordBreak: 'break-word' } }>
+                      {event.title || event.titleSelection || event.reservationName || event.category || 'Untitled Event'}
                     </span>
                     {sidebarExpanded && <span style={styles.eventCount}>{count} checked in</span>}
                   </button>
@@ -284,7 +284,7 @@ const styles = {
   historyRow: { display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '12px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', fontSize: '13px' },
   eventSidebar: { padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '12px' },
   eventToggle: { width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' },
-  eventToggleCompact: { width: '100%', maxWidth: '86px', textAlign: 'center', padding: '10px 8px', borderRadius: '18px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '12px', boxSizing: 'border-box', overflow: 'hidden' },
+  eventToggleCompact: { width: '100%', textAlign: 'center', padding: '10px 8px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '13px', boxSizing: 'border-box', overflow: 'hidden', flexDirection: 'column', gap: '6px' },
   eventToggleActive: { background: '#2563eb', color: 'white', borderColor: '#1d4ed8' },
   sidebarExpanded: { width: '100%', transition: 'width 0.25s ease' },
   sidebarCollapsed: { width: '100%', display: 'grid', gap: '8px', justifyContent: 'center', padding: '6px' },
