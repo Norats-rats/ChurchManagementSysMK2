@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from './api';
 import './App.css';
+import churchLogo from './assets/church-logo.png';
 import Signup from './components/shared/signup';
 import Dashboard from './roles/admin/dashboard';
 
@@ -113,7 +114,9 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
   return (
     <div className="main-container">
       <div className="header-section">
-        <div className="logo-circle"><span className="church-icon">⛪</span></div>
+        <div className="logo-circle">
+          <img src={churchLogo} alt="Church Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} />
+        </div>
         <h1>Free Believers in Christ</h1>
         <h2>Fellowship Inc.</h2>
         <p className="subtitle">CHURCH MANAGEMENT SYSTEM</p>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../../api';
+import churchLogo from '../../assets/church-logo.png';
 
 const Signup = ({ onGoToLogin }) => {
   const [step, setStep] = useState('register');
@@ -79,7 +80,7 @@ const response = await api.verifyOtp({
     <div className="main-container">
       <div className="header-section">
         <div className="logo-circle">
-          <span className="church-icon">⛪</span>
+          <img src={churchLogo} alt="Church Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} />
         </div>
         <h1>Free Believers in Christ</h1>
         <h2>Fellowship Inc.</h2>
