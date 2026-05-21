@@ -126,6 +126,22 @@ const Prayer = mongoose.model('prayers', new mongoose.Schema({
   aiResponse: { type: String, default: "" }
 }));
 
+const AdvisingRequest = mongoose.model('advisingrequests', new mongoose.Schema({
+  name: { type: String, required: true },
+  title: { type: String, required: true },
+  concern: { type: String, required: true },
+  userId: { type: String, required: true },
+  userRole: { type: String, default: 'Member' },
+  status: { type: String, enum: ['Pending', 'Accepted', 'Archived'], default: 'Pending' },
+  submittedAt: { type: Date, default: Date.now },
+  acceptedDate: { type: String, default: '' },
+  acceptedTime: { type: String, default: '' },
+  acceptedLocation: { type: String, default: '' },
+  acceptedBy: { type: String, default: '' },
+  acceptedById: { type: String, default: '' },
+  ignoredBy: { type: [String], default: [] }
+}, { timestamps: true }));
+
 const Ministry = mongoose.model('Ministry', new mongoose.Schema({
   name: { type: String, required: true },
   leader: { type: String, required: true },
@@ -692,6 +708,117 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
     );
     res.json(updated);
   } catch (err) { res.status(400).json({ error: "Failed to update prayer status." }); }
+});
+
+app.post('/api/advising', async (req, res) => {
+  try {
+    const { name, title, concern, userId, userRole } = req.body;
+    if (!name || !title || !concern || !userId) {
+      return res.status(400).json({ error: 'Name, title, concern, and userId are required.' });
+    }
+
+    const newAdvising = new AdvisingRequest({
+      name,
+      title,
+      concern,
+      userId,
+      userRole: userRole || 'Member',
+      status: 'Pending'
+    });
+
+    await newAdvising.save();
+    res.status(201).json(newAdvising);
+  } catch (err) {
+    console.error('Advising creation failed:', err);
+    res.status(400).json({ error: 'Failed to create advising request.' });
+  }
+});
+
+app.get('/api/advising', async (req, res) => {
+  try {
+    const loggedInUserId = req.headers['x-user-id'];
+    const loggedInUserRole = req.headers['x-user-role'];
+    const query = (loggedInUserRole === 'Admin' || loggedInUserRole === 'Ministry Leader')
+      ? {}
+      : { userId: loggedInUserId };
+
+    const entries = await AdvisingRequest.find(query).sort({ createdAt: -1 });
+    res.json(entries);
+  } catch (err) {
+    console.error('Failed to fetch advising entries:', err);
+    res.status(500).json({ error: 'Failed to fetch advising requests.' });
+  }
+});
+
+app.patch('/api/advising/:id/accept', async (req, res) => {
+  try {
+    const loggedInUserRole = req.headers['x-user-role'];
+    if (loggedInUserRole !== 'Ministry Leader') {
+      return res.status(403).json({ error: 'Forbidden: Only Ministry Leaders may accept advising requests.' });
+    }
+
+    const { date, time, location, leaderId, leaderName } = req.body;
+    if (!date || !time || !location) {
+      return res.status(400).json({ error: 'Date, time, and location are required to accept a request.' });
+    }
+
+    const requestItem = await AdvisingRequest.findById(req.params.id);
+    if (!requestItem) {
+      return res.status(404).json({ error: 'Advising request not found.' });
+    }
+    if (requestItem.status === 'Archived') {
+      return res.status(400).json({ error: 'Cannot accept an archived request.' });
+    }
+
+    requestItem.status = 'Accepted';
+    requestItem.acceptedDate = date;
+    requestItem.acceptedTime = time;
+    requestItem.acceptedLocation = location;
+    requestItem.acceptedBy = leaderName || '';
+    requestItem.acceptedById = leaderId || '';
+    await requestItem.save();
+
+    res.json(requestItem);
+  } catch (err) {
+    console.error('Failed to accept advising request:', err);
+    res.status(400).json({ error: 'Failed to accept advising request.' });
+  }
+});
+
+app.patch('/api/advising/:id/ignore', async (req, res) => {
+  try {
+    const loggedInUserRole = req.headers['x-user-role'];
+    if (loggedInUserRole !== 'Ministry Leader') {
+      return res.status(403).json({ error: 'Forbidden: Only Ministry Leaders may ignore advising requests.' });
+    }
+
+    const { leaderId } = req.body;
+    if (!leaderId) {
+      return res.status(400).json({ error: 'Leader ID is required when ignoring a request.' });
+    }
+
+    const requestItem = await AdvisingRequest.findById(req.params.id);
+    if (!requestItem) {
+      return res.status(404).json({ error: 'Advising request not found.' });
+    }
+    if (requestItem.status !== 'Pending') {
+      return res.status(400).json({ error: 'Only pending requests can be ignored.' });
+    }
+
+    const ignoredSet = new Set([...(requestItem.ignoredBy || []), leaderId]);
+    requestItem.ignoredBy = [...ignoredSet];
+
+    const totalLeaders = await Member.countDocuments({ role: 'Ministry Leader' });
+    if (totalLeaders > 0 && requestItem.ignoredBy.length >= totalLeaders) {
+      requestItem.status = 'Archived';
+    }
+
+    await requestItem.save();
+    res.json(requestItem);
+  } catch (err) {
+    console.error('Failed to ignore advising request:', err);
+    res.status(400).json({ error: 'Failed to ignore advising request.' });
+  }
 });
 
 // --- SETTINGS ROUTES ---

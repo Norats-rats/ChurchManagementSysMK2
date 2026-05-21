@@ -30,6 +30,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
     { id: 'attendance', label: '📋 Attendance', roles: ['Admin', 'Member', 'Staff'] },
     { id: 'ministries', label: '❤️ Ministries', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'prayers', label: '🙏 Prayers', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'advising', label: '📝 Advising', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'analytics', label: '📈 Analytics', roles: ['Admin', 'Ministry Leader'] },
     { id: 'inventory', label: '📦 Inventory', roles: ['Admin', 'Ministry Leader', 'Staff'] },
   ];
@@ -583,6 +584,7 @@ const fetchBulletinData = async () => {
           {currentTab === 'attendance' && <AttendanceTab role={role} userId={user._id} user={user} />}
           {currentTab === 'ministries' && <Ministries role={role} />}
           {currentTab === 'prayers' && <Prayers role={role} user={user} />}
+          {currentTab === 'advising' && <Advising role={role} user={user} />}
           {currentTab === 'analytics' && isLeader && <Analytics />}
           
           {/* Render InventoryForm safely checking dynamic navigation visibility permissions */}

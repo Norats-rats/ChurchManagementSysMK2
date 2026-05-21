@@ -75,7 +75,18 @@ export const api = {
     headers: {
       'x-user-role': role
     }
-  })
+  }),
+
+  // Advising
+  getAdvising: (userId, role) => apiClient.get('/api/advising', {
+    headers: {
+      'x-user-id': userId,
+      'x-user-role': role
+    }
+  }),
+  submitAdvising: (requestData) => apiClient.post('/api/advising', requestData),
+  acceptAdvising: (id, scheduleData) => apiClient.patch(`/api/advising/${id}/accept`, scheduleData),
+  ignoreAdvising: (id, ignoreData) => apiClient.patch(`/api/advising/${id}/ignore`, ignoreData)
 };
 
 export default api;
