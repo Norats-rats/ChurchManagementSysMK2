@@ -488,11 +488,26 @@ const trivias = [
           </div>
         </div>
         <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div className="admin-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <strong>{user.firstName} {user.lastName}</strong>
-            <span style={{ color: '#60a5fa', fontSize: '11px', display: 'block' }}>{role}</span>
+          <div className="admin-info" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <strong>{user.firstName} {user.lastName}</strong>
+              <span style={{ color: '#60a5fa', fontSize: '11px', display: 'block' }}>{role}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCurrentTab('profile')}
+              style={profileAvatarButtonStyle}
+              aria-label="Open profile"
+            >
+              {user.profilePicture ? (
+                <img src={user.profilePicture} alt={`${user.firstName} ${user.lastName}`} style={avatarImageStyle} />
+              ) : (
+                <span style={avatarInitialsStyle}>
+                  {`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()}
+                </span>
+              )}
+            </button>
           </div>
-          <button className="profile-open-btn" onClick={() => setCurrentTab('profile')} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', color: '#1e293b', cursor: 'pointer' }}>My Profile</button>
           <button className="logout-btn" onClick={onLogout}>Logout</button>
         </div>
       </nav>
@@ -590,5 +605,8 @@ const quoteContainerStyle = { marginTop: '30px', padding: '40px', background: '#
 const quoteIconStyle = { fontSize: '80px', color: '#cbd5e1', position: 'absolute', top: '-10px', left: '30px', fontFamily: 'serif', lineHeight: '1' };
 const quoteTextStyle = { fontSize: '22px', italic: 'true', color: '#334155', position: 'relative', zIndex: '1', margin: '0 0 15px 0' };
 const quoteAuthorStyle = { fontSize: '15px', color: '#64748b', position: 'relative', zIndex: '1' };
+const profileAvatarButtonStyle = { width: '44px', height: '44px', borderRadius: '50%', border: '1px solid #cbd5e1', background: '#fff', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' };
+const avatarImageStyle = { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' };
+const avatarInitialsStyle = { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#3b82f6', color: '#fff', borderRadius: '50%', fontWeight: '700' };
 
 export default Dashboard;
