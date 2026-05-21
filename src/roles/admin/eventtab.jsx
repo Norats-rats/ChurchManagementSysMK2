@@ -142,7 +142,7 @@ const EventTab = ({ role, userId }) => {
     setAiSuggestion(null);
   };
 
-  const handleCreateOrUpdate = async (e) => {
+const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
     
     const selectedDateObj = new Date(formData.date + 'T00:00:00');
@@ -152,16 +152,26 @@ const EventTab = ({ role, userId }) => {
     }
 
     const combinedTitle = `${formData.titleSelection} for ${formData.reservationName}`;
-    const isDuplicate = events.some(ev => 
-      ev.title === combinedTitle ||
-      ev.date === formData.date ||
-      ev.time === formData.time ||
-      ev.room === formData.room ||
-      ev._id !== editingId 
+    const isNameTaken = events.some(ev => 
+      ev.title.toLowerCase() === combinedTitle.toLowerCase() && 
+      ev._id !== editingId
     );
 
-    if (isDuplicate) {
-      alert("A duplicate event is already scheduled for this date, time, and room.");
+    if (isNameTaken) {
+      alert(`The name "${combinedTitle}" is already in use for another event. Please use a new name.`);
+      return;
+    }
+
+    const isRoomTaken = events.some(ev => 
+      formData.room.trim() !== '' &&
+      ev.room.toLowerCase() === formData.room.trim().toLowerCase() && 
+      ev.date === formData.date &&
+      ev.time === formData.time &&
+      ev._id !== editingId
+    );
+
+    if (isRoomTaken) {
+      alert(`"${formData.room}" is already booked on ${formData.date} at ${formData.time}. Please choose a different location or time.`);
       return;
     }
 
