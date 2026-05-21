@@ -105,13 +105,13 @@ const PrayerRequests = ({ user, role }) => {
     modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
     modalContent: { background: 'white', padding: '30px', borderRadius: '16px', width: '500px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' },
     darkInput: { width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fcfcfc', color: '#1e293b', marginBottom: '20px', boxSizing: 'border-box', outline: 'none' },
-    btnPrimary: { padding: '12px 24px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
+    btnPrimary: { padding: '12px 24px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
     chipGrid: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', justifyContent: 'center' },
     chip: (isSelected) => ({
       padding: '8px 16px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer',
-      border: isSelected ? '2px solid #2563eb' : '1px solid #e2e8f0',
-      backgroundColor: isSelected ? '#eff6ff' : 'white',
-      color: isSelected ? '#2563eb' : '#64748b',
+      border: isSelected ? '2px solid var(--color-primary)' : '1px solid #e2e8f0',
+      backgroundColor: isSelected ? 'rgba(22,163,74,0.06)' : 'white',
+      color: isSelected ? 'var(--color-primary)' : '#64748b',
       fontWeight: isSelected ? '700' : '500',
       transition: 'all 0.2s ease'
     }),

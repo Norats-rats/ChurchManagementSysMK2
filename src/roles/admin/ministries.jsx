@@ -241,7 +241,7 @@ const Ministries = ({ role, user }) => {
         </h2>
         {canManage && (
           <button 
-            style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ padding: '10px 20px', backgroundColor: 'var(--color-primary)', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
             onClick={() => setShowCreateForm(!showCreateForm)}
           >
             {showCreateForm ? '✕ Close' : '+ Create Ministry'}
@@ -333,7 +333,7 @@ const Ministries = ({ role, user }) => {
                   <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
                     <button 
                       onClick={() => handleUpdateLeader(m._id)} 
-                      style={{ padding: '6px 14px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                      style={{ padding: '6px 14px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
                     >
                       Save
                     </button>
@@ -398,7 +398,7 @@ const Ministries = ({ role, user }) => {
                       </select>
                       <button 
                         onClick={() => handleAddMember(selectedMemberId, m.name)}
-                        style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                        style={{ padding: '6px 12px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
                         disabled={!selectedMemberId}
                       >
                         Add
@@ -416,7 +416,7 @@ const Ministries = ({ role, user }) => {
                   <button
                     onClick={() => applyToJoin(m)}
                     disabled={requestInProgress || !!userExistingRequest?.status}
-                    style={{ marginTop: '10px', padding: '10px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#2563eb', color: 'white', cursor: 'pointer' }}
+                    style={{ marginTop: '10px', padding: '10px 16px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', cursor: 'pointer' }}
                   >
                     {userExistingRequest ? (userExistingRequest.status === 'Pending' ? 'Request Pending' : 'Request Sent') : 'Apply to Join'}
                   </button>
@@ -430,7 +430,7 @@ const Ministries = ({ role, user }) => {
                     {isMyMinistryLeader && (
                       <button
                         onClick={() => submitAnnouncement(m)}
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', backgroundColor: '#2563eb', color: 'white', cursor: 'pointer', fontSize: '12px' }}
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', cursor: 'pointer', fontSize: '12px' }}
                       >
                         Announce
                       </button>
@@ -459,7 +459,7 @@ const Ministries = ({ role, user }) => {
                               <div style={{ display: 'flex', gap: '6px' }}>
                                 <button
                                   onClick={() => updateJoinRequest(m._id, req._id, 'approve')}
-                                  style={{ padding: '6px 10px', borderRadius: '8px', border: 'none', backgroundColor: '#10b981', color: 'white', cursor: 'pointer', fontSize: '12px' }}
+                                  style={{ padding: '6px 10px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-accent)', color: 'white', cursor: 'pointer', fontSize: '12px' }}
                                 >
                                   Approve
                                 </button>

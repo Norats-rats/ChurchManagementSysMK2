@@ -84,7 +84,7 @@ const EBible = () => {
     container: { padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'serif' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px', marginTop: '20px' },
     bookBtn: { padding: '15px', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', background: '#fff', textAlign: 'center' },
-    chapterBtn: { padding: '10px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' },
+    chapterBtn: { padding: '10px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' },
     header: { borderBottom: '2px solid #053476', paddingBottom: '10px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
     verse: { marginBottom: '15px', lineHeight: '1.6', fontSize: '18px' },
     verseNum: { fontWeight: 'bold', marginRight: '8px', color: '#64748b', fontSize: '14px' }
@@ -95,7 +95,7 @@ const EBible = () => {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h2 style={{ color: '#053476', margin: 0 }}>📖 eBible</h2>
+        <h2 style={{ color: 'var(--color-primary)', margin: 0 }}>📖 eBible</h2>
         {view === 'reading' && (
           <button onClick={resetToTOC} style={{ padding: '8px 16px', cursor: 'pointer' }}>Back to Books</button>
         )}

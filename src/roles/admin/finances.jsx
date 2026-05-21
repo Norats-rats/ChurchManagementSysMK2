@@ -82,15 +82,15 @@ const Finances = ({ role, userId, user }) => {
   return (
     <div style={styles.container}>
       <header style={{ marginBottom: '30px' }}>
-        <h2 style={{ margin: 0, color: '#053476' }}>Financial Records</h2>
-        <p style={{ color: '#053476' }}>Tracking church financial health and recorded transactions</p>
+        <h2 style={{ margin: 0, color: 'var(--color-primary)' }}>Financial Records</h2>
+        <p style={{ color: 'var(--color-primary)' }}>Tracking church financial health and recorded transactions</p>
       </header>
 
       {role !== 'Member' && (
         <div style={styles.statsGrid}>
           <div style={styles.card}>
             <span style={styles.label}>Total Church Income</span>
-            <div style={{ ...styles.amount, color: '#059669' }}>
+            <div style={{ ...styles.amount, color: 'var(--color-accent)' }}>
               ₱{stats.totalIncome.toLocaleString()}
             </div>
           </div>
@@ -137,7 +137,7 @@ const Finances = ({ role, userId, user }) => {
             />
             <button 
               type="submit" 
-              style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+              style={{ padding: '10px 20px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
             >
               Add Record
             </button>

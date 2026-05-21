@@ -114,7 +114,7 @@ const AttendanceTab = ({ role, userId, user }) => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px', color: '#6366f1' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px', color: 'var(--color-primary)' }}>
         <p>Loading attendance data files...</p>
       </div>
     );
@@ -212,7 +212,7 @@ const AttendanceTab = ({ role, userId, user }) => {
               <h3 style={styles.cardTitle}>Selected Event Check-In</h3>
               <p style={styles.cardSubtitle}>{selectedTodayEvent ? `${selectedEventAttendees.length} checked in for this event` : 'Choose an event from the left to view the QR and logs.'}</p>
             </div>
-            <button style={styles.exportBtn} onClick={exportToExcel} disabled={!selectedTodayEvent || selectedEventAttendees.length === 0}>
+            <button style={{ ...styles.exportBtn, background: 'var(--color-primary)', borderColor: 'transparent' }} onClick={exportToExcel} disabled={!selectedTodayEvent || selectedEventAttendees.length === 0}>
               📥 Export Sheet
             </button>
           </div>
@@ -266,18 +266,18 @@ const styles = {
   cardTitle: { fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: 0 },
   cardSubtitle: { fontSize: '13px', color: '#64748b', marginTop: '4px', marginBottom: 0 },
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px' },
-  exportBtn: { background: '#0f172a', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
+  exportBtn: { background: 'var(--color-primary)', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
   qrWrapper: { padding: '10px', background: '#f8fafc', borderRadius: '16px', display: 'inline-block', border: '1px solid #e2e8f0' },
   eventTitle: { marginTop: '20px', color: '#1e293b', marginBottom: '5px', fontSize: '16px', fontWeight: '600' },
   eventDetail: { color: '#64748b', fontSize: '14px', margin: 0 },
   noEventCard: { padding: '40px', background: '#f1f5f9', borderRadius: '20px', color: '#475569', border: '2px dashed #cbd5e1', maxWidth: '260px', fontSize: '14px' },
   statusCard: (done) => ({
-    background: done ? '#059669' : '#2563eb', 
+    background: done ? 'var(--color-accent)' : 'var(--color-primary)', 
     color: '#ffffff', 
     padding: '60px 30px', 
     borderRadius: '32px', 
     textAlign: 'center', 
-    boxShadow: done ? '0 20px 25px -5px rgba(5, 150, 105, 0.2)' : '0 20px 25px -5px rgba(37, 99, 235, 0.2)',
+    boxShadow: done ? '0 20px 25px -5px rgba(34,197,94,0.18)' : '0 20px 25px -5px rgba(22,163,74,0.18)',
     transition: 'all 0.3s ease'
   }),
   logSection: { marginTop: '20px' },
@@ -293,12 +293,12 @@ const styles = {
   eventSidebar: { padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '12px' },
   eventToggle: { width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' },
   eventToggleCompact: { width: '100%', textAlign: 'center', padding: '10px 10px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '13px', boxSizing: 'border-box', overflow: 'hidden', flexDirection: 'column', gap: '6px', margin: '6px 0' },
-  eventToggleActive: { background: '#2563eb', color: 'white', borderColor: '#1d4ed8' },
+  eventToggleActive: { background: 'var(--color-primary)', color: 'white', borderColor: 'rgba(0,0,0,0.06)' },
   sidebarExpanded: { width: '100%', transition: 'width 0.25s ease' },
   sidebarCollapsed: { width: '100%', display: 'grid', gap: '8px', justifyContent: 'center', padding: '6px' },
   toggleSidebarBtn: { padding: '10px 14px', borderRadius: '14px', border: '1px solid #cbd5e0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', fontWeight: '700', fontSize: '12px' },
   eventCount: { fontSize: '12px', opacity: 0.85 },
-  formButton: { width: '100%', padding: '12px 16px', borderRadius: '16px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }
+  formButton: { width: '100%', padding: '12px 16px', borderRadius: '16px', border: 'none', background: 'var(--color-primary)', color: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }
 };
 
 export default AttendanceTab;
