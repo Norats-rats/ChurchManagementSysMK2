@@ -501,6 +501,17 @@ body, .App {
 .theme-light .login-card { background: #ffffff !important; color: #0f172a; }
 .theme-light .signin-button { background: linear-gradient(to right, var(--color-primary), var(--color-accent)) !important; color: #fff !important; }
 
+/* Dark-mode styling for new dashboard classes */
+.theme-dark .kpi-card { background: #071229 !important; color: #e6eef8 !important; border-color: rgba(255,255,255,0.03) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important; }
+.theme-dark .kpi-card .stat-value, .theme-dark .kpi-card div { color: #e6eef8 !important; }
+.theme-dark .leader-input-card { background: linear-gradient(90deg, rgba(6,78,59,0.06), rgba(3,12,10,0.02)) !important; border-color: rgba(255,255,255,0.03) !important; }
+.theme-dark .leader-input { background: rgba(255,255,255,0.03) !important; color: #e6eef8 !important; border-color: rgba(255,255,255,0.06) !important; }
+.theme-dark .post-btn { background: #0a6b52 !important; color: #fff !important; }
+.theme-dark .announcement-box { background: rgba(255,255,255,0.03) !important; color: #e6eef8 !important; border-left-color: rgba(14,165,132,0.6) !important; }
+.theme-dark .daily-verse { background: rgba(255,255,255,0.03) !important; color: #e6eef8 !important; border-color: rgba(255,255,255,0.03) !important; }
+.theme-dark .daily-verse p, .theme-dark .announcement-box p { color: #dbeafe !important; }
+.theme-dark .services-card li { background: rgba(255,255,255,0.03) !important; color: #e6eef8 !important; border-color: rgba(255,255,255,0.03) !important; }
+
 @media (max-width: 640px) {
   .login-card {
     max-width: 100%;

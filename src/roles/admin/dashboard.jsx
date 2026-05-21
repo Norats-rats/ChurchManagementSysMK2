@@ -684,34 +684,35 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                 {isLeader && (
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-                      <div style={kpiCardStyle}>
+                      <div className="kpi-card" style={kpiCardStyle}>
                         <div style={kpiLabelStyle}>TOTAL MEMBERS</div>
                         <div style={kpiValueStyle}>{stats.memberCount}</div>
                       </div>
-                      <div style={kpiCardStyle}>
+                      <div className="kpi-card" style={kpiCardStyle}>
                         <div style={kpiLabelStyle}>ACTIVE MINISTRIES</div>
                         <div style={kpiValueStyle}>{stats.ministryCount}</div>
                       </div>
-                      <div style={kpiCardStyle}>
+                      <div className="kpi-card" style={kpiCardStyle}>
                         <div style={kpiLabelStyle}>TOTAL EVENTS</div>
                         <div style={kpiValueStyle}>{stats.eventCount}</div>
                       </div>
-                      <div style={kpiCardStyle}>
+                      <div className="kpi-card" style={kpiCardStyle}>
                         <div style={kpiLabelStyle}>TOTAL ATTENDANCE</div>
                         <div style={kpiValueStyle}>{stats.attendanceCount}</div>
                       </div>
                     </div>
                   
-                    <div style={leaderInputCard}>
+                    <div className="leader-input-card" style={leaderInputCard}>
                       <h4 style={{ margin: '0 0 10px 0', color: '#1e40af' }}>📢 Update Bulletin Announcement</h4>
                       <div style={{ display: 'flex', gap: '10px' }}>
                         <input 
+                          className="leader-input"
                           style={inputStyle} 
                           placeholder="Type a message for all members..." 
                           value={newAnnouncement}
                           onChange={(e) => setNewAnnouncement(e.target.value)}
                         />
-                        <button onClick={postAnnouncement} style={postBtnStyle}>Sync Bulletin</button>
+                        <button className="post-btn" onClick={postAnnouncement} style={postBtnStyle}>Sync Bulletin</button>
                       </div>
                     </div>
                   </>
@@ -720,15 +721,15 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
                   <div className="bulletin-card" style={bulletinCardStyle}>
                     <h2 style={{ color: '#1e3a8a', marginTop: 0 }}>Community Bulletin</h2>
-                    <div style={announcementBoxStyle}>
-                      <p>{announcement}</p>
-                    </div>
+                    <div className="announcement-box" style={announcementBoxStyle}>
+                        <p>{announcement}</p>
+                      </div>
                     
-                    <div style={{ marginTop: '20px', padding: '15px', background: '#eef2ff', borderRadius: '12px', border: '1px solid #e0e7ff' }}>
-                      <small style={{ fontWeight: '700', color: '#1e40af' }}>📖 Daily Verse</small>
-                      <p style={{ margin: '8px 0 0 0', color: '#0f172a', lineHeight: '1.5' }}>{dailyVerse.text}</p>
-                      <cite style={{ fontSize: '13px', color: '#6b7280' }}>— {dailyVerse.reference}</cite>
-                    </div>
+                      <div className="daily-verse" style={{ marginTop: '20px', padding: '15px', background: '#eef2ff', borderRadius: '12px', border: '1px solid #e0e7ff' }}>
+                        <small style={{ fontWeight: '700', color: '#1e40af' }}>📖 Daily Verse</small>
+                        <p style={{ margin: '8px 0 0 0', color: '#0f172a', lineHeight: '1.5' }}>{dailyVerse.text}</p>
+                        <cite style={{ fontSize: '13px', color: '#6b7280' }}>— {dailyVerse.reference}</cite>
+                      </div>
                   </div>
 
                   <div className="bulletin-card bulletin-card-accent" style={{ ...bulletinCardStyle, background: '#1e293b', color: '#fff' }}>
