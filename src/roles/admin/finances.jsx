@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
 
-const Finances = ({ role, userId }) => {
+const Finances = ({ role, userId, user }) => {
   const [transactions, setTransactions] = useState([]);
   const [stats, setStats] = useState({
     totalIncome: 0,
@@ -25,7 +25,7 @@ const Finances = ({ role, userId }) => {
       let filteredTransactions = data.transactions || [];
       
       if (role === 'Staff') {
-        filteredTransactions = filteredTransactions.filter(t => t.addedBy === userId && t.type === 'Income');
+        filteredTransactions = filteredTransactions.filter(t => t.addedBy === userId);
       } else if (role === 'Member') {
         filteredTransactions = filteredTransactions.filter(t => t.userId === userId);
       }
@@ -51,7 +51,7 @@ const Finances = ({ role, userId }) => {
     };
 
     try {
-      const res = await api.addFinanceRecord(transactionData, role, userId);
+      const res = await api.addFinanceRecord(transactionData, role, userId, `${user?.firstName || ''} ${user?.lastName || ''}`.trim());
       if (res.status === 200 || res.status === 201) {
         setNewDesc("");
         setNewAmount("");
@@ -163,7 +163,7 @@ const Finances = ({ role, userId }) => {
                   <td style={styles.td}>{new Date(t.date).toLocaleDateString()}</td>
                   <td style={{ ...styles.td, fontWeight: '600' }}>{t.description}</td>
                   {role !== 'Member' && <td style={styles.td}>{t.type}</td>}
-                  <td style={{ ...styles.td, color: '#475569', fontSize: '13px' }}>{t.addedBy || t.userId || '-'}</td>
+                  <td style={{ ...styles.td, color: '#475569', fontSize: '13px' }}>{t.addedByName || t.addedBy || t.userId || '-'}</td>
                   <td style={{ 
                     ...styles.td, 
                     textAlign: 'right', 

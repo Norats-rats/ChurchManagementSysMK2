@@ -169,7 +169,8 @@ const Finance = mongoose.model('finances', new mongoose.Schema({
   amount: { type: Number, required: true },
   date: { type: Date, default: Date.now },
   userId: { type: String }, // optional member id associated with the transaction
-  addedBy: { type: String }, // staff/admin who recorded it
+  addedBy: { type: String }, // staff/admin user id who recorded it
+  addedByName: { type: String }, // human name of who logged the transaction
   createdAt: { type: Date, default: Date.now }
 }));
 
@@ -201,6 +202,7 @@ app.post('/api/finances', async (req, res) => {
   try {
     const loggedInUserRole = req.headers['x-user-role'];
     const loggedInUserId = req.headers['x-user-id'];
+    const loggedInUserName = req.headers['x-user-name'];
 
     if (!['Admin', 'Ministry Leader', 'Staff'].includes(loggedInUserRole)) {
       return res.status(403).json({ error: 'Forbidden: only staff, ministry leaders or admin can record finances.' });
@@ -215,12 +217,21 @@ app.post('/api/finances', async (req, res) => {
       return res.status(400).json({ error: 'Invalid transaction type.' });
     }
 
+    let addedByName = (loggedInUserName || '').trim();
+    if (!addedByName && loggedInUserId) {
+      const member = await Member.findById(loggedInUserId).select('firstName lastName');
+      if (member) {
+        addedByName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+      }
+    }
+
     const newRecord = new Finance({
       description,
       type,
       amount: Number(amount),
       date: date ? new Date(date) : new Date(),
       addedBy: loggedInUserId || req.body.addedBy || '',
+      addedByName: addedByName || req.body.addedByName || '',
       userId: req.body.userId || null
     });
 

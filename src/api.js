@@ -62,10 +62,11 @@ export const api = {
       'x-user-role': role
     }
   }),
-  addFinanceRecord: (recordData, role, userId) => apiClient.post('/api/finances', recordData, {
+  addFinanceRecord: (recordData, role, userId, userName) => apiClient.post('/api/finances', recordData, {
     headers: {
       'x-user-role': role,
-      'x-user-id': userId
+      'x-user-id': userId,
+      'x-user-name': userName || ''
     }
   }),
   
