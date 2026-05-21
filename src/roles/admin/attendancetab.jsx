@@ -72,6 +72,11 @@ const AttendanceTab = ({ role, userId, user }) => {
     ? checkIns.filter(record => String(record.eventId) === String(selectedTodayEvent._id || selectedTodayEvent.id))
     : [];
 
+  const attendanceHistoryByEvent = todaysEvents.map((event) => ({
+    event,
+    attendees: checkIns.filter(record => String(record.eventId) === String(event._id || event.id))
+  }));
+
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     if (creatingEvent) return;
