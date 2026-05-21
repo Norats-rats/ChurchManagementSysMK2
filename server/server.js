@@ -574,14 +574,16 @@ app.delete('/api/ministries/:id', async (req, res) => {
 // --- MEMBER ROUTES ---
 app.get('/api/members', async (req, res) => {
   try {
-    const members = await Member.find().sort({ date: -1 });
+    // Do not expose password hashes in API responses
+    const members = await Member.find().sort({ date: -1 }).select('-password');
     res.json(members);
   } catch (err) { res.status(500).json({ error: "Failed to fetch members" }); }
 });
 
 app.get('/api/members/:id', async (req, res) => {
   try {
-    const m = await Member.findById(req.params.id);
+    // Exclude password from single-member response
+    const m = await Member.findById(req.params.id).select('-password');
     if (!m) return res.status(404).json({ error: 'Member not found' });
     res.json(m);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -600,7 +602,9 @@ app.post('/api/members', async (req, res) => {
     }
     const newMember = new Member(data);
     await newMember.save();
-    res.status(201).json(newMember);
+    const out = newMember.toObject();
+    delete out.password; // never return password hash
+    res.status(201).json(out);
   } catch (err) { res.status(400).json({ error: "Failed to create record" }); }
 });
 
@@ -622,8 +626,10 @@ app.put('/api/members/:id', async (req, res) => {
         data.ministry = data.ministries[0] || 'None';
       }
     }
-    const updated = await Member.findByIdAndUpdate(req.params.id, data, { new: true });
-    res.json(updated);
+    const updated = await Member.findByIdAndUpdate(req.params.id, data, { new: true }).select('-password');
+    const out = updated ? updated.toObject() : null;
+    if (out && out.password) delete out.password;
+    res.json(out);
   } catch (err) { res.status(400).json({ error: "Failed to update record" }); }
 });
 
