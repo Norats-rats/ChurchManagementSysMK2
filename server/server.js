@@ -82,6 +82,7 @@ const Member = mongoose.model('members', new mongoose.Schema({
   ministry:{ type: String, default: 'None' },
   phone: { type: String },
   birthdate: { type: Date },
+  gender: { type: String, enum: ['Male', 'Female', 'Non-binary', 'Other', 'Prefer not to say'], default: null },
   profilePicture: { type: String },
   otp: { type: String },
   isVerified: { type: Boolean, default: false },
@@ -153,7 +154,7 @@ app.get('/', (req, res) => {
 // --- AUTH ROUTES ---
 app.post('/register', async (req, res) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { firstName, lastName, email, password, gender } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     const newMember = new Member({ 
@@ -161,6 +162,7 @@ app.post('/register', async (req, res) => {
       lastName, 
       email, 
       password: hashedPassword,
+      gender: gender || null,
       otp: generatedOtp,
       status: 'Inactive' 
     });

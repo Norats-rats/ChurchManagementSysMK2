@@ -5,6 +5,7 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [genderSaving, setGenderSaving] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -50,6 +51,23 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
   };
 
   const isEditable = !currentUserId || String(currentUserId) === String(userId);
+  const genderOptions = ['Male', 'Female', 'Non-binary', 'Other', 'Prefer not to say'];
+  const canSetGender = isEditable && !member?.gender;
+
+  const handleSetGender = async () => {
+    if (!member || !member.gender || !isEditable) return;
+    setGenderSaving(true);
+    try {
+      const id = member._id || member.id;
+      await api.updateMember(id, { gender: member.gender });
+      setError(null);
+    } catch (err) {
+      console.error('Set gender error', err);
+      setError('Failed to set gender');
+    } finally {
+      setGenderSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!member || !isEditable) return;
@@ -113,6 +131,27 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
               placeholder="Enter phone number"
             />
           </div>
+          <div style={styles.fieldBlock}>
+            <label style={styles.fieldLabel}>Gender</label>
+            {canSetGender ? (
+              <select
+                disabled={!isEditable}
+                style={{ ...styles.input, ...(!isEditable ? styles.inputDisabled : {}) }}
+                value={member.gender || ''}
+                onChange={(e) => handleChange('gender', e.target.value)}
+              >
+                <option value="">Select gender</option>
+                {genderOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            ) : (
+              <div style={styles.readOnlyValue}>{member.gender || 'Not specified'}</div>
+            )}
+            {canSetGender && (
+              <div style={styles.helpText}>Gender can only be set once and will become read-only after saving.</div>
+            )}
+          </div>
         </div>
 
         <div style={styles.formGrid}>
@@ -134,6 +173,11 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
 
         <div style={styles.actionsRow}>
           {error && <div style={styles.errorText}>{error}</div>}
+          {canSetGender && (
+            <button onClick={handleSetGender} disabled={genderSaving || !member.gender} style={{ ...styles.genderButton, ...(genderSaving ? styles.saveButtonDisabled : {}) }}>
+              {genderSaving ? 'Setting Gender…' : 'Set Gender'}
+            </button>
+          )}
           {isEditable && (
             <button onClick={handleSave} disabled={saving} style={{ ...styles.saveButton, ...(saving ? styles.saveButtonDisabled : {}) }}>{saving ? 'Saving…' : 'Save'}</button>
           )}
@@ -299,6 +343,21 @@ const styles = {
     color: '#ffffff',
     fontWeight: 700,
     cursor: 'pointer',
+  },
+  genderButton: {
+    padding: '14px 20px',
+    borderRadius: 16,
+    border: '1px solid #cbd5e1',
+    background: '#ffffff',
+    color: '#0f172a',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  helpText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#64748b',
+    lineHeight: 1.4,
   },
   saveButtonDisabled: {
     opacity: 0.65,

@@ -9,7 +9,11 @@ const Analytics = () => {
     totalMembers: 0,
     activeMinistries: 0,
     upcomingEvents: 0,
-    ministryDistribution: []
+    ministryDistribution: [],
+    genderDistribution: [],
+    ageGroupDistribution: [],
+    averageAge: 0,
+    nextBirthdays: []
   });
 
 
@@ -42,11 +46,73 @@ const Analytics = () => {
         };
       });
 
+      const ageRanges = [
+        { name: 'Under 18', min: 0, max: 17 },
+        { name: '18-25', min: 18, max: 25 },
+        { name: '26-35', min: 26, max: 35 },
+        { name: '36-50', min: 36, max: 50 },
+        { name: '51+', min: 51, max: 200 }
+      ];
+
+      const genderCounts = {
+        Male: 0,
+        Female: 0,
+        'Non-binary': 0,
+        Other: 0,
+        Unknown: 0
+      };
+      const ageGroupCounts = ageRanges.reduce((acc, range) => ({ ...acc, [range.name]: 0 }), {});
+      const ages = [];
+      const upcomingBirthdays = [];
+
+      members.forEach(member => {
+        const age = getAgeFromBirthdate(member.birthdate);
+        if (age !== null) {
+          ages.push(age);
+          const range = ageRanges.find(r => age >= r.min && age <= r.max);
+          if (range) {
+            ageGroupCounts[range.name] += 1;
+          }
+
+          const nextBirthday = getNextBirthday(member.birthdate);
+          if (nextBirthday) {
+            upcomingBirthdays.push({
+              name: `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.email || 'Member',
+              birthday: nextBirthday,
+              displayDate: nextBirthday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              age
+            });
+          }
+        }
+
+        const normalizedGender = (member.gender || '').trim();
+        const genderKey = normalizedGender === 'Male' || normalizedGender === 'Female' || normalizedGender === 'Non-binary'
+          ? normalizedGender
+          : normalizedGender ? 'Other' : 'Unknown';
+        genderCounts[genderKey] = (genderCounts[genderKey] || 0) + 1;
+      });
+
+      const genderDistribution = Object.entries(genderCounts).map(([name, value]) => ({
+        name,
+        value,
+        color: {
+          Male: '#60a5fa',
+          Female: '#f97316',
+          'Non-binary': '#a78bfa',
+          Other: '#22c55e',
+          Unknown: '#94a3b8'
+        }[name] || '#cbd5e1'
+      }));
+
       const newStats = {
         totalMembers: members.length,
         activeMinistries: ministries.length,
         upcomingEvents: events.length,
-        ministryDistribution: distribution
+        ministryDistribution: distribution,
+        ageGroupDistribution: ageRanges.map(range => ({ name: range.name, value: ageGroupCounts[range.name] || 0 })),
+        genderDistribution,
+        averageAge: ages.length > 0 ? Math.round(ages.reduce((sum, value) => sum + value, 0) / ages.length) : 0,
+        nextBirthdays: upcomingBirthdays.sort((a, b) => a.birthday - b.birthday).slice(0, 5)
       };
 
       setDbStats(newStats);
@@ -73,6 +139,28 @@ const Analytics = () => {
     fetchLiveAnalytics();
   }, []);
 
+  const getAgeFromBirthdate = (birthdate) => {
+    const date = new Date(birthdate);
+    if (isNaN(date)) return null;
+    const today = new Date();
+    let age = today.getFullYear() - date.getFullYear();
+    const monthDiff = today.getMonth() - date.getMonth();
+    const dayDiff = today.getDate() - date.getDate();
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age -= 1;
+    return age;
+  };
+
+  const getNextBirthday = (birthdate) => {
+    const date = new Date(birthdate);
+    if (isNaN(date)) return null;
+    const today = new Date();
+    const nextBirthday = new Date(today.getFullYear(), date.getMonth(), date.getDate());
+    if (nextBirthday < today) {
+      nextBirthday.setFullYear(nextBirthday.getFullYear() + 1);
+    }
+    return nextBirthday;
+  };
+
   const getChartUrl = () => {
     const config = {
       type: 'doughnut',
@@ -93,15 +181,40 @@ const Analytics = () => {
     return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(config))}`;
   };
 
+  const getGenderChartUrl = () => {
+    const config = {
+      type: 'doughnut',
+      data: {
+        labels: dbStats.genderDistribution.map(d => d.name),
+        datasets: [{
+          data: dbStats.genderDistribution.map(d => d.value),
+          backgroundColor: dbStats.genderDistribution.map(d => d.color)
+        }]
+      },
+      options: {
+        legend: { position: 'bottom' },
+        plugins: {
+          datalabels: { display: false }
+        }
+      }
+    };
+    return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(config))}`;
+  };
+
   const exportExcel = () => {
-    const ws = XLSX.utils.json_to_sheet([
+    const rows = [
       { Metric: "Total Congregation", Value: dbStats.totalMembers },
       { Metric: "Active Ministries", Value: dbStats.activeMinistries },
       { Metric: "Upcoming Events", Value: dbStats.upcomingEvents },
-      ...dbStats.ministryDistribution.map(d => ({ Metric: `${d.name} Share`, Value: `${d.value}%` }))
-    ]);
+      { Metric: "Average Age", Value: dbStats.averageAge },
+      ...dbStats.ageGroupDistribution.map(d => ({ Metric: `Age Range: ${d.name}`, Value: d.value })),
+      ...dbStats.genderDistribution.map(d => ({ Metric: `Gender: ${d.name}`, Value: d.value })),
+      ...dbStats.ministryDistribution.map(d => ({ Metric: `Ministry: ${d.name}`, Value: `${d.value}%` }))
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSUtils.book_append_sheet(wb, ws, "Church_Analytics");
+    XLSX.utils.book_append_sheet(wb, ws, "Church_Analytics");
     XLSX.writeFile(wb, "Live_Church_Analytics.xlsx");
   };
 
@@ -161,7 +274,7 @@ const Analytics = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '25px', marginTop: '25px' }}>
         {[
           { label: "TOTAL MEMBERS", value: dbStats.totalMembers },
-          { label: "ACTIVE MINISTRIES", value: dbStats.activeMinistries },
+          { label: "AVERAGE AGE", value: dbStats.averageAge },
           { label: "UPCOMING EVENTS", value: dbStats.upcomingEvents }
         ].map((kpi, idx) => (
           <div key={idx} style={styles.card}>
@@ -169,6 +282,48 @@ const Analytics = () => {
             <div style={{ fontSize: '28px', fontWeight: '800', marginTop: '8px', color: '#0f172a' }}>{kpi.value}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px', marginTop: '25px' }}>
+        <div style={styles.card}>
+          <h3 style={{ marginTop: 0 }}>Age Range Breakdown</h3>
+          <div style={{ display: 'grid', gap: '10px', marginTop: '18px' }}>
+            {dbStats.ageGroupDistribution.map((group) => (
+              <div key={group.name} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                <span style={{ color: '#475569' }}>{group.name}</span>
+                <strong style={{ color: '#0f172a' }}>{group.value}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={styles.card}>
+          <h3 style={{ marginTop: 0 }}>Gender Profile & Birthdays</h3>
+          <div style={{ display: 'grid', gap: '18px', marginTop: '18px' }}>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px' }}>Gender Distribution</div>
+              {dbStats.genderDistribution.map((item) => (
+                <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
+                  <span style={{ color: '#334155' }}>{item.name}</span>
+                  <strong style={{ color: '#0f172a' }}>{item.value}</strong>
+                </div>
+              ))}
+            </div>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px' }}>Next Birthdays</div>
+              {dbStats.nextBirthdays.length > 0 ? (
+                dbStats.nextBirthdays.map((birthday, idx) => (
+                  <div key={`${birthday.name}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
+                    <span style={{ color: '#334155' }}>{birthday.name}</span>
+                    <span style={{ color: '#0f172a' }}>{birthday.displayDate}</span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ color: '#64748b' }}>No upcoming birthdays found.</div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
