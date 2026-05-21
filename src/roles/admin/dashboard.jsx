@@ -95,6 +95,18 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
         }
       }
 
+      try {
+        if (user?._id) {
+          const notifRes = await api.getNotifications(user._id, role);
+          const personalNotifications = Array.isArray(notifRes.data) ? notifRes.data.filter(n => n.status !== 'Read') : [];
+          personalNotifications.forEach((item, index) => {
+            notifications.unshift({ title: 'Personal', message: item.message });
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to fetch personal notifications', err);
+      }
+
       if (ministryAnnouncementText !== undefined) {
         notifications.push({ title: 'Ministry Board', message: ministryAnnouncementText || 'No ministry board updates yet.' });
       }

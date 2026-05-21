@@ -84,6 +84,12 @@ const Member = mongoose.model('members', new mongoose.Schema({
   birthdate: { type: Date },
   gender: { type: String, enum: ['Male', 'Female', 'Non-binary', 'Other', 'Prefer not to say'], default: null },
   profilePicture: { type: String },
+  notifications: [{
+    message: String,
+    type: { type: String, default: 'info' },
+    status: { type: String, enum: ['Unread', 'Read'], default: 'Unread' },
+    createdAt: { type: Date, default: Date.now }
+  }],
   otp: { type: String },
   isVerified: { type: Boolean, default: false },
   status: { type: String, default: 'Inactive' }, 
@@ -914,13 +920,55 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
       return res.status(403).json({ error: "Forbidden: Only Ministry Leaders can update prayer states." });
     }
 
+    const prayer = await Prayer.findById(req.params.id);
+    if (!prayer) {
+      return res.status(404).json({ error: "Prayer request not found." });
+    }
+
     const updated = await Prayer.findByIdAndUpdate(
       req.params.id,
       { $set: { status: "Answered" } },
       { new: true }
     );
+
+    if (prayer.userId) {
+      await Member.findByIdAndUpdate(prayer.userId, {
+        $push: {
+          notifications: {
+            message: "Your prayer is being answered.",
+            type: "prayer",
+            status: "Unread",
+            createdAt: new Date()
+          }
+        }
+      });
+    }
+
     res.json(updated);
   } catch (err) { res.status(400).json({ error: "Failed to update prayer status." }); }
+});
+
+app.get('/api/notifications', async (req, res) => {
+  try {
+    const loggedInUserId = req.headers['x-user-id'];
+    if (!loggedInUserId) {
+      return res.status(401).json({ error: 'Unauthorized: Missing user headers.' });
+    }
+
+    const member = await Member.findById(loggedInUserId).select('notifications');
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found.' });
+    }
+
+    const notifications = Array.isArray(member.notifications)
+      ? member.notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      : [];
+
+    res.json(notifications);
+  } catch (err) {
+    console.error('Failed to fetch notifications:', err);
+    res.status(500).json({ error: 'Failed to fetch notifications.' });
+  }
 });
 
 app.post('/api/advising', async (req, res) => {

@@ -109,6 +109,12 @@ export const api = {
       'x-user-role': role
     }
   }),
+  getNotifications: (userId, role) => apiClient.get('/api/notifications', {
+    headers: {
+      'x-user-id': userId,
+      'x-user-role': role
+    }
+  }),
 
   // Advising
   getAdvising: (userId, role) => apiClient.get('/api/advising', {
