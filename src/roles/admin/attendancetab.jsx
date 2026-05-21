@@ -141,7 +141,7 @@ const AttendanceTab = ({ role, userId, user }) => {
   return (
     <div style={styles.container}>
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '24px' }}>
-        <div style={{ ...styles.card, padding: '16px', minWidth: sidebarExpanded ? '290px' : '72px', transition: 'min-width 0.25s ease' }}>
+        <div style={{ ...styles.card, padding: '14px', minWidth: sidebarExpanded ? '300px' : '92px', transition: 'min-width 0.25s ease' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             {sidebarExpanded ? (
               <div>
@@ -187,7 +187,9 @@ const AttendanceTab = ({ role, userId, user }) => {
                       ...(selected ? styles.eventToggleActive : {})
                     }}
                   >
-                    <span>{sidebarExpanded ? (event.titleSelection || event.title || 'Untitled Event') : (event.titleSelection || event.title || 'Event').slice(0, 1)}</span>
+                    <span style={{ maxWidth: sidebarExpanded ? '100%' : '78px', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {sidebarExpanded ? (event.titleSelection || event.title || event.reservationName || event.category || 'Untitled Event') : (event.titleSelection || event.title || event.reservationName || event.category || 'Event').slice(0, 2)}
+                    </span>
                     {sidebarExpanded && <span style={styles.eventCount}>{count} checked in</span>}
                   </button>
                 );
@@ -282,10 +284,10 @@ const styles = {
   historyRow: { display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '12px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', fontSize: '13px' },
   eventSidebar: { padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '12px' },
   eventToggle: { width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' },
-  eventToggleCompact: { width: '100%', textAlign: 'center', padding: '12px 10px', borderRadius: '18px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '12px' },
+  eventToggleCompact: { width: '100%', maxWidth: '86px', textAlign: 'center', padding: '10px 8px', borderRadius: '18px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '12px', boxSizing: 'border-box', overflow: 'hidden' },
   eventToggleActive: { background: '#2563eb', color: 'white', borderColor: '#1d4ed8' },
   sidebarExpanded: { width: '100%', transition: 'width 0.25s ease' },
-  sidebarCollapsed: { width: '100%', display: 'grid', gap: '10px', justifyContent: 'center' },
+  sidebarCollapsed: { width: '100%', display: 'grid', gap: '8px', justifyContent: 'center', padding: '6px' },
   toggleSidebarBtn: { padding: '10px 14px', borderRadius: '14px', border: '1px solid #cbd5e0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', fontWeight: '700', fontSize: '12px' },
   eventCount: { fontSize: '12px', opacity: 0.85 },
   formButton: { width: '100%', padding: '12px 16px', borderRadius: '16px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }
