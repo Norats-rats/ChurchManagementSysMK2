@@ -10,7 +10,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [step, setStep] = useState(1); 
-
+  //force
   const handleRequestReset = async (e) => {
     e.preventDefault();
     try {
