@@ -68,68 +68,248 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
     }
   };
 
-  if (loading) return <div style={{ padding: 12 }}>Loading profile…</div>;
-  if (!member) return <div style={{ padding: 12 }}>No profile found.</div>;
+  if (loading) return <div style={styles.loading}>Loading profile…</div>;
+  if (!member) return <div style={styles.loading}>No profile found.</div>;
 
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: compact ? 56 : 96 }}>
+    <div style={styles.page}>
+      <section style={styles.profileCard}>
+        <div style={styles.avatarSection}>
         {member.profilePicture ? (
-          <img src={member.profilePicture} alt="avatar" style={{ width: compact ? 56 : 80, height: compact ? 56 : 80, borderRadius: 10, objectFit: 'cover' }} />
+          <img src={member.profilePicture} alt="avatar" style={styles.avatar} />
         ) : (
-          <div style={{ width: compact ? 56 : 80, height: compact ? 56 : 80, borderRadius: 8, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: compact ? 18 : 22, fontWeight: 700, color: '#3730a3' }}>
+          <div style={styles.placeholderAvatar}>
             {member.firstName ? (member.firstName[0] || '') + (member.lastName ? (member.lastName[0] || '') : '') : (member.email ? member.email[0].toUpperCase() : 'M')}
           </div>
         )}
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
         {isEditable && (
-          <button type="button" onClick={handlePickPhoto} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e6edf3', background: '#fff', cursor: 'pointer', fontSize: 13 }}>Change Photo</button>
+          <button type="button" onClick={handlePickPhoto} style={styles.photoButton}>Change Photo</button>
         )}
       </div>
 
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+      <div style={styles.infoSection}>
+        <div style={styles.headerRow}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{`${member.firstName || ''} ${member.lastName || ''}`.trim() || member.email}</div>
-            <div style={{ fontSize: 13, color: '#64748b' }}>{member.role || member.category || ''}</div>
+            <div style={styles.nameText}>{`${member.firstName || ''} ${member.lastName || ''}`.trim() || member.email}</div>
+            <div style={styles.roleText}>{member.role || member.category || ''}</div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>Age</div>
-            <div style={{ fontWeight: 700 }}>{computeAge(member.birthdate) || '—'}</div>
+          <div style={styles.ageBox}>
+            <div style={styles.ageLabel}>Age</div>
+            <div style={styles.ageValue}>{computeAge(member.birthdate) || '—'}</div>
           </div>
         </div>
 
-        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div>
-            <label style={{ fontSize: 12, color: '#475569' }}>Email</label>
-            <div style={{ marginTop: 6 }}>{member.email || '—'}</div>
+        <div style={styles.formGrid}>
+          <div style={styles.fieldBlock}>
+            <label style={styles.fieldLabel}>Email</label>
+            <div style={styles.readOnlyValue}>{member.email || '—'}</div>
           </div>
-          <div>
-            <label style={{ fontSize: 12, color: '#475569' }}>Phone</label>
-            <input disabled={!isEditable} style={{ width: '100%', marginTop: 6, padding: '8px 10px', borderRadius: 8, border: '1px solid #e6edf3', background: !isEditable ? '#f8fafc' : '#fff' }} value={member.phone || ''} onChange={(e) => handleChange('phone', e.target.value)} />
-          </div>
-        </div>
-
-        <div style={{ marginTop: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 12, color: '#475569' }}>Birthdate</label>
-            <input disabled={!isEditable} type="date" style={{ width: '100%', marginTop: 6, padding: '8px 10px', borderRadius: 8, border: '1px solid #e6edf3', background: !isEditable ? '#f8fafc' : '#fff' }} value={member.birthdate ? (typeof member.birthdate === 'string' ? member.birthdate.split('T')[0] : new Date(member.birthdate).toISOString().split('T')[0]) : ''} onChange={(e) => handleChange('birthdate', e.target.value)} />
-          </div>
-          <div style={{ width: 120 }}>
-            <label style={{ fontSize: 12, color: '#475569' }}>Computed Age</label>
-            <div style={{ marginTop: 6, fontWeight: 700 }}>{computeAge(member.birthdate) || '—'}</div>
+          <div style={styles.fieldBlock}>
+            <label style={styles.fieldLabel}>Phone</label>
+            <input
+              disabled={!isEditable}
+              style={{ ...styles.input, ...(!isEditable ? styles.inputDisabled : {}) }}
+              value={member.phone || ''}
+              onChange={(e) => handleChange('phone', e.target.value)}
+              placeholder="Enter phone number"
+            />
           </div>
         </div>
 
-        <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          {error && <div style={{ color: 'crimson', marginRight: 'auto' }}>{error}</div>}
+        <div style={styles.formGrid}>
+          <div style={styles.fieldBlock}>
+            <label style={styles.fieldLabel}>Birthdate</label>
+            <input
+              disabled={!isEditable}
+              type="date"
+              style={{ ...styles.input, ...(!isEditable ? styles.inputDisabled : {}) }}
+              value={member.birthdate ? (typeof member.birthdate === 'string' ? member.birthdate.split('T')[0] : new Date(member.birthdate).toISOString().split('T')[0]) : ''}
+              onChange={(e) => handleChange('birthdate', e.target.value)}
+            />
+          </div>
+          <div style={styles.fieldBlock}>
+            <label style={styles.fieldLabel}>Computed Age</label>
+            <div style={styles.readOnlyValue}>{computeAge(member.birthdate) || '—'}</div>
+          </div>
+        </div>
+
+        <div style={styles.actionsRow}>
+          {error && <div style={styles.errorText}>{error}</div>}
           {isEditable && (
-            <button onClick={handleSave} disabled={saving} style={{ padding: '8px 12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
+            <button onClick={handleSave} disabled={saving} style={{ ...styles.saveButton, ...(saving ? styles.saveButtonDisabled : {}) }}>{saving ? 'Saving…' : 'Save'}</button>
           )}
         </div>
       </div>
+      </section>
     </div>
   );
+};
+
+const styles = {
+  loading: {
+    padding: 20,
+    fontSize: 15,
+    color: '#334155',
+  },
+  page: {
+    width: '100%',
+    maxWidth: 960,
+    margin: '0 auto',
+    padding: 20,
+  },
+  profileCard: {
+    display: 'flex',
+    gap: 28,
+    padding: 28,
+    borderRadius: 28,
+    background: '#ffffff',
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 20px 50px rgba(15, 23, 42, 0.08)',
+    alignItems: 'flex-start',
+  },
+  avatarSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 18,
+    minWidth: 150,
+  },
+  avatar: {
+    width: 140,
+    height: 140,
+    borderRadius: 24,
+    objectFit: 'cover',
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+  },
+  placeholderAvatar: {
+    width: 140,
+    height: 140,
+    borderRadius: 24,
+    background: '#eef2ff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 40,
+    fontWeight: 800,
+    color: '#3730a3',
+  },
+  photoButton: {
+    padding: '12px 18px',
+    borderRadius: 14,
+    border: '1px solid #cbd5e1',
+    background: '#ffffff',
+    color: '#102a43',
+    cursor: 'pointer',
+    fontWeight: 700,
+    minWidth: 150,
+  },
+  infoSection: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 24,
+  },
+  headerRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 16,
+    alignItems: 'center',
+  },
+  nameText: {
+    fontSize: 26,
+    fontWeight: 800,
+    color: '#0f172a',
+  },
+  roleText: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#475569',
+  },
+  ageBox: {
+    minWidth: 120,
+    padding: '16px 18px',
+    borderRadius: 18,
+    background: '#f8fafc',
+    textAlign: 'center',
+  },
+  ageLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  ageValue: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: '#0f172a',
+  },
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: 18,
+  },
+  fieldBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    color: '#475569',
+    fontWeight: 700,
+  },
+  readOnlyValue: {
+    minHeight: 48,
+    padding: '14px 16px',
+    borderRadius: 16,
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    color: '#0f172a',
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: 14,
+    lineHeight: 1.5,
+  },
+  input: {
+    width: '100%',
+    minHeight: 48,
+    padding: '14px 16px',
+    borderRadius: 16,
+    border: '1px solid #cbd5e1',
+    background: '#ffffff',
+    color: '#0f172a',
+    fontSize: 14,
+    outline: 'none',
+  },
+  inputDisabled: {
+    background: '#f1f5f9',
+    color: '#94a3b8',
+    cursor: 'not-allowed',
+  },
+  actionsRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 16,
+  },
+  saveButton: {
+    padding: '14px 20px',
+    borderRadius: 16,
+    border: 'none',
+    background: '#2563eb',
+    color: '#ffffff',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  saveButtonDisabled: {
+    opacity: 0.65,
+    cursor: 'not-allowed',
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 13,
+  },
 };
 
 export default Profile;
