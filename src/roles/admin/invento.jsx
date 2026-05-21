@@ -17,23 +17,38 @@ const InventoryForm = () => {
     const [filterCategory, setFilterCategory] = useState("All Categories");
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
-    const [allInventory, setAllInventory] = useState([]);
+    const [inventoryItems, setInventoryItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showArchived, setShowArchived] = useState(false);
+    const [archivedCount, setArchivedCount] = useState(0);
 
     useEffect(() => {
-        fetchInventory();
-    }, []);
+        fetchInventory(showArchived);
+        fetchArchivedCount();
+    }, [showArchived]);
 
-    const fetchInventory = async () => {
+    const fetchInventory = async (archived = false) => {
+        setLoading(true);
         try {
-            const response = await api.getInventory();
+            const response = await api.getInventory(archived ? 'Archived' : 'Active');
             if (Array.isArray(response.data)) {
-                setAllInventory(response.data);
+                setInventoryItems(response.data);
             }
             setLoading(false);
         } catch (err) {
             console.error("Failed to fetch inventory:", err);
             setLoading(false);
+        }
+    };
+
+    const fetchArchivedCount = async () => {
+        try {
+            const response = await api.getInventory('Archived');
+            if (Array.isArray(response.data)) {
+                setArchivedCount(response.data.length);
+            }
+        } catch (err) {
+            console.error("Failed to fetch archived inventory count:", err);
         }
     };
 
@@ -59,7 +74,8 @@ const InventoryForm = () => {
                 await api.createInventory(inventoryData);
             }
             resetForm();
-            fetchInventory();
+            fetchInventory(showArchived);
+            fetchArchivedCount();
         } catch (err) {
             alert("Could not save to database.");
         }
@@ -83,21 +99,35 @@ const InventoryForm = () => {
         setCondition(m.condition || "Good");
     };
 
-    const deleteItem = async (id) => {
-        if (!window.confirm("Are you sure you want to remove all of this item?")) return;
+    const archiveItem = async (id) => {
+        if (!window.confirm("Archive this item? It will be hidden from the default list.")) return;
         try {
-            await api.deleteInventory(id);
-            fetchInventory();
+            await api.archiveInventory(id);
+            fetchInventory(showArchived);
+            fetchArchivedCount();
         } catch (err) {
-            alert("Failed to delete item.");
+            console.error(err);
+            alert("Failed to archive item.");
+        }
+    };
+
+    const unarchiveItem = async (id) => {
+        if (!window.confirm("Restore this item back to the active inventory?")) return;
+        try {
+            await api.unarchiveInventory(id);
+            fetchInventory(showArchived);
+            fetchArchivedCount();
+        } catch (err) {
+            console.error(err);
+            alert("Failed to unarchive item.");
         }
     };
 
     const getCategoryCount = (catName) => {
-        return allInventory.filter(item => item.category === catName).length;
+        return inventoryItems.filter(item => item.category === catName).length;
     };
 
-    const filteredInventory = allInventory.filter(m => {
+    const filteredInventory = inventoryItems.filter(m => {
         const name = (m.itemName || m.item || "").toLowerCase();
         const loc = (m.location || "").toLowerCase();
         const search = searchQuery.toLowerCase();
@@ -132,6 +162,22 @@ const InventoryForm = () => {
                 
                 <button className="add-btn-primary" onClick={handleAction} style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
                     {isEditing ? "Update Item" : "Add Item"}
+                </button>
+                <button 
+                    className="archive-toggle-btn" 
+                    onClick={() => setShowArchived(prev => !prev)}
+                    disabled={archivedCount === 0 && !showArchived}
+                    style={{
+                        background: showArchived ? '#10b981' : '#64748b',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        cursor: archivedCount === 0 && !showArchived ? 'not-allowed' : 'pointer',
+                        opacity: archivedCount === 0 && !showArchived ? 0.6 : 1
+                    }}
+                >
+                    {showArchived ? 'Active Items' : `Archived${archivedCount ? ` (${archivedCount})` : ''}`}
                 </button>
                 {isEditing && <button className="cancel-btn" onClick={resetForm}>Cancel</button>}
             </div>
@@ -211,8 +257,14 @@ const InventoryForm = () => {
                                 <td>{m.assignedTo || '—'}</td>
                                 <td>{m.lastMaintenance || '—'}</td>
                                 <td>
-                                    <button className="action-icon edit" onClick={() => startEdit(m)} style={{ marginRight: '8px', cursor: 'pointer', border: 'none', background: 'none' }}>✏️</button>
-                                    <button className="action-icon delete" onClick={() => deleteItem(m._id)} style={{ cursor: 'pointer', border: 'none', background: 'none' }}>🗑️</button>
+                                    {showArchived ? (
+                                        <button className="action-icon unarchive" onClick={() => unarchiveItem(m._id)} style={{ cursor: 'pointer', border: 'none', background: 'none' }}>♻️</button>
+                                    ) : (
+                                        <>
+                                            <button className="action-icon edit" onClick={() => startEdit(m)} style={{ marginRight: '8px', cursor: 'pointer', border: 'none', background: 'none' }}>✏️</button>
+                                            <button className="action-icon archive" onClick={() => archiveItem(m._id)} style={{ cursor: 'pointer', border: 'none', background: 'none' }}>🗃️</button>
+                                        </>
+                                    )}
                                 </td>
                             </tr>
                         ))}

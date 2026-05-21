@@ -12,9 +12,11 @@ const apiClient = axios.create({
 export const api = {
 
   // Inventory
-  getInventory: () => apiClient.get('/api/inventory'),
+  getInventory: (status) => apiClient.get('/api/inventory', { params: status ? { status } : {} }),
   createInventory: (itemData) => apiClient.post('/api/inventory', itemData),
   updateInventory: (id, itemData) => apiClient.put(`/api/inventory/${id}`, itemData),
+  archiveInventory: (id) => apiClient.patch(`/api/inventory/${id}/archive`),
+  unarchiveInventory: (id) => apiClient.patch(`/api/inventory/${id}/unarchive`),
   deleteInventory: (id) => apiClient.delete(`/api/inventory/${id}`),
 
 

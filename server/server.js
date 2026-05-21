@@ -159,7 +159,8 @@ const Inventory = mongoose.model('Inventory', new mongoose.Schema({
   assignedTo: { type: String },
   lastMaintenance: { type: String },
   category: { type: String, default: 'Miscellaneous' },
-  condition: { type: String, default: 'Good' }
+  condition: { type: String, default: 'Good' },
+  status: { type: String, enum: ['Active', 'Archived'], default: 'Active' }
 }, { timestamps: true }));
 
 // --- FINANCE SCHEMA & ROUTES ---
@@ -370,7 +371,12 @@ app.post('/api/inventory', async (req, res) => {
 
 app.get('/api/inventory', async (req, res) => {
   try {
-    const items = await Inventory.find().sort({ createdAt: -1 });
+    const status = req.query.status;
+    const filter = {};
+    if (status === 'Archived') filter.status = 'Archived';
+    else if (status === 'Active') filter.status = 'Active';
+
+    const items = await Inventory.find(filter).sort({ createdAt: -1 });
     res.json(items);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch inventory items" });
@@ -387,13 +393,23 @@ app.put('/api/inventory/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/inventory/:id', async (req, res) => {
+app.patch('/api/inventory/:id/archive', async (req, res) => {
   try {
-    const deleted = await Inventory.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ error: "Item not found" });
-    res.json({ message: "Deleted successfully" });
+    const archived = await Inventory.findByIdAndUpdate(req.params.id, { status: 'Archived' }, { new: true });
+    if (!archived) return res.status(404).json({ error: "Item not found" });
+    res.json(archived);
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete item" });
+    res.status(500).json({ error: "Failed to archive item" });
+  }
+});
+
+app.patch('/api/inventory/:id/unarchive', async (req, res) => {
+  try {
+    const unarchived = await Inventory.findByIdAndUpdate(req.params.id, { status: 'Active' }, { new: true });
+    if (!unarchived) return res.status(404).json({ error: "Item not found" });
+    res.json(unarchived);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to unarchive item" });
   }
 });
 
