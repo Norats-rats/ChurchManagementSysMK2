@@ -168,7 +168,7 @@ const Finance = mongoose.model('finances', new mongoose.Schema({
   type: { type: String, enum: ['Income', 'Expense'], required: true },
   amount: { type: Number, required: true },
   date: { type: Date, default: Date.now },
-  userId: { type: String }, // for member donations
+  userId: { type: String }, // optional member id associated with the transaction
   addedBy: { type: String }, // staff/admin who recorded it
   createdAt: { type: Date, default: Date.now }
 }));
@@ -180,7 +180,7 @@ app.get('/api/finances', async (req, res) => {
 
     let query = {};
     if (loggedInUserRole === 'Member') {
-      // members only see their own transactions (donations)
+      // members only see their own transactions
       query = { userId: loggedInUserId };
     }
 
@@ -232,20 +232,7 @@ app.post('/api/finances', async (req, res) => {
   }
 });
 
-// Simple checkout session endpoint (returns a checkout URL or error). Replace with real payment integration.
-app.post('/api/checkout', async (req, res) => {
-  try {
-    const { amount, description, userId } = req.body;
-    if (!amount || Number(amount) <= 0) return res.status(400).json({ error: 'Invalid amount' });
-
-    const checkoutUrl = process.env.CHECKOUT_BASE_URL || `https://example.com/checkout?amount=${encodeURIComponent(amount)}&desc=${encodeURIComponent(description || '')}&user=${encodeURIComponent(userId || '')}`;
-
-    return res.json({ data: { attributes: { checkout_url: checkoutUrl } } });
-  } catch (err) {
-    console.error('Checkout creation failed:', err);
-    res.status(500).json({ error: 'Failed to create checkout session' });
-  }
-});
+// NOTE: payment/checkout endpoints removed — external payment integrations were intentionally disabled.
 
 
 app.get('/', (req, res) => {

@@ -68,7 +68,7 @@ export const api = {
       'x-user-id': userId
     }
   }),
-  createCheckoutSession: (checkoutData) => apiClient.post('/api/checkout', checkoutData),
+  
 
   // Ministries
   getMinistries: () => apiClient.get('/api/ministries'),

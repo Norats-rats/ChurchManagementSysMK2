@@ -9,11 +9,10 @@ const Finances = ({ role, userId }) => {
     netBalance: 0
   });
   const [loading, setLoading] = useState(true);
-  const [donationAmount, setDonationAmount] = useState("500"); 
   const [newDesc, setNewDesc] = useState("");
   const [newAmount, setNewAmount] = useState("");
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [newType, setNewType] = useState('Income');
 
   useEffect(() => {
     fetchFinances();
@@ -40,34 +39,13 @@ const Finances = ({ role, userId }) => {
     }
   };
 
-  const handlePayMongoCheckout = async (amount, description) => {
-    if (!amount || parseFloat(amount) <= 0) {
-      return alert("Please enter a valid donation amount.");
-    }
-
-    setIsProcessing(true);
-    try {
-      const res = await api.createCheckoutSession({ 
-        amount: parseFloat(amount), 
-        description, 
-        userId 
-      });
-      if (res.data?.data?.attributes?.checkout_url) {
-        window.location.href = res.data.data.attributes.checkout_url;
-      }
-    } catch (err) {
-      console.error("Payment Error:", err);
-      alert("Could not initialize payment. Please try again.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  
 
   const handleAddIncome = async (e) => {
     e.preventDefault();
     const transactionData = {
       description: newDesc,
-      type: 'Income',
+      type: newType,
       amount: parseFloat(newAmount),
       date: newDate
     };
@@ -96,29 +74,7 @@ const Finances = ({ role, userId }) => {
     table: { width: '100%', borderCollapse: 'collapse' },
     th: { backgroundColor: '#f1f5f9', padding: '15px', textAlign: 'left', fontSize: '12px', color: '#475569' },
     td: { padding: '15px', borderBottom: '1px solid #f1f5f9', fontSize: '14px' },
-    donationInput: {
-      padding: '12px',
-      fontSize: '18px',
-      borderRadius: '8px',
-      border: '2px solid #e2e8f0',
-      width: '100%',
-      maxWidth: '200px',
-      marginBottom: '15px',
-      textAlign: 'center',
-      fontWeight: '700',
-      color: '#053476'
-    },
-    donateButton: {
-      padding: '12px 24px',
-      backgroundColor: '#2563eb',
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      width: '100%',
-      maxWidth: '240px'
-    }
+    
   };
 
   if (loading) return <div style={styles.container}>Loading finances...</div>;
@@ -151,10 +107,10 @@ const Finances = ({ role, userId }) => {
 
       
 
-      {(role === 'Admin' || role === 'Staff') && (
+      {(['Admin','Staff','Ministry Leader'].includes(role)) && (
         <div style={{ ...styles.card, marginBottom: '30px' }}>
-          <h4 style={{ marginTop: 0 }}>Record New Income</h4>
-          <form onSubmit={handleAddIncome} style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+          <h4 style={{ marginTop: 0 }}>Record New Transaction</h4>
+          <form onSubmit={handleAddIncome} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
             <input 
               type="date" 
               value={newDate} 
@@ -168,12 +124,16 @@ const Finances = ({ role, userId }) => {
               onChange={e => setNewDesc(e.target.value)} 
               style={{ flex: 1, minWidth: '200px', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
             />
+            <select value={newType} onChange={e => setNewType(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+              <option value="Income">Income</option>
+              <option value="Expense">Expense</option>
+            </select>
             <input 
               type="number" 
               placeholder="Amount" 
               value={newAmount} 
               onChange={e => setNewAmount(e.target.value)} 
-              style={{ width: '150px', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
+              style={{ width: '140px', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
             />
             <button 
               type="submit" 
