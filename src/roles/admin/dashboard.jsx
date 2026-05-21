@@ -28,8 +28,8 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
 
   const navigationConfig = [
     { id: 'dashboard', label: role === 'Member' ? '📌 Home' : '📊 Dashboard', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'ebible', label: '📖 eBible', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
-    { id: 'members', label: '👥 Church Members', roles: ['Admin', 'Ministry Leader'] },
+    { id: 'ebible', label: '📖 EBible', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
+    { id: 'members', label: '👥 Member Management', roles: ['Admin', 'Ministry Leader'] },
     { id: 'events', label: '📅 Events', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
     { id: 'attendance', label: '📋 Attendance', roles: ['Admin', 'Member', 'Staff'] },
     { id: 'ministries', label: '❤️ Ministries', roles: ['Admin', 'Ministry Leader', 'Staff', 'Member'] },
@@ -710,9 +710,10 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
                       <p>{announcement}</p>
                     </div>
                     
-                    <div style={triviaBoxStyle}>
-                      <small style={{ fontWeight: '800', color: '#b45309' }}>💡 DAILY TRIVIA</small>
-                      <p style={{ margin: '5px 0 0 0', color: '#92400e' }}>{getTrivia()}</p>
+                    <div style={{ marginTop: '20px', padding: '15px', background: '#eef2ff', borderRadius: '12px', border: '1px solid #e0e7ff' }}>
+                      <small style={{ fontWeight: '700', color: '#1e40af' }}>📖 Daily Verse</small>
+                      <p style={{ margin: '8px 0 0 0', color: '#0f172a', lineHeight: '1.5' }}>{dailyVerse.text}</p>
+                      <cite style={{ fontSize: '13px', color: '#6b7280' }}>— {dailyVerse.reference}</cite>
                     </div>
                   </div>
 
@@ -733,10 +734,15 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
                 </div>
               </div>
 
-              <div style={quoteContainerStyle}>
-                <div style={quoteIconStyle}>"</div>
-                <p style={quoteTextStyle}>{dailyVerse.text}</p>
-                <cite style={quoteAuthorStyle}>— {dailyVerse.reference}</cite>
+              <div style={{ marginTop: '30px', padding: '30px', background: '#f8fafc', borderRadius: '20px' }}>
+                <h4 style={{ margin: '0 0 12px 0', color: '#1e3a8a' }}>Service Times</h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '8px' }}>
+                  <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Sunday Morning Worship — 9:00 AM</li>
+                  <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Sunday Evening Service — 5:00 PM</li>
+                  <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Midweek Service (Wednesday) — 7:00 PM</li>
+                  <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Youth Fellowship (Friday) — 6:30 PM</li>
+                  <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Daily Morning Prayer — 6:00 AM</li>
+                </ul>
               </div>
             </>
           )}
