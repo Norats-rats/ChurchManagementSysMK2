@@ -150,12 +150,12 @@ const response = await api.verifyOtp({
             <input 
               type="checkbox" 
               name="agreeTerms" 
-              style={{accentColor: '#1e40af'}} 
+              style={{accentColor: 'var(--color-primary)'}} 
               onChange={handleChange} 
               required 
             />
             <span style={{ fontSize: '12px', color: '#cbd5e1' }}>
-              I agree to the <span style={{ color: '#60a5fa', textDecoration: 'underline' }}>Terms & Conditions</span>
+              I agree to the <span style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Terms & Conditions</span>
             </span>
           </div>
 
@@ -166,7 +166,7 @@ const response = await api.verifyOtp({
           Already have an account? 
           <button 
             onClick={onGoToLogin} 
-            style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline', padding: '0 5px' }}
+            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline', padding: '0 5px' }}
           >
             Log in
           </button>

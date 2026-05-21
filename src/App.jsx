@@ -181,7 +181,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
           Don't have an account? 
           <button 
             onClick={onGoToSignup} 
-            style={{background:'none', border:'none', color:'#1e40af', cursor:'pointer', fontWeight:'bold', textDecoration:'underline'}}
+            style={{background:'none', border:'none', color:'var(--color-primary)', cursor:'pointer', fontWeight:'bold', textDecoration:'underline'}}
           >
             Sign up
           </button>

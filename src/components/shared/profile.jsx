@@ -339,7 +339,7 @@ const styles = {
     padding: '14px 20px',
     borderRadius: 16,
     border: 'none',
-    background: '#2563eb',
+    background: 'var(--color-primary)',
     color: '#ffffff',
     fontWeight: 700,
     cursor: 'pointer',

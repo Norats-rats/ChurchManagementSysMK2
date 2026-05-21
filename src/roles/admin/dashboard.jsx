@@ -759,20 +759,20 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
 };
 
 const bulletinCardStyle = { background: '#fff', padding: '30px', borderRadius: '24px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' };
-const announcementBoxStyle = { background: '#f8fafc', padding: '25px', borderRadius: '16px', borderLeft: '5px solid #3b82f6', fontSize: '19px', color: '#1e293b', margin: '20px 0' };
+const announcementBoxStyle = { background: '#f8fafc', padding: '25px', borderRadius: '16px', borderLeft: '5px solid var(--color-accent)', fontSize: '19px', color: '#1e293b', margin: '20px 0' };
 const triviaBoxStyle = { marginTop: '20px', padding: '15px', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fef3c7' };
-const leaderInputCard = { background: '#eff6ff', padding: '20px', borderRadius: '16px', border: '2px solid #bfdbfe', marginBottom: '20px' };
+const leaderInputCard = { background: '#f0fdf4', padding: '20px', borderRadius: '16px', border: '2px solid rgba(34,197,94,0.12)', marginBottom: '20px' };
 const kpiCardStyle = { background: '#fff', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center' };
 const kpiLabelStyle = { fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' };
 const kpiValueStyle = { fontSize: '24px', fontWeight: '800', marginTop: '8px', color: '#0f172a' };
 const inputStyle = { flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '15px' };
-const postBtnStyle = { background: '#2563eb', color: '#fff', border: 'none', padding: '0 25px', borderRadius: '10px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' };
+const postBtnStyle = { background: 'var(--color-primary)', color: '#fff', border: 'none', padding: '0 25px', borderRadius: '10px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' };
 const quoteContainerStyle = { marginTop: '30px', padding: '40px', background: '#f1f5f9', borderRadius: '24px', textAlign: 'center', position: 'relative' };
 const quoteIconStyle = { fontSize: '80px', color: '#cbd5e1', position: 'absolute', top: '-10px', left: '30px', fontFamily: 'serif', lineHeight: '1' };
 const quoteTextStyle = { fontSize: '22px', italic: 'true', color: '#334155', position: 'relative', zIndex: '1', margin: '0 0 15px 0' };
 const quoteAuthorStyle = { fontSize: '15px', color: '#64748b', position: 'relative', zIndex: '1' };
 const profileAvatarButtonStyle = { width: '44px', height: '44px', borderRadius: '50%', border: '1px solid #cbd5e1', background: '#fff', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' };
 const avatarImageStyle = { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' };
-const avatarInitialsStyle = { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#3b82f6', color: '#fff', borderRadius: '#50%', fontWeight: '700' };
+const avatarInitialsStyle = { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-primary)', color: '#fff', borderRadius: '#50%', fontWeight: '700' };
 
 export default Dashboard;
