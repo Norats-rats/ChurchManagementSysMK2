@@ -153,10 +153,10 @@ const EventTab = ({ role, userId }) => {
 
     const combinedTitle = `${formData.titleSelection} for ${formData.reservationName}`;
     const isDuplicate = events.some(ev => 
-      ev.title === combinedTitle &&
-      ev.date === formData.date &&
-      ev.time === formData.time &&
-      ev.room === formData.room &&
+      ev.title === combinedTitle ||
+      ev.date === formData.date ||
+      ev.time === formData.time ||
+      ev.room === formData.room ||
       ev._id !== editingId 
     );
 
