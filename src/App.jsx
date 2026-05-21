@@ -223,6 +223,7 @@ export default function App() {
   const handleLoginSuccess = (role, user) => {
     setUserRole(role);
     setUserData(user);
+    sessionStorage.setItem('loginTimestamp', Date.now().toString());
     setView('dashboard');
   };
 
@@ -237,6 +238,7 @@ export default function App() {
               setView('login');
               setUserData(null);
               setUserRole(null);
+              sessionStorage.removeItem('loginTimestamp');
             }} 
           />
         );

@@ -178,7 +178,6 @@ const Inventory = mongoose.model('Inventory', new mongoose.Schema({
   status: { type: String, enum: ['Active', 'Archived'], default: 'Active' }
 }, { timestamps: true }));
 
-// --- FINANCE SCHEMA & ROUTES ---
 const Finance = mongoose.model('finances', new mongoose.Schema({
   description: { type: String, required: true },
   type: { type: String, enum: ['Income', 'Expense'], required: true },
@@ -197,7 +196,6 @@ app.get('/api/finances', async (req, res) => {
 
     let query = {};
     if (loggedInUserRole === 'Member') {
-      // members only see their own transactions
       query = { userId: loggedInUserId };
     }
 
@@ -258,9 +256,6 @@ app.post('/api/finances', async (req, res) => {
     res.status(400).json({ error: 'Failed to create finance record.' });
   }
 });
-
-// NOTE: payment/checkout endpoints removed — external payment integrations were intentionally disabled.
-
 
 app.get('/', (req, res) => {
   res.send('Church Management API is Online and Running');

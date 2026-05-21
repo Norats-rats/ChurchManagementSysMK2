@@ -23,6 +23,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const [announcement, setAnnouncement] = useState("Loading church updates...");
   const [newAnnouncement, setNewAnnouncement] = useState("");
   const [notifications, setNotifications] = useState([]);
+  const [hidePrayerNotifications, setHidePrayerNotifications] = useState(false);
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
 
   const navigationConfig = [
@@ -41,6 +42,26 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
 
   const visibleTabs = navigationConfig.filter(tab => tab.roles.includes(role));
 
+  const getLoginTimestamp = () => {
+    const stored = sessionStorage.getItem('loginTimestamp');
+    return stored ? Number(stored) : null;
+  };
+
+  const getPrayerNotificationExpiryMs = () => {
+    const loginTs = getLoginTimestamp();
+    return loginTs ? loginTs + 20 * 60 * 1000 : null;
+  };
+
+  const isPrayerNotificationExpired = () => {
+    const expiryMs = getPrayerNotificationExpiryMs();
+    return expiryMs !== null && Date.now() >= expiryMs;
+  };
+
+  const filterPrayerNotifications = (items) => {
+    if (!isPrayerNotificationExpired()) return items;
+    return items.filter(item => item.type !== 'prayer');
+  };
+
   useEffect(() => {
     fetchDailyVerse();
     if (currentTab === 'dashboard') {
@@ -51,6 +72,29 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   useEffect(() => {
     fetchNotificationBar();
   }, [user, role]);
+
+  useEffect(() => {
+    const expiryMs = getPrayerNotificationExpiryMs();
+    if (expiryMs === null) {
+      setHidePrayerNotifications(false);
+      return;
+    }
+
+    if (Date.now() >= expiryMs) {
+      setHidePrayerNotifications(true);
+      return;
+    }
+
+    setHidePrayerNotifications(false);
+    const timer = setTimeout(() => setHidePrayerNotifications(true), expiryMs - Date.now());
+    return () => clearTimeout(timer);
+  }, [user?._id]);
+
+  useEffect(() => {
+    if (hidePrayerNotifications) {
+      setNotifications(prev => prev.filter(item => item.type !== 'prayer'));
+    }
+  }, [hidePrayerNotifications]);
 
   const fetchNotificationBar = async () => {
     try {
@@ -100,7 +144,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
           const notifRes = await api.getNotifications(user._id, role);
           const personalNotifications = Array.isArray(notifRes.data) ? notifRes.data.filter(n => n.status !== 'Read') : [];
           personalNotifications.forEach((item, index) => {
-            notifications.unshift({ title: 'Personal', message: item.message });
+            notifications.unshift({ title: 'Personal', message: item.message, type: item.type });
           });
         }
       } catch (err) {
@@ -111,7 +155,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
         notifications.push({ title: 'Ministry Board', message: ministryAnnouncementText || 'No ministry board updates yet.' });
       }
 
-      setNotifications(notifications);
+      setNotifications(filterPrayerNotifications(notifications));
     } catch (err) {
       console.error('Notification bar fetch failed', err);
     }
