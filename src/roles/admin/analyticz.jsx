@@ -9,20 +9,25 @@ const Analytics = () => {
     totalMembers: 0,
     activeMinistries: 0,
     upcomingEvents: 0,
+    totalAttendance: 0,
+    uniqueAttendees: 0,
+    eventsWithAttendance: 0,
     ministryDistribution: [],
     genderDistribution: [],
     ageGroupDistribution: [],
     averageAge: 0,
-    nextBirthdays: []
+    nextBirthdays: [],
+    topEvents: []
   });
 
 
   const fetchLiveAnalytics = async () => {
     try {
-      const [membersRes, ministriesRes, eventsRes] = await Promise.all([
+      const [membersRes, ministriesRes, eventsRes, attendanceRes] = await Promise.all([
         api.getMembers(),
         api.getMinistries(),
-        api.getEvents()
+        api.getEvents(),
+        api.getAttendance()
       ]);
 
       const members = membersRes.data || [];
@@ -92,6 +97,29 @@ const Analytics = () => {
         genderCounts[genderKey] = (genderCounts[genderKey] || 0) + 1;
       });
 
+      const attendanceRecords = attendanceRes.data || [];
+      const attendeeSet = new Set();
+      const eventAttendanceCounts = {};
+
+      attendanceRecords.forEach(record => {
+        if (record.userId) attendeeSet.add(record.userId);
+        if (record.eventId) {
+          eventAttendanceCounts[record.eventId] = (eventAttendanceCounts[record.eventId] || 0) + 1;
+        }
+      });
+
+      const eventsWithAttendance = Object.keys(eventAttendanceCounts).length;
+      const topEvents = Object.entries(eventAttendanceCounts)
+        .map(([eventId, count]) => {
+          const event = events.find((evt) => String(evt._id) === String(eventId));
+          return {
+            name: event ? (event.titleSelection || event.title || 'Unknown Event') : 'Unknown Event',
+            count
+          };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
       const genderDistribution = Object.entries(genderCounts).map(([name, value]) => ({
         name,
         value,
@@ -108,11 +136,15 @@ const Analytics = () => {
         totalMembers: members.length,
         activeMinistries: ministries.length,
         upcomingEvents: events.length,
+        totalAttendance: attendanceRecords.length,
+        uniqueAttendees: attendeeSet.size,
+        eventsWithAttendance,
         ministryDistribution: distribution,
         ageGroupDistribution: ageRanges.map(range => ({ name: range.name, value: ageGroupCounts[range.name] || 0 })),
         genderDistribution,
         averageAge: ages.length > 0 ? Math.round(ages.reduce((sum, value) => sum + value, 0) / ages.length) : 0,
-        nextBirthdays: upcomingBirthdays.sort((a, b) => a.birthday - b.birthday).slice(0, 5)
+        nextBirthdays: upcomingBirthdays.sort((a, b) => a.birthday - b.birthday).slice(0, 5),
+        topEvents
       };
 
       setDbStats(newStats);
@@ -206,9 +238,13 @@ const Analytics = () => {
       { Metric: "Total Congregation", Value: dbStats.totalMembers },
       { Metric: "Active Ministries", Value: dbStats.activeMinistries },
       { Metric: "Upcoming Events", Value: dbStats.upcomingEvents },
+      { Metric: "Total Attendance", Value: dbStats.totalAttendance },
+      { Metric: "Unique Attendees", Value: dbStats.uniqueAttendees },
+      { Metric: "Events with Attendance", Value: dbStats.eventsWithAttendance },
       { Metric: "Average Age", Value: dbStats.averageAge },
       ...dbStats.ageGroupDistribution.map(d => ({ Metric: `Age Range: ${d.name}`, Value: d.value })),
       ...dbStats.genderDistribution.map(d => ({ Metric: `Gender: ${d.name}`, Value: d.value })),
+      ...dbStats.topEvents.map((event, idx) => ({ Metric: `Top Event ${idx + 1}: ${event.name}`, Value: event.count })),
       ...dbStats.ministryDistribution.map(d => ({ Metric: `Ministry: ${d.name}`, Value: `${d.value}%` }))
     ];
 
@@ -271,11 +307,12 @@ const Analytics = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '25px', marginTop: '25px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '25px', marginTop: '25px' }}>
         {[
           { label: "TOTAL MEMBERS", value: dbStats.totalMembers },
           { label: "AVERAGE AGE", value: dbStats.averageAge },
-          { label: "UPCOMING EVENTS", value: dbStats.upcomingEvents }
+          { label: "TOTAL ATTENDANCE", value: dbStats.totalAttendance },
+          { label: "EVENTS WITH ATTENDANCE", value: dbStats.eventsWithAttendance }
         ].map((kpi, idx) => (
           <div key={idx} style={styles.card}>
             <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>{kpi.label}</div>
