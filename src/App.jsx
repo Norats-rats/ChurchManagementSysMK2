@@ -1,7 +1,7 @@
-import churchLogo from '.src/assets/churchlogo.jpg';
 import { useEffect, useState } from 'react';
 import api from './api';
 import './App.css';
+import churchLogo from './assets/churchlogo.jpg';
 import Signup from './components/shared/signup';
 import Dashboard from './roles/admin/dashboard';
 
@@ -10,7 +10,6 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [step, setStep] = useState(1); 
-  //force
   const handleRequestReset = async (e) => {
     e.preventDefault();
     try {
