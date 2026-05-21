@@ -74,10 +74,25 @@ export const api = {
   
 
   // Ministries
-  getMinistries: () => apiClient.get('/api/ministries'),
+  getMinistries: (role) => apiClient.get('/api/ministries', {
+    headers: { 'x-user-role': role }
+  }),
+  getMinistryByName: (name, role) => apiClient.get(`/api/ministries/name/${encodeURIComponent(name)}`, {
+    headers: { 'x-user-role': role }
+  }),
   createMinistry: (ministryData) => apiClient.post('/api/ministries', ministryData),
   updateMinistry: (id, editFormData) => apiClient.patch(`/api/ministries/${id}`, editFormData),
   deleteMinistry: (id) => apiClient.delete(`/api/ministries/${id}`),
+  announceToMinistry: (id, announcementText, role) => apiClient.post(`/api/ministries/${id}/announcement`, { announcementText }, {
+    headers: { 'x-user-role': role }
+  }),
+  applyForMinistry: (id, requestData) => apiClient.post(`/api/ministries/${id}/join-request`, requestData),
+  approveMinistryRequest: (ministryId, requestId, role) => apiClient.patch(`/api/ministries/${ministryId}/join-request/${requestId}/approve`, {}, {
+    headers: { 'x-user-role': role }
+  }),
+  rejectMinistryRequest: (ministryId, requestId, role) => apiClient.patch(`/api/ministries/${ministryId}/join-request/${requestId}/reject`, {}, {
+    headers: { 'x-user-role': role }
+  }),
 
   // Prayers
   getPrayers: (userId, role) => apiClient.get('/api/prayers', {

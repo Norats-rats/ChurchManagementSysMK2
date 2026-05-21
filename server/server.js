@@ -149,7 +149,16 @@ const Ministry = mongoose.model('Ministry', new mongoose.Schema({
   schedule: { type: String, required: true },
   color: { type: String, default: "#2563eb" },
   growth: { type: String, default: "+0%" },
-  status: { type: String, default: "Active" } 
+  status: { type: String, default: "Active" },
+  announcementText: { type: String, default: '' },
+  joinRequests: [{
+    userId: String,
+    userName: String,
+    userRole: String,
+    status: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+    requestedAt: { type: Date, default: Date.now },
+    respondedAt: { type: Date }
+  }]
 }, { timestamps: true }));
 
 const Inventory = mongoose.model('Inventory', new mongoose.Schema({
@@ -169,9 +178,9 @@ const Finance = mongoose.model('finances', new mongoose.Schema({
   type: { type: String, enum: ['Income', 'Expense'], required: true },
   amount: { type: Number, required: true },
   date: { type: Date, default: Date.now },
-  userId: { type: String }, // optional member id associated with the transaction
-  addedBy: { type: String }, // staff/admin user id who recorded it
-  addedByName: { type: String }, // human name of who logged the transaction
+  userId: { type: String },
+  addedBy: { type: String },
+  addedByName: { type: String },
   createdAt: { type: Date, default: Date.now }
 }));
 
@@ -422,9 +431,33 @@ app.post('/api/ministries', async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+app.get('/api/ministries/name/:name', async (req, res) => {
+  try {
+    const userRole = req.headers['x-user-role'];
+    const rawName = decodeURIComponent(req.params.name);
+    const ministry = await Ministry.findOne({
+      name: new RegExp(`^${rawName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+    });
+    if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
+    const result = ministry.toObject();
+    if (!['Admin', 'Ministry Leader'].includes(userRole)) {
+      result.joinRequests = undefined;
+    }
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/ministries', async (req, res) => {
   try {
-    const list = await Ministry.find().sort({ createdAt: -1 });
+    const userRole = req.headers['x-user-role'];
+    let list = await Ministry.find().sort({ createdAt: -1 });
+    if (!['Admin', 'Ministry Leader'].includes(userRole)) {
+      list = list.map(m => {
+        const sanitized = m.toObject();
+        sanitized.joinRequests = undefined;
+        return sanitized;
+      });
+    }
     res.json(list);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -434,6 +467,81 @@ app.patch('/api/ministries/:id', async (req, res) => {
     const updated = await Ministry.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true });
     res.json(updated);
   } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.post('/api/ministries/:id/announcement', async (req, res) => {
+  try {
+    const userRole = req.headers['x-user-role'];
+    if (!['Admin', 'Ministry Leader'].includes(userRole)) {
+      return res.status(403).json({ error: 'Forbidden: only ministry leaders and admin can announce.' });
+    }
+    const { announcementText } = req.body;
+    const updated = await Ministry.findByIdAndUpdate(req.params.id, { announcementText }, { new: true });
+    if (!updated) return res.status(404).json({ error: 'Ministry not found' });
+    res.json(updated);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.post('/api/ministries/:id/join-request', async (req, res) => {
+  try {
+    const userRole = req.headers['x-user-role'];
+    if (!['Member', 'Staff'].includes(userRole)) {
+      return res.status(403).json({ error: 'Forbidden: only members or staff may request to join a ministry.' });
+    }
+    const { userId, userName, userRole: requestRole } = req.body;
+    if (!userId || !userName) {
+      return res.status(400).json({ error: 'Missing request metadata.' });
+    }
+    const ministry = await Ministry.findById(req.params.id);
+    if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
+    const existing = ministry.joinRequests.find(r => r.userId === userId && r.status === 'Pending');
+    if (existing) return res.status(409).json({ error: 'A pending join request already exists.' });
+    ministry.joinRequests.push({
+      userId,
+      userName,
+      userRole: requestRole || userRole,
+      status: 'Pending',
+      requestedAt: new Date()
+    });
+    await ministry.save();
+    res.status(201).json({ success: true, request: ministry.joinRequests[ministry.joinRequests.length - 1] });
+  } catch (err) { console.error(err); res.status(400).json({ error: err.message }); }
+});
+
+app.patch('/api/ministries/:id/join-request/:requestId/approve', async (req, res) => {
+  try {
+    const userRole = req.headers['x-user-role'];
+    if (!['Admin', 'Ministry Leader'].includes(userRole)) {
+      return res.status(403).json({ error: 'Forbidden: only ministry leaders and admin can approve requests.' });
+    }
+    const ministry = await Ministry.findById(req.params.id);
+    if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
+    const request = ministry.joinRequests.id(req.params.requestId);
+    if (!request) return res.status(404).json({ error: 'Request not found' });
+    request.status = 'Approved';
+    request.respondedAt = new Date();
+    ministry.members = (ministry.members || 0) + 1;
+    await ministry.save();
+    await Member.findByIdAndUpdate(request.userId, { ministry: ministry.name });
+    res.json({ success: true, request });
+  } catch (err) { console.error(err); res.status(400).json({ error: err.message }); }
+});
+
+app.patch('/api/ministries/:id/join-request/:requestId/reject', async (req, res) => {
+  try {
+    const userRole = req.headers['x-user-role'];
+    if (!['Admin', 'Ministry Leader'].includes(userRole)) {
+      return res.status(403).json({ error: 'Forbidden: only ministry leaders and admin can reject requests.' });
+    }
+    const ministry = await Ministry.findById(req.params.id);
+    if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
+    const request = ministry.joinRequests.id(req.params.requestId);
+    if (!request) return res.status(404).json({ error: 'Request not found' });
+    request.status = 'Rejected';
+    request.respondedAt = new Date();
+    await ministry.save();
+    res.json({ success: true, request });
+  } catch (err) { console.error(err); res.status(400).json({ error: err.message }); }
 });
 
 app.delete('/api/ministries/:id', async (req, res) => {

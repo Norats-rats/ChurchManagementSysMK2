@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 
 const API_BASE_RAW = import.meta.env.VITE_API_URL;
-const API_BASE = API_BASE_RAW.endsWith('/') ? API_BASE_RAW.slice(0, -1) : API_BASE_RAW;
+const API_BASE = API_BASE_RAW?.endsWith('/') ? API_BASE_RAW.slice(0, -1) : API_BASE_RAW;
 
-const Ministries = ({ role }) => {
+const Ministries = ({ role, user }) => {
   const [ministryList, setMinistryList] = useState([]);
   const [leaderOptions, setLeaderOptions] = useState([]);
   const [allMembers, setAllMembers] = useState([]); 
   const [expandedId, setExpandedId] = useState(null); 
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [announcementDraft, setAnnouncementDraft] = useState({});
+  const [requestInProgress, setRequestInProgress] = useState(false);
   
   const [editingId, setEditingId] = useState(null);
   const [editLeaderData, setEditLeaderData] = useState('');
@@ -35,7 +37,9 @@ const Ministries = ({ role }) => {
     }
     setLoading(true);
     try {
-      const minRes = await fetch(`${API_BASE}/api/ministries`);
+      const minRes = await fetch(`${API_BASE}/api/ministries`, {
+        headers: { 'x-user-role': role }
+      });
       if (!minRes.ok) throw new Error("Failed to fetch ministries");
       const minData = await minRes.json();
       setMinistryList(Array.isArray(minData) ? minData : []);
@@ -146,6 +150,81 @@ const Ministries = ({ role }) => {
     } catch (err) { alert("Failed to remove member"); }
   };
 
+  const handleAnnouncementChange = (ministryId, value) => {
+    setAnnouncementDraft(prev => ({ ...prev, [ministryId]: value }));
+  };
+
+  const submitAnnouncement = async (ministry) => {
+    try {
+      const text = (announcementDraft[ministry._id] ?? ministry.announcementText ?? '').trim();
+      if (!text) {
+        alert('Please enter an announcement.');
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}/announcement`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': role
+        },
+        body: JSON.stringify({ announcementText: text })
+      });
+      if (!res.ok) throw new Error('Announcement save failed');
+      await fetchInitialData();
+      alert('Announcement sent to this ministry.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to post ministry announcement.');
+    }
+  };
+
+  const applyToJoin = async (ministry) => {
+    if (!user || requestInProgress) return;
+    setRequestInProgress(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}/join-request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': role
+        },
+        body: JSON.stringify({
+          userId: user._id,
+          userName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          userRole: role
+        })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data?.error || 'Join request failed');
+      }
+      await fetchInitialData();
+      alert('Join request submitted. Ministry leaders will review it.');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Unable to apply to join ministry.');
+    } finally {
+      setRequestInProgress(false);
+    }
+  };
+
+  const updateJoinRequest = async (ministryId, requestId, action) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/ministries/${ministryId}/join-request/${requestId}/${action}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': role
+        }
+      });
+      if (!res.ok) throw new Error('Request update failed');
+      await fetchInitialData();
+    } catch (err) {
+      console.error(err);
+      alert('Unable to update ministry join request.');
+    }
+  };
+
   if (loading) return <div style={{padding: '40px'}}>Connecting to database...</div>;
 
   const unassignedMembers = allMembers.filter(m => !m.ministry);
@@ -210,118 +289,190 @@ const Ministries = ({ role }) => {
           const ministryMembers = allMembers.filter(member => 
             member.ministry && m.name && member.ministry.trim().toLowerCase() === m.name.trim().toLowerCase()
           );
+          const normalizedUserMinistry = user?.ministry?.trim().toLowerCase();
+          const isMemberOfThisMinistry = normalizedUserMinistry && m.name && normalizedUserMinistry === m.name.trim().toLowerCase();
+          const pendingRequests = Array.isArray(m.joinRequests) ? m.joinRequests.filter(req => req.status === 'Pending') : [];
+          const userExistingRequest = Array.isArray(m.joinRequests) ? m.joinRequests.find(req => req.userId === user?._id) : null;
           const isExpanded = expandedId === m._id;
 
           return (
-            <div key={m._id} style={{ borderTop: `6px solid ${m.color}`, background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div key={m._id} style={cardStyle}>
+              <div 
+                onClick={() => toggleDropdown(m._id)} 
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', cursor: 'pointer', userSelect: 'none' }}
+              >
+                <h3 style={{ margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease', display: 'inline-block' }}>
+                    ▼
+                  </span>
+                  {m.name}
+                </h3>
+                {m.status === 'Deactive' && <span style={inactivePill}>INACTIVE</span>}
+              </div>
               
-              <div>
-                <div 
-                  onClick={() => toggleDropdown(m._id)} 
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', cursor: 'pointer', userSelect: 'none' }}
-                >
-                  <h3 style={{ margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: '#94a3b8', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }}>
-                      ▼
-                    </span>
-                    {m.name}
-                  </h3>
-                  {m.status === 'Deactive' && <span style={inactivePill}>INACTIVE</span>}
-                </div>
-                
-                {canManage && editingId === m._id ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginLeft: '20px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>UPDATE LEADER</label>
-                    <select 
-                      style={inputStyle} 
-                      value={editLeaderData} 
-                      onChange={e => setEditLeaderData(e.target.value)}
+              {canManage && editingId === m._id ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginLeft: '20px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>UPDATE LEADER</label>
+                  <select 
+                    style={inputStyle} 
+                    value={editLeaderData} 
+                    onChange={e => setEditLeaderData(e.target.value)}
+                  >
+                    <option value="">Select a Leader</option>
+                    {leaderOptions.map(leader => (
+                      <option key={leader._id} value={`${leader.firstName} ${leader.lastName}`}>
+                        {leader.firstName} {leader.lastName}
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                    <button 
+                      onClick={() => handleUpdateLeader(m._id)} 
+                      style={{ padding: '6px 14px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
                     >
-                      <option value="">Select a Leader</option>
-                      {leaderOptions.map(leader => (
-                        <option key={leader._id} value={`${leader.firstName} ${leader.lastName}`}>
-                          {leader.firstName} {leader.lastName}
-                        </option>
+                      Save
+                    </button>
+                    <button 
+                      onClick={() => setEditingId(null)} 
+                      style={{ padding: '6px 14px', backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ color: '#64748b', fontSize: '14px', margin: '6px 0 15px 20px' }}>Led by {m.leader || 'No Assigned Leader'}</p>
+              )}
+              
+              <div style={cardFooter}>
+                <span>Members: <strong>{ministryMembers.length}</strong></span>
+              </div>
+
+              {isExpanded && (
+                <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    ASSIGNED ({ministryMembers.length})
+                  </h4>
+                  
+                  {ministryMembers.length === 0 ? (
+                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>No members added yet.</p>
+                  ) : (
+                    <ul style={{ margin: '0 0 12px 0', paddingLeft: '18px', fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
+                      {ministryMembers.map(member => (
+                        <li key={member._id} style={{ marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span><strong>{member.firstName} {member.lastName}</strong></span>
+                            {canManage && (
+                              <button 
+                                onClick={() => handleRemoveMember(member._id)} 
+                                style={removeMemberLink}
+                                title="Remove member from ministry"
+                              >
+                                ✕ Remove
+                              </button>
+                            )}
+                          </div>
+                        </li>
                       ))}
-                    </select>
-                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                      <button 
-                        onClick={() => handleUpdateLeader(m._id)} 
-                        style={{ padding: '6px 14px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                    </ul>
+                  )}
+
+                  {canManage && (
+                    <div style={{ display: 'flex', gap: '6px', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', marginTop: '4px' }}>
+                      <select 
+                        style={{ ...inputStyle, padding: '6px', fontSize: '12px', flex: 1 }}
+                        value={selectedMemberId}
+                        onChange={e => setSelectedMemberId(e.target.value)}
                       >
-                        Save
-                      </button>
+                        <option value="">+ Add Member</option>
+                        {unassignedMembers.map(mem => (
+                          <option key={mem._id} value={mem._id}>
+                            {mem.firstName} {mem.lastName}
+                          </option>
+                        ))}
+                      </select>
                       <button 
-                        onClick={() => setEditingId(null)} 
-                        style={{ padding: '6px 14px', backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                        onClick={() => handleAddMember(selectedMemberId, m.name)}
+                        style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                        disabled={!selectedMemberId}
                       >
-                        Cancel
+                        Add
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <p style={{ color: '#64748b', fontSize: '14px', margin: '6px 0 15px 20px' }}>Led by {m.leader}</p>
-                )}
-                
-                <div style={cardFooter}>
-                  <span>Members: <strong>{ministryMembers.length}</strong></span>
+                  )}
                 </div>
+              )}
 
-                {isExpanded && (
-                  <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      ASSIGNED ({ministryMembers.length})
-                    </h4>
-                    
-                    {ministryMembers.length === 0 ? (
-                      <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>No members added yet.</p>
-                    ) : (
-                      <ul style={{ margin: '0 0 12px 0', paddingLeft: '18px', fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
-                        {ministryMembers.map(member => (
-                          <li key={member._id} style={{ marginBottom: '6px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span><strong>{member.firstName} {member.lastName}</strong></span>
-                              {canManage && (
-                                <button 
-                                  onClick={() => handleRemoveMember(member._id)} 
-                                  style={removeMemberLink}
-                                  title="Remove member from ministry"
+              {user && !isMemberOfThisMinistry && (role === 'Member' || role === 'Staff') && (
+                <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid #dbeafe', background: '#eff6ff', marginTop: '12px' }}>
+                  <p style={{ margin: 0, color: '#1e3a8a', fontSize: '13px' }}>
+                    Want to join <strong>{m.name}</strong>? Submit a request and ministry leaders will review it.
+                  </p>
+                  <button
+                    onClick={() => applyToJoin(m)}
+                    disabled={requestInProgress || !!userExistingRequest?.status}
+                    style={{ marginTop: '10px', padding: '10px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#2563eb', color: 'white', cursor: 'pointer' }}
+                  >
+                    {userExistingRequest ? (userExistingRequest.status === 'Pending' ? 'Request Pending' : 'Request Sent') : 'Apply to Join'}
+                  </button>
+                </div>
+              )}
+
+              {(canManage || userExistingRequest?.status) && (
+                <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', marginTop: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                    <h4 style={{ margin: 0, fontSize: '13px', color: '#334155' }}>Ministry Announcement</h4>
+                    {canManage && (
+                      <button
+                        onClick={() => submitAnnouncement(m)}
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', backgroundColor: '#2563eb', color: 'white', cursor: 'pointer', fontSize: '12px' }}
+                      >
+                        Announce
+                      </button>
+                    )}
+                  </div>
+                  {canManage ? (
+                    <textarea
+                      value={announcementDraft[m._id] ?? m.announcementText ?? ''}
+                      onChange={(e) => handleAnnouncementChange(m._id, e.target.value)}
+                      rows={3}
+                      style={{ width: '100%', minHeight: '90px', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e1', resize: 'vertical' }}
+                      placeholder="Write your ministry announcement here"
+                    />
+                  ) : (
+                    <p style={{ margin: 0, color: '#475569', fontSize: '13px' }}>{m.announcementText || 'No announcement yet.'}</p>
+                  )}
+
+                  {canManage && pendingRequests.length > 0 && (
+                    <div style={{ marginTop: '14px' }}>
+                      <h5 style={{ margin: '0 0 8px 0', fontSize: '12px', textTransform: 'uppercase', color: '#64748b' }}>Pending Join Requests</h5>
+                      <ul style={{ margin: 0, paddingLeft: '18px', color: '#334155' }}>
+                        {pendingRequests.map(req => (
+                          <li key={req._id} style={{ marginBottom: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                              <span>{req.userName} ({req.userRole || 'Member'})</span>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                  onClick={() => updateJoinRequest(m._id, req._id, 'approve')}
+                                  style={{ padding: '6px 10px', borderRadius: '8px', border: 'none', backgroundColor: '#10b981', color: 'white', cursor: 'pointer', fontSize: '12px' }}
                                 >
-                                  ✕ Remove
+                                  Approve
                                 </button>
-                              )}
+                                <button
+                                  onClick={() => updateJoinRequest(m._id, req._id, 'reject')}
+                                  style={{ padding: '6px 10px', borderRadius: '8px', border: 'none', backgroundColor: '#ef4444', color: 'white', cursor: 'pointer', fontSize: '12px' }}
+                                >
+                                  Reject
+                                </button>
+                              </div>
                             </div>
                           </li>
                         ))}
                       </ul>
-                    )}
-
-                    {canManage && (
-                      <div style={{ display: 'flex', gap: '6px', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', marginTop: '4px' }}>
-                        <select 
-                          style={{ ...inputStyle, padding: '6px', fontSize: '12px', flex: 1 }}
-                          value={selectedMemberId}
-                          onChange={e => setSelectedMemberId(e.target.value)}
-                        >
-                          <option value="">+ Add Member</option>
-                          {unassignedMembers.map(mem => (
-                            <option key={mem._id} value={mem._id}>
-                              {mem.firstName} {mem.lastName}
-                            </option>
-                          ))}
-                        </select>
-                        <button 
-                          onClick={() => handleAddMember(selectedMemberId, m.name)}
-                          style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                          disabled={!selectedMemberId}
-                        >
-                          Add
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {canManage && (
                 <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
@@ -340,7 +491,7 @@ const Ministries = ({ role }) => {
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditingId(m._id); 
-                        setEditLeaderData(m.leader);
+                        setEditLeaderData(m.leader || '');
                       }}
                       style={{ padding: '8px 16px', backgroundColor: '#ffffff', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
                     >
@@ -377,11 +528,12 @@ const Ministries = ({ role }) => {
 };
 
 const formStyle = { background: 'white', padding: '24px', borderRadius: '12px', marginBottom: '30px', border: '1px solid #e2e8f0' };
+const cardStyle = { background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
 const inputGroup = { display: 'flex', flexDirection: 'column', gap: '5px' };
 const labelStyle = { fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' };
 const inputStyle = { padding: '10px', borderRadius: '8px', border: '1px solid #085dc3', backgroundColor: 'white' };
 const btnSubmit = { padding: '12px 30px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
-const btnCancel = { padding: '12px 20px', backgroundColor: '#d20700', border: 'none', borderRadius: '8px', cursor: 'pointer' };
+const btnCancel = { padding: '12px 20px', backgroundColor: '#d20700', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' };
 
 const removeMemberLink = { background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', padding: 0 };
 const inactivePill = { fontSize: '10px', backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' };

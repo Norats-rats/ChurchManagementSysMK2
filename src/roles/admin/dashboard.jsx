@@ -22,6 +22,7 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
   const [nextEvent, setNextEvent] = useState(null);
   const [announcement, setAnnouncement] = useState("Loading church updates...");
   const [newAnnouncement, setNewAnnouncement] = useState("");
+  const [ministryAnnouncement, setMinistryAnnouncement] = useState("");
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
 
   const navigationConfig = [
@@ -46,6 +47,24 @@ const Dashboard = ({ user, role: rawRole, onLogout }) => {
       fetchBulletinData();
     }
   }, [currentTab]);
+
+  useEffect(() => {
+    fetchMinistryNotification();
+  }, [user?.ministry]);
+
+  const fetchMinistryNotification = async () => {
+    if (!user?.ministry) {
+      setMinistryAnnouncement("");
+      return;
+    }
+    try {
+      const response = await api.getMinistryByName(user.ministry, role);
+      setMinistryAnnouncement(response.data?.announcementText || "");
+    } catch (err) {
+      console.error("Failed to fetch ministry announcement", err);
+      setMinistryAnnouncement("");
+    }
+  };
 
 const fetchBulletinData = async () => {
   try {
@@ -490,6 +509,12 @@ const fetchBulletinData = async () => {
           </div>
         </div>
         <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {ministryAnnouncement ? (
+            <div style={{ border: '1px solid #c7d2fe', background: '#eff6ff', padding: '10px 14px', borderRadius: '14px', color: '#1d4ed8', fontSize: '12px', maxWidth: '300px' }}>
+              <strong style={{ display: 'block', marginBottom: '4px' }}>Ministry Notice</strong>
+              <span>{ministryAnnouncement}</span>
+            </div>
+          ) : null}
           <div className="admin-info" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <strong>{user.firstName} {user.lastName}</strong>
@@ -585,7 +610,7 @@ const fetchBulletinData = async () => {
           {currentTab === 'members' && role === 'Admin' && <MemberForm />}
           {currentTab === 'events' && <EventTab role={role} userId={user._id} />}
           {currentTab === 'attendance' && <AttendanceTab role={role} userId={user._id} user={user} />}
-          {currentTab === 'ministries' && <Ministries role={role} />}
+          {currentTab === 'ministries' && <Ministries role={role} user={user} />}
           {currentTab === 'prayers' && <Prayers role={role} user={user} />}
           {currentTab === 'advising' && <Advising role={role} user={user} />}
           {currentTab === 'finances' && <Finances role={role} userId={user._id} user={user} />}
