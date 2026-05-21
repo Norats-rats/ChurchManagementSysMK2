@@ -408,6 +408,12 @@
   --card-shadow: 0 6px 18px rgba(16,24,40,0.06);
 }
 
+/* Light mode defaults */
+body, .App {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  color: #0f172a;
+}
+
 .menu-item {
   display: block;
   padding: 12px 16px;
@@ -475,6 +481,25 @@
 
 .theme-dark .menu-item { color: #cfe9ff; }
 .theme-dark .menu-item.active { background: #063b3b; }
+
+/* More comprehensive dark-mode overrides to counter inline styles where needed */
+.theme-dark .top-nav { background: #071029 !important; border-bottom-color: rgba(255,255,255,0.04) !important; }
+.theme-dark .menu-bar { background: #071029 !important; border-right-color: rgba(255,255,255,0.03) !important; }
+.theme-dark .view-container { background: transparent !important; }
+.theme-dark .bulletin-card { background: #07112a !important; color: #e6eef8 !important; border-color: rgba(255,255,255,0.03) !important; }
+.theme-dark .bulletin-card-accent { background: linear-gradient(180deg,#08121e,#041018) !important; color: #e6eef8 !important; }
+.theme-dark .notifications-panel { background: linear-gradient(180deg, rgba(10,15,25,0.6), rgba(8,12,20,0.6)) !important; border-color: rgba(255,255,255,0.04) !important; }
+.theme-dark .services-card { background: #071229 !important; color: #e6eef8 !important; border-color: rgba(255,255,255,0.03) !important; }
+.theme-dark .login-card { background: linear-gradient(180deg,#071229,#041018) !important; color: #e6eef8 !important; box-shadow: 0 10px 30px rgba(2,6,23,0.6) !important; }
+.theme-dark .signin-button { background: linear-gradient(to right, #064e3b, #021212) !important; color: #fff !important; }
+.theme-dark .announcementBoxStyle, .theme-dark .announcementBoxStyle p { color: #e6eef8 !important; }
+
+/* Ensure headings and text inside themed cards are visible */
+.theme-dark .bulletin-card h2, .theme-dark .bulletin-card h4, .theme-dark .services-card h4 { color: #e6eef8 !important; }
+
+/* Light-mode explicit tweaks (in case theme class toggles incorrectly) */
+.theme-light .login-card { background: #ffffff !important; color: #0f172a; }
+.theme-light .signin-button { background: linear-gradient(to right, var(--color-primary), var(--color-accent)) !important; color: #fff !important; }
 
 @media (max-width: 640px) {
   .login-card {
