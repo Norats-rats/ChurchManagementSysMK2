@@ -85,8 +85,16 @@ export const api = {
     }
   }),
   submitAdvising: (requestData) => apiClient.post('/api/advising', requestData),
-  acceptAdvising: (id, scheduleData) => apiClient.patch(`/api/advising/${id}/accept`, scheduleData),
-  ignoreAdvising: (id, ignoreData) => apiClient.patch(`/api/advising/${id}/ignore`, ignoreData)
+  acceptAdvising: (id, scheduleData, role) => apiClient.patch(`/api/advising/${id}/accept`, scheduleData, {
+    headers: {
+      'x-user-role': role
+    }
+  }),
+  ignoreAdvising: (id, ignoreData, role) => apiClient.patch(`/api/advising/${id}/ignore`, ignoreData, {
+    headers: {
+      'x-user-role': role
+    }
+  })
 };
 
 export default api;

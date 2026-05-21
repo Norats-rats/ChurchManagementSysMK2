@@ -104,7 +104,7 @@ const Advising = ({ user, role }) => {
         location: scheduleForm.location.trim(),
         leaderId: loggedInId,
         leaderName: userDisplayName
-      });
+      }, role);
       setAcceptingId(null);
       await fetchRequests();
     } catch (err) {
@@ -122,7 +122,7 @@ const Advising = ({ user, role }) => {
 
     setActionLoading(true);
     try {
-      await api.ignoreAdvising(request._id, { leaderId: loggedInId });
+      await api.ignoreAdvising(request._id, { leaderId: loggedInId }, role);
       await fetchRequests();
     } catch (err) {
       console.error('Error ignoring advising request:', err);
