@@ -153,7 +153,8 @@ const Finances = ({ role, userId }) => {
                 <th style={styles.th}>DATE</th>
                 <th style={styles.th}>DESCRIPTION</th>
                 {role !== 'Member' && <th style={styles.th}>TYPE</th>}
-                <th style={{ ...styles.th, textAlign: 'right' }}>AMOUNT</th>
+                  <th style={styles.th}>LOGGED BY</th>
+                  <th style={{ ...styles.th, textAlign: 'right' }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -162,6 +163,7 @@ const Finances = ({ role, userId }) => {
                   <td style={styles.td}>{new Date(t.date).toLocaleDateString()}</td>
                   <td style={{ ...styles.td, fontWeight: '600' }}>{t.description}</td>
                   {role !== 'Member' && <td style={styles.td}>{t.type}</td>}
+                  <td style={{ ...styles.td, color: '#475569', fontSize: '13px' }}>{t.addedBy || t.userId || '-'}</td>
                   <td style={{ 
                     ...styles.td, 
                     textAlign: 'right', 
