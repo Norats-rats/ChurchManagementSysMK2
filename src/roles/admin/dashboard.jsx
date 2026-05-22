@@ -161,6 +161,17 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
     setNotificationsOpen(false);
   };
 
+  const handleClearNotifications = async () => {
+    try {
+      await api.clearNotifications(user?._id);
+      setNotifications([]);
+      setNotificationsOpen(false);
+      setExpandedNotificationId(null);
+    } catch (err) {
+      console.error('Failed to clear notifications', err);
+    }
+  };
+
   const fetchNotificationBar = async () => {
     try {
       const notifications = [];
@@ -719,7 +730,14 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
             {notificationsOpen && (
               <div style={notificationPopoverStyle} role="dialog" aria-label="Notifications panel">
                 <div style={notificationHeaderStyle}>
-                  <strong>Notifications</strong>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <strong>Notifications</strong>
+                    {notifications.length > 0 && (
+                      <button type="button" onClick={handleClearNotifications} style={notificationSmallButtonStyle}>
+                        Clear all
+                      </button>
+                    )}
+                  </div>
                   <button type="button" onClick={() => setNotificationsOpen(false)} style={notificationCloseButtonStyle} aria-label="Close notifications">
                     ×
                   </button>
@@ -976,6 +994,7 @@ const notificationPopoverStyle = {
   padding: '16px'
 };
 const notificationHeaderStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' };
+const notificationSmallButtonStyle = { border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a', padding: '6px 10px', borderRadius: '10px', fontSize: '13px', cursor: 'pointer' };
 const notificationCloseButtonStyle = { border: 'none', background: 'transparent', color: '#64748b', fontSize: '18px', cursor: 'pointer' };
 const notificationEmptyStyle = { color: '#64748b', padding: '18px 0', textAlign: 'center' };
 const notificationItemStyle = { borderRadius: '16px', border: '1px solid transparent', padding: '14px', marginBottom: '12px', cursor: 'pointer' };

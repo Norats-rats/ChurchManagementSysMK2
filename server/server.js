@@ -1028,6 +1028,26 @@ app.patch('/api/notifications/:notificationId/read', async (req, res) => {
   }
 });
 
+app.patch('/api/notifications/clear', async (req, res) => {
+  try {
+    const loggedInUserId = req.headers['x-user-id'];
+    if (!loggedInUserId) {
+      return res.status(401).json({ error: 'Unauthorized: Missing user headers.' });
+    }
+
+    const updatedMember = await Member.findByIdAndUpdate(
+      loggedInUserId,
+      { $set: { 'notifications.$[elem].status': 'Read' } },
+      { new: true, arrayFilters: [{ 'elem.status': { $ne: 'Read' } }], select: 'notifications' }
+    ).select('notifications');
+
+    res.json({ success: true, notifications: updatedMember?.notifications || [] });
+  } catch (err) {
+    console.error('Failed to clear notifications:', err);
+    res.status(500).json({ error: 'Failed to clear notifications.' });
+  }
+});
+
 app.post('/api/advising', async (req, res) => {
   try {
     const { name, title, concern, userId, userRole } = req.body;

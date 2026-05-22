@@ -116,6 +116,11 @@ export const api = {
     }
   }),
   markNotificationRead: (notificationId) => apiClient.patch(`/api/notifications/${notificationId}/read`),
+  clearNotifications: (userId) => apiClient.patch(`/api/notifications/clear`, null, {
+    headers: {
+      'x-user-id': userId
+    }
+  }),
 
   // Advising
   getAdvising: (userId, role) => apiClient.get('/api/advising', {
