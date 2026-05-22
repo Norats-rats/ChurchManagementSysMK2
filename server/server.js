@@ -1003,6 +1003,31 @@ app.get('/api/notifications', async (req, res) => {
   }
 });
 
+app.patch('/api/notifications/:notificationId/read', async (req, res) => {
+  try {
+    const loggedInUserId = req.headers['x-user-id'];
+    if (!loggedInUserId) {
+      return res.status(401).json({ error: 'Unauthorized: Missing user headers.' });
+    }
+
+    const updatedMember = await Member.findOneAndUpdate(
+      { _id: loggedInUserId, 'notifications._id': req.params.notificationId },
+      { $set: { 'notifications.$.status': 'Read' } },
+      { new: true }
+    ).select('notifications');
+
+    if (!updatedMember) {
+      return res.status(404).json({ error: 'Notification not found.' });
+    }
+
+    const notification = updatedMember.notifications.id(req.params.notificationId);
+    res.json(notification);
+  } catch (err) {
+    console.error('Failed to mark notification read:', err);
+    res.status(500).json({ error: 'Failed to mark notification as read.' });
+  }
+});
+
 app.post('/api/advising', async (req, res) => {
   try {
     const { name, title, concern, userId, userRole } = req.body;

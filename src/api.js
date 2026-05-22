@@ -115,6 +115,7 @@ export const api = {
       'x-user-role': role
     }
   }),
+  markNotificationRead: (notificationId) => apiClient.patch(`/api/notifications/${notificationId}/read`),
 
   // Advising
   getAdvising: (userId, role) => apiClient.get('/api/advising', {

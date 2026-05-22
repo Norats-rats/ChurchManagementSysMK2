@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../../api';
 import churchLogo from '../../assets/churchlogo.jpg';
 import Advising from '../../components/shared/advisinglist';
 import Profile from '../../components/shared/profile';
 import {
-  canManageAttendance,
-  canManageEvents,
-  canManageMinistries,
-  canViewAnalytics,
-  canViewInventory,
-  hasPermission,
-  normalizeRole
+    canManageAttendance,
+    canManageEvents,
+    canManageMinistries,
+    canViewAnalytics,
+    canViewInventory,
+    hasPermission,
+    normalizeRole
 } from '../../permissions';
 import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
@@ -34,8 +34,11 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const [announcement, setAnnouncement] = useState("Loading church updates...");
   const [newAnnouncement, setNewAnnouncement] = useState("");
   const [notifications, setNotifications] = useState([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [expandedNotificationId, setExpandedNotificationId] = useState(null);
   const [hidePrayerNotifications, setHidePrayerNotifications] = useState(false);
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
+  const notificationsRef = useRef(null);
 
   const navigationConfig = [
     { id: 'dashboard', label: role === 'Member' ? 'Home' : 'Dashboard', permission: 'dashboard' },
@@ -113,6 +116,51 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
     }
   }, [hidePrayerNotifications]);
 
+  useEffect(() => {
+    if (!notificationsOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [notificationsOpen]);
+
+  const handleNotificationToggle = () => {
+    setNotificationsOpen(prev => !prev);
+    if (!notificationsOpen) {
+      setExpandedNotificationId(null);
+    }
+  };
+
+  const handleNotificationClick = (id) => {
+    setExpandedNotificationId(prev => (prev === id ? null : id));
+  };
+
+  const handleAcknowledgeNotification = async (notification) => {
+    if (!notification?.notificationId) return;
+    try {
+      await api.markNotificationRead(notification.notificationId);
+      setNotifications(prev => prev.filter(item => item.notificationId !== notification.notificationId));
+      setExpandedNotificationId(null);
+    } catch (err) {
+      console.error('Failed to acknowledge notification', err);
+    }
+  };
+
+  const handleReviewRequests = () => {
+    setCurrentTab('ministries');
+    setNotificationsOpen(false);
+  };
+
+  const handleGoToMinistries = () => {
+    setCurrentTab('ministries');
+    setNotificationsOpen(false);
+  };
+
   const fetchNotificationBar = async () => {
     try {
       const notifications = [];
@@ -120,19 +168,28 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
         api.getAnnouncement().catch(() => ({ data: { text: 'No bulletin updates yet.' } }))
       ]);
       const bulletinText = announceRes.data?.text || 'No bulletin updates yet.';
-      notifications.push({ title: 'Bulletin Board', message: bulletinText });
+      notifications.push({ id: 'bulletin', title: 'Bulletin Board', message: bulletinText, type: 'bulletin' });
 
       const userName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
-      let ministryAnnouncementText = undefined;
       const userMinistries = Array.isArray(user?.ministries)
         ? user.ministries
         : user?.ministry ? [user.ministry] : [];
+
       for (const ministryName of userMinistries) {
         if (!ministryName) continue;
+
         try {
           const ministryRes = await api.getMinistryByName(ministryName, role);
-          ministryAnnouncementText = ministryRes.data?.announcementText;
-          if (ministryAnnouncementText) break;
+          const announcementText = ministryRes.data?.announcementText;
+          if (announcementText) {
+            notifications.push({
+              id: `ministry-${ministryName}`,
+              title: `${ministryName} Announcement`,
+              message: announcementText,
+              type: 'ministry',
+              source: ministryName
+            });
+          }
         } catch (err) {
           console.warn('No ministry board data available for', ministryName, err);
         }
@@ -144,17 +201,21 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           const leaderMinistries = Array.isArray(ministriesRes.data)
             ? ministriesRes.data.filter(m => m.leader?.trim().toLowerCase() === userName.toLowerCase())
             : [];
-          if (!ministryAnnouncementText && leaderMinistries.length > 0) {
-            ministryAnnouncementText = leaderMinistries[0].announcementText;
-          }
+
           const pendingRequests = leaderMinistries.reduce((count, m) => {
             const pending = Array.isArray(m.joinRequests)
               ? m.joinRequests.filter(r => r.status === 'Pending').length
               : 0;
             return count + pending;
           }, 0);
+
           if (pendingRequests > 0) {
-            notifications.push({ title: 'Join Applications', message: `${pendingRequests} pending request${pendingRequests === 1 ? '' : 's'}` });
+            notifications.push({
+              id: 'join-applications',
+              title: 'Ministry Join Requests',
+              message: `${pendingRequests} pending request${pendingRequests === 1 ? '' : 's'}`,
+              type: 'join-requests'
+            });
           }
         } catch (err) {
           console.warn('Failed to fetch ministry leader notifications', err);
@@ -165,16 +226,19 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
         if (user?._id) {
           const notifRes = await api.getNotifications(user._id, role);
           const personalNotifications = Array.isArray(notifRes.data) ? notifRes.data.filter(n => n.status !== 'Read') : [];
-          personalNotifications.forEach((item, index) => {
-            notifications.unshift({ title: 'Personal', message: item.message, type: item.type });
+          personalNotifications.forEach((item) => {
+            notifications.unshift({
+              id: item._id?.toString() || `personal-${Math.random().toString(36).slice(2)}`,
+              notificationId: item._id?.toString(),
+              title: item.type === 'prayer' ? 'Prayer Answered' : 'Personal Notification',
+              message: item.message,
+              type: item.type || 'personal',
+              source: item.source || ''
+            });
           });
         }
       } catch (err) {
         console.warn('Failed to fetch personal notifications', err);
-      }
-
-      if (ministryAnnouncementText !== undefined) {
-        notifications.push({ title: 'Ministry Board', message: ministryAnnouncementText || 'No ministry board updates yet.' });
       }
 
       setNotifications(filterPrayerNotifications(notifications));
@@ -640,16 +704,71 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           </div>
         </div>
         <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {notifications.length > 0 && (
-            <div className="notifications-panel" role="region" aria-label="Notifications" title="Notifications" style={{ maxWidth: '340px' }}>
-              {notifications.map((item, index) => (
-                <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span className="notif-title">{item.title}</span>
-                      <span className="notif-message">{item.message}</span>
+          <div ref={notificationsRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={handleNotificationToggle}
+              style={notificationToggleButtonStyle}
+              aria-label="Toggle notifications"
+            >
+              🔔
+              {notifications.length > 0 && (
+                <span style={notificationBadgeStyle}>{notifications.length}</span>
+              )}
+            </button>
+            {notificationsOpen && (
+              <div style={notificationPopoverStyle} role="dialog" aria-label="Notifications panel">
+                <div style={notificationHeaderStyle}>
+                  <strong>Notifications</strong>
+                  <button type="button" onClick={() => setNotificationsOpen(false)} style={notificationCloseButtonStyle} aria-label="Close notifications">
+                    ×
+                  </button>
+                </div>
+                {notifications.length === 0 ? (
+                  <div style={notificationEmptyStyle}>No new notifications.</div>
+                ) : (
+                  notifications.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => handleNotificationClick(item.id)}
+                      style={{
+                        ...notificationItemStyle,
+                        ...(expandedNotificationId === item.id ? notificationItemActiveStyle : {})
+                      }}
+                    >
+                      <div style={notificationItemHeaderStyle}>
+                        <div>
+                          <div style={notificationItemTitleStyle}>{item.title}</div>
+                          {item.source && <div style={notificationItemSourceStyle}>{item.source}</div>}
+                        </div>
+                        <span style={notificationTypeBadgeStyle}>{item.type === 'prayer' ? 'Prayer' : item.type === 'join-requests' ? 'Action' : item.type === 'ministry' ? 'Ministry' : 'Info'}</span>
+                      </div>
+                      <div style={notificationItemMessageStyle}>{item.message}</div>
+                      {expandedNotificationId === item.id && (
+                        <div style={notificationActionsStyle}>
+                          {item.type === 'prayer' && (
+                            <button onClick={(event) => { event.stopPropagation(); handleAcknowledgeNotification(item); }} style={notificationActionButtonStyle}>
+                              Acknowledged
+                            </button>
+                          )}
+                          {item.type === 'join-requests' && (
+                            <button onClick={(event) => { event.stopPropagation(); handleReviewRequests(); }} style={notificationActionButtonStyle}>
+                              Review requests
+                            </button>
+                          )}
+                          {item.type === 'ministry' && (
+                            <button onClick={(event) => { event.stopPropagation(); handleGoToMinistries(); }} style={notificationActionButtonStyle}>
+                              Open ministries
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-              ))}
-            </div>
-          )}
+                  ))
+                )}
+              </div>
+            )}
+          </div>
           <div className="admin-info" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <strong className="user-name">{user.firstName} {user.lastName}</strong>
@@ -816,5 +935,57 @@ const quoteAuthorStyle = { fontSize: '15px', color: '#64748b', position: 'relati
 const profileAvatarButtonStyle = { width: '44px', height: '44px', borderRadius: '50%', border: '1px solid #cbd5e1', background: '#fff', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' };
 const avatarImageStyle = { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' };
 const avatarInitialsStyle = { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-primary)', color: '#fff', borderRadius: '#50%', fontWeight: '700' };
+
+const notificationToggleButtonStyle = {
+  border: '1px solid #cbd5e1',
+  borderRadius: '14px',
+  background: '#ffffff',
+  color: '#0f172a',
+  padding: '10px 14px',
+  fontSize: '16px',
+  cursor: 'pointer',
+  position: 'relative'
+};
+const notificationBadgeStyle = {
+  position: 'absolute',
+  top: '-6px',
+  right: '-6px',
+  width: '20px',
+  height: '20px',
+  borderRadius: '50%',
+  background: '#ef4444',
+  color: '#fff',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '12px',
+  fontWeight: '700'
+};
+const notificationPopoverStyle = {
+  position: 'absolute',
+  right: 0,
+  top: 'calc(100% + 10px)',
+  width: '360px',
+  maxHeight: '480px',
+  overflowY: 'auto',
+  background: '#fff',
+  border: '1px solid #e2e8f0',
+  borderRadius: '20px',
+  boxShadow: '0 25px 60px rgba(15, 23, 42, 0.12)',
+  zIndex: 1000,
+  padding: '16px'
+};
+const notificationHeaderStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' };
+const notificationCloseButtonStyle = { border: 'none', background: 'transparent', color: '#64748b', fontSize: '18px', cursor: 'pointer' };
+const notificationEmptyStyle = { color: '#64748b', padding: '18px 0', textAlign: 'center' };
+const notificationItemStyle = { borderRadius: '16px', border: '1px solid transparent', padding: '14px', marginBottom: '12px', cursor: 'pointer' };
+const notificationItemActiveStyle = { background: '#f8fafc', borderColor: '#cbd5e1' };
+const notificationItemHeaderStyle = { display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', marginBottom: '8px' };
+const notificationItemTitleStyle = { fontWeight: 700, fontSize: '14px', color: '#0f172a' };
+const notificationItemSourceStyle = { fontSize: '12px', color: '#64748b', marginTop: '4px' };
+const notificationItemMessageStyle = { color: '#334155', fontSize: '13px', lineHeight: '1.5' };
+const notificationActionsStyle = { marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' };
+const notificationActionButtonStyle = { border: 'none', background: 'var(--color-primary)', color: '#fff', padding: '10px 16px', borderRadius: '12px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 };
+const notificationTypeBadgeStyle = { background: '#e2e8f0', color: '#475569', borderRadius: '999px', padding: '3px 10px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' };
 
 export default Dashboard;
