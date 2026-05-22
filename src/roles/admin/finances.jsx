@@ -266,8 +266,8 @@ const Finances = ({ role, userId, user }) => {
           <div>
             <span style={styles.label}>Order</span>
             <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-              <option value="desc">Newest / Highest</option>
-              <option value="asc">Oldest / Lowest</option>
+              <option value="desc">Newest</option>
+              <option value="asc">Oldest</option>
             </select>
           </div>
           <div>

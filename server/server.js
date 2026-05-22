@@ -1295,7 +1295,7 @@ app.post('/api/ai/analyze-metrics', async (req, res) => {
       - Top gender demographic: ${ministryDistribution.gender ? Object.keys(ministryDistribution.gender).reduce((a, b) => ministryDistribution.gender[a] > ministryDistribution.gender[b] ? a : b) : 'N/A'}
       - Least Engaged gender demographic: ${ministryDistribution.gender ? Object.keys(ministryDistribution.gender).reduce((a, b) => ministryDistribution.gender[a] < ministryDistribution.gender[b] ? a : b) : 'N/A'}
 
-      Task: Provide a sophisticated, cohesive system analysis summary (approx 2-3 sentences). Detail structural strengths based on the membership count vs active channels, assess if event volume is sufficient to maintain community engagement, and offer one highly actionable development recommendation.
+      Task: Provide a sophisticated, cohesive system analysis summary (approx 2-3 sentences). Detail structural strengths based on the membership count vs active channels, age range, gender demographics and assess if event volume is sufficient to maintain community engagement, and offer one highly actionable development recommendation.
       
       Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown formatting, do not wrap your answer in triple backticks, and do not write introduction or conversational text.
       Format: {"suggestion": "Your full comprehensive analysis text goes here"}
