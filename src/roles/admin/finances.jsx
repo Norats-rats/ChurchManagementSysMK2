@@ -71,12 +71,24 @@ const Finances = ({ role, userId, user }) => {
     }
   };
 
+  const parseTransactionDate = (value) => {
+    if (!value) return null;
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return new Date(`${value}T00:00:00`);
+    }
+    return new Date(value);
+  };
+
+  const getTransactionTimeSource = (transaction) => {
+    return transaction.createdAt || transaction.date;
+  };
+
   const filteredTransactions = useMemo(() => {
     const normalizedSearch = searchText.trim().toLowerCase();
 
     return allTransactions
       .filter((t) => {
-        const dateValue = new Date(t.date);
+        const dateValue = parseTransactionDate(t.date);
         const typeMatches = filterType === 'All' || t.type === filterType;
         const textMatches = !normalizedSearch || [
           t.description,
@@ -90,14 +102,18 @@ const Finances = ({ role, userId, user }) => {
         return typeMatches && textMatches && inStartRange && inEndRange;
       })
       .sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
+        const dateA = parseTransactionDate(a.date)?.getTime() || 0;
+        const dateB = parseTransactionDate(b.date)?.getTime() || 0;
         const amountA = Number(a.amount || 0);
         const amountB = Number(b.amount || 0);
+        const timeA = parseTransactionDate(getTransactionTimeSource(a))?.getTime() || 0;
+        const timeB = parseTransactionDate(getTransactionTimeSource(b))?.getTime() || 0;
 
         let compareValue = 0;
         if (sortField === 'quantity') {
           compareValue = amountA - amountB;
+        } else if (sortField === 'time') {
+          compareValue = timeA - timeB;
         } else {
           compareValue = dateA - dateB;
         }
@@ -108,14 +124,18 @@ const Finances = ({ role, userId, user }) => {
   }, [allTransactions, filterType, searchText, startDate, endDate, sortField, sortOrder]);
 
   const handleExportToExcel = () => {
-    const exportRows = filteredTransactions.map((t) => ({
-      Date: new Date(t.date).toLocaleDateString(),
-      Time: new Date(t.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      Description: t.description,
-      Type: t.type,
-      'Logged By': t.addedByName || t.addedBy || t.userId || '-',
-      Amount: t.amount
-    }));
+    const exportRows = filteredTransactions.map((t) => {
+      const timeSource = getTransactionTimeSource(t);
+      const timeValue = parseTransactionDate(timeSource);
+      return {
+        Date: parseTransactionDate(t.date)?.toLocaleDateString() || '-',
+        Time: timeValue ? timeValue.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+        Description: t.description,
+        Type: t.type,
+        'Logged By': t.addedByName || t.addedBy || t.userId || '-',
+        Amount: t.amount
+      };
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
     const workbook = XLSX.utils.book_new();
