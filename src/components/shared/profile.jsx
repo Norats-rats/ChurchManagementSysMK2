@@ -98,7 +98,13 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
             {member.firstName ? (member.firstName[0] || '') + (member.lastName ? (member.lastName[0] || '') : '') : (member.email ? member.email[0].toUpperCase() : 'M')}
           </div>
         )}
-        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
         {isEditable && (
           <button type="button" onClick={handlePickPhoto} style={styles.photoButton}>Change Photo</button>
         )}
