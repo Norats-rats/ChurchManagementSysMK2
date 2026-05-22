@@ -43,6 +43,20 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
   const handleFileChange = (e) => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
+
+    const allowedTypes = ['image/png', 'image/jpeg'];
+    if (!allowedTypes.includes(f.type)) {
+      setError('Please choose a PNG or JPG image.');
+      return;
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+    if (f.size > maxSize) {
+      setError('Image size must be 10MB or smaller.');
+      return;
+    }
+
+    setError(null);
     const reader = new FileReader();
     reader.onload = () => {
       handleChange('profilePicture', reader.result);
@@ -78,7 +92,8 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
       setError(null);
     } catch (err) {
       console.error('Save profile error', err);
-      setError('Failed to save profile');
+      const message = err?.response?.data?.error || err?.message || 'Failed to save profile';
+      setError(message);
     } finally {
       setSaving(false);
     }

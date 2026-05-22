@@ -9,7 +9,8 @@ const puter = require("@heyputer/puter.js");
 puter.authToken = process.env.PUTER_AUTH_TOKEN;
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use(cors({
   origin: [
@@ -574,7 +575,6 @@ app.delete('/api/ministries/:id', async (req, res) => {
 // --- MEMBER ROUTES ---
 app.get('/api/members', async (req, res) => {
   try {
-    // Do not expose password hashes in API responses
     const members = await Member.find().sort({ date: -1 }).select('-password');
     res.json(members);
   } catch (err) { res.status(500).json({ error: "Failed to fetch members" }); }
@@ -582,7 +582,6 @@ app.get('/api/members', async (req, res) => {
 
 app.get('/api/members/:id', async (req, res) => {
   try {
-    // Exclude password from single-member response
     const m = await Member.findById(req.params.id).select('-password');
     if (!m) return res.status(404).json({ error: 'Member not found' });
     res.json(m);
