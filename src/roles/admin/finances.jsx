@@ -1,14 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import * as XLSX from 'xlsx';
 import api from '../../api';
 import { canManageFinances } from '../../permissions';
 
 const Finances = ({ role, userId, user }) => {
-  const [transactions, setTransactions] = useState([]);
+  const [allTransactions, setAllTransactions] = useState([]);
   const [stats, setStats] = useState({
     totalIncome: 0,
     totalExpenses: 0,
     netBalance: 0
   });
+  const [sortField, setSortField] = useState('date');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [filterType, setFilterType] = useState('All');
+  const [searchText, setSearchText] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [newDesc, setNewDesc] = useState("");
   const [newAmount, setNewAmount] = useState("");
@@ -31,7 +38,7 @@ const Finances = ({ role, userId, user }) => {
         filteredTransactions = filteredTransactions.filter(t => t.userId === userId);
       }
 
-      setTransactions(filteredTransactions);
+      setAllTransactions(filteredTransactions);
       setStats(data.stats || { totalIncome: 0, totalExpenses: 0, netBalance: 0 });
       setLoading(false);
     } catch (err) {
@@ -62,6 +69,67 @@ const Finances = ({ role, userId, user }) => {
       console.error(err);
       alert("Failed to record income.");
     }
+  };
+
+  const filteredTransactions = useMemo(() => {
+    const normalizedSearch = searchText.trim().toLowerCase();
+
+    return allTransactions
+      .filter((t) => {
+        const dateValue = new Date(t.date);
+        const typeMatches = filterType === 'All' || t.type === filterType;
+        const textMatches = !normalizedSearch || [
+          t.description,
+          t.type,
+          t.addedByName,
+          t.addedBy,
+          t.userId
+        ].some((value) => value?.toString().toLowerCase().includes(normalizedSearch));
+        const inStartRange = !startDate || dateValue >= new Date(startDate);
+        const inEndRange = !endDate || dateValue <= new Date(endDate + 'T23:59:59');
+        return typeMatches && textMatches && inStartRange && inEndRange;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        const amountA = Number(a.amount || 0);
+        const amountB = Number(b.amount || 0);
+
+        let compareValue = 0;
+        if (sortField === 'quantity') {
+          compareValue = amountA - amountB;
+        } else {
+          compareValue = dateA - dateB;
+        }
+
+        if (sortOrder === 'desc') compareValue *= -1;
+        return compareValue;
+      });
+  }, [allTransactions, filterType, searchText, startDate, endDate, sortField, sortOrder]);
+
+  const handleExportToExcel = () => {
+    const exportRows = filteredTransactions.map((t) => ({
+      Date: new Date(t.date).toLocaleDateString(),
+      Time: new Date(t.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      Description: t.description,
+      Type: t.type,
+      'Logged By': t.addedByName || t.addedBy || t.userId || '-',
+      Amount: t.amount
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Finances');
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `church-finances-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
   const styles = {
@@ -146,7 +214,71 @@ const Finances = ({ role, userId, user }) => {
         </div>
       )}
 
-      {(role !== 'Member' || transactions.length > 0) && (
+      <div style={{ ...styles.card, marginBottom: '30px' }}>
+        <h4 style={{ marginTop: 0 }}>Filter & Sort Entries</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', alignItems: 'end' }}>
+          <div>
+            <span style={styles.label}>Search</span>
+            <input
+              type="text"
+              placeholder="Search description, logged by, type"
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+            />
+          </div>
+          <div>
+            <span style={styles.label}>Type</span>
+            <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+              <option value="All">All Types</option>
+              <option value="Income">Income</option>
+              <option value="Expense">Expense</option>
+            </select>
+          </div>
+          <div>
+            <span style={styles.label}>Sort By</span>
+            <select value={sortField} onChange={e => setSortField(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+              <option value="date">Date</option>
+              <option value="quantity">Amount</option>
+              <option value="time">Time</option>
+            </select>
+          </div>
+          <div>
+            <span style={styles.label}>Order</span>
+            <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+              <option value="desc">Newest / Highest</option>
+              <option value="asc">Oldest / Lowest</option>
+            </select>
+          </div>
+          <div>
+            <span style={styles.label}>Start Date</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+            />
+          </div>
+          <div>
+            <span style={styles.label}>End Date</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleExportToExcel}
+            style={{ padding: '12px 20px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', minWidth: '180px' }}
+          >
+            Export to Excel
+          </button>
+        </div>
+      </div>
+
+      {(role !== 'Member' || filteredTransactions.length > 0) && (
         <div style={styles.tableWrapper}>
           <table style={styles.table}>
             <thead>
@@ -159,7 +291,7 @@ const Finances = ({ role, userId, user }) => {
               </tr>
             </thead>
             <tbody>
-              {transactions.map((t) => (
+              {filteredTransactions.map((t) => (
                 <tr key={t._id}>
                   <td style={styles.td}>{new Date(t.date).toLocaleDateString()}</td>
                   <td style={{ ...styles.td, fontWeight: '600' }}>{t.description}</td>
