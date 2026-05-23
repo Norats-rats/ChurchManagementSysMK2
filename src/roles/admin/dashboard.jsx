@@ -835,13 +835,13 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           ))}
         </div>
 
-        <div className="view-container" style={{ padding: '20px' }}>
+        <div className="view-container">
           {currentTab === 'dashboard' && (
             <>
               <div className="bulletin-board">
                 {isLeader && (
                   <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+                    <div className="responsive-kpi-grid">
                       <div className="kpi-card" style={kpiCardStyle}>
                         <div style={kpiLabelStyle}>TOTAL MEMBERS</div>
                         <div style={kpiValueStyle}>{stats.memberCount}</div>
@@ -862,7 +862,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                   
                     <div className="leader-input-card" style={leaderInputCard}>
                       <h4 style={{ margin: '0 0 10px 0', color: '#1e40af' }}>📢 Update Bulletin Announcement</h4>
-                      <div style={{ display: 'flex', gap: '10px' }}>
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                         <input 
                           className="leader-input"
                           style={inputStyle} 
@@ -876,7 +876,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                   </>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+                <div className="responsive-grid-2-1">
                   <div className="bulletin-card" style={bulletinCardStyle}>
                     <h2 style={{ color: '#1e3a8a', marginTop: 0 }}>Community Bulletin</h2>
                     <div className="announcement-box" style={announcementBoxStyle}>
@@ -983,7 +983,8 @@ const notificationPopoverStyle = {
   position: 'absolute',
   right: 0,
   top: 'calc(100% + 10px)',
-  width: '360px',
+  width: 'min(360px, calc(100vw - 32px))',
+  maxWidth: 'calc(100vw - 32px)',
   maxHeight: '480px',
   overflowY: 'auto',
   background: '#fff',
