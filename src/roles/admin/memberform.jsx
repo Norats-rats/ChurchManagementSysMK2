@@ -202,11 +202,13 @@ const MemberForm = () => {
         </div>
 
         <div className="quick-add-bar" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', background: '#fff', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #eee' }}>
-            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First Name" />
-            <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last Name" />
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+            <input name="firstName" autoComplete="off" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First Name" />
+            <input name="lastName" autoComplete="off" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last Name" />
+            <input name="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
             <input 
                 type="password" 
+                name="password"
+                autoComplete="new-password"
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
                 placeholder={isEditing ? "New Password (Optional)" : "Password"} 
