@@ -65,7 +65,11 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
   };
 
   const isEditable = !currentUserId || String(currentUserId) === String(userId);
-  const genderOptions = ['Male', 'Female', 'Non-binary', 'Other', 'Prefer not to say'];
+  const genderOptions = ['Male', 'Female', 'Prefer not to say'];
+  const normalizedGender = (member?.gender || '').trim();
+  const displayGender = normalizedGender === 'Other' || normalizedGender === 'Non-binary'
+    ? 'Prefer not to say'
+    : normalizedGender;
   const canSetGender = isEditable && !member?.gender;
 
   const handleSetGender = async () => {
@@ -167,7 +171,7 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
                 ))}
               </select>
             ) : (
-              <div style={styles.readOnlyValue}>{member.gender || 'Not specified'}</div>
+              <div style={styles.readOnlyValue}>{displayGender || 'Not specified'}</div>
             )}
             {canSetGender && (
               <div style={styles.helpText}>Gender can only be set once and will become read-only after saving.</div>

@@ -66,8 +66,7 @@ const Analytics = () => {
       const genderCounts = {
         Male: 0,
         Female: 0,
-        'Non-binary': 0,
-        Other: 0,
+        'Prefer not to say': 0,
         Unknown: 0
       };
       const ageGroupCounts = ageRanges.reduce((acc, range) => ({ ...acc, [range.name]: 0 }), {});
@@ -95,9 +94,9 @@ const Analytics = () => {
         }
 
         const normalizedGender = (member.gender || '').trim();
-        const genderKey = normalizedGender === 'Male' || normalizedGender === 'Female' || normalizedGender === 'Non-binary'
+        const genderKey = normalizedGender === 'Male' || normalizedGender === 'Female'
           ? normalizedGender
-          : normalizedGender ? 'Other' : 'Unknown';
+          : normalizedGender ? 'Prefer not to say' : 'Unknown';
         genderCounts[genderKey] = (genderCounts[genderKey] || 0) + 1;
       });
 
@@ -130,8 +129,7 @@ const Analytics = () => {
         color: {
           Male: '#60a5fa',
           Female: '#f97316',
-          'Non-binary': '#a78bfa',
-          Other: '#22c55e',
+          'Prefer not to say': '#22c55e',
           Unknown: '#94a3b8'
         }[name] || '#cbd5e1'
       }));

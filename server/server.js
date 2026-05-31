@@ -84,7 +84,7 @@ const Member = mongoose.model('members', new mongoose.Schema({
   ministry:{ type: String, default: 'None' },
   phone: { type: String },
   birthdate: { type: Date },
-  gender: { type: String, enum: ['Male', 'Female', 'Non-binary', 'Other', 'Prefer not to say'], default: null },
+  gender: { type: String, enum: ['Male', 'Female', 'Prefer not to say'], default: null },
   profilePicture: { type: String },
   notifications: [{
     message: String,
@@ -591,6 +591,9 @@ app.get('/api/members/:id', async (req, res) => {
 app.post('/api/members', async (req, res) => {
   try {
     const data = { ...req.body };
+    if (data.gender === 'Other' || data.gender === 'Non-binary') {
+      data.gender = 'Prefer not to say';
+    }
     if (data.password) data.password = await bcrypt.hash(data.password, 10);
     if (!Array.isArray(data.ministries)) {
       data.ministries = Array.isArray(data.ministry) ? data.ministry : data.ministry ? [data.ministry] : [];
@@ -610,6 +613,9 @@ app.post('/api/members', async (req, res) => {
 app.put('/api/members/:id', async (req, res) => {
   try {
     const data = { ...req.body };
+    if (data.gender === 'Other' || data.gender === 'Non-binary') {
+      data.gender = 'Prefer not to say';
+    }
     if (data.password && data.password.trim() !== "") {
       data.password = await bcrypt.hash(data.password, 10);
     } else { delete data.password; }
