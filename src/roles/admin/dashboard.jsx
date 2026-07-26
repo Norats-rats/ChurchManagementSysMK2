@@ -273,16 +273,30 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       today.setHours(0, 0, 0, 0);
 
       const upcomingEvents = allEvents
-        .map((event) => ({
-          ...event,
-          normalizedDate: new Date(`${event.date}T00:00:00`)
-        }))
+        .map((event) => {
+          const rawDate = String(event.date || '').trim();
+          let eventDate = new Date(rawDate);
+
+          if (Number.isNaN(eventDate.getTime())) {
+            eventDate = new Date(`${rawDate}T00:00:00`);
+          }
+
+          if (!Number.isNaN(eventDate.getTime())) {
+            eventDate.setHours(0, 0, 0, 0);
+          }
+
+          return {
+            ...event,
+            normalizedDate: eventDate
+          };
+        })
         .filter((event) => {
           const eventDate = event.normalizedDate;
+          const status = String(event.status || '').trim().toLowerCase();
           return (
             !Number.isNaN(eventDate.getTime()) &&
             eventDate >= today &&
-            event.status?.toLowerCase() !== 'archived'
+            status !== 'archived'
           );
         })
         .sort((a, b) => a.normalizedDate - b.normalizedDate);
