@@ -279,7 +279,11 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
         }))
         .filter((event) => {
           const eventDate = event.normalizedDate;
-          return !Number.isNaN(eventDate.getTime()) && eventDate >= today;
+          return (
+            !Number.isNaN(eventDate.getTime()) &&
+            eventDate >= today &&
+            event.status?.toLowerCase() !== 'archived'
+          );
         })
         .sort((a, b) => a.normalizedDate - b.normalizedDate);
 
