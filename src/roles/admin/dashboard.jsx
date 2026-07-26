@@ -269,14 +269,19 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       ]);
 
       const allEvents = eventsRes.data || [];
-      const now = new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
       const upcomingEvents = allEvents
+        .map((event) => ({
+          ...event,
+          normalizedDate: new Date(`${event.date}T00:00:00`)
+        }))
         .filter((event) => {
-          const eventDate = new Date(event.date);
-          return !Number.isNaN(eventDate.getTime()) && eventDate > now;
+          const eventDate = event.normalizedDate;
+          return !Number.isNaN(eventDate.getTime()) && eventDate >= today;
         })
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
+        .sort((a, b) => a.normalizedDate - b.normalizedDate);
 
       const activeMinistries = Array.isArray(ministriesRes.data) ? ministriesRes.data.filter(m => m.status !== 'Deactive').length : 0;
 
