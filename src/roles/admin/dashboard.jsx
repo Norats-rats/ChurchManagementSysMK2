@@ -42,6 +42,8 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
   const unreadNotificationCount = notifications.filter(item => item.notificationId).length;
 
+  const unreadNotificationCount = notifications.filter(item => item.notificationId).length;
+
   const navigationConfig = [
     { id: 'dashboard', label: role === 'Member' ? 'Home' : 'Dashboard', permission: 'dashboard' },
     { id: 'ebible', label: 'Bible', permission: 'bible' },
