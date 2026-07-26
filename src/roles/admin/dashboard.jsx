@@ -40,6 +40,10 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
   const notificationsRef = useRef(null);
 
+  const unreadNotificationCount = notifications.filter(item => item.notificationId).length;
+
+  const unreadNotificationCount = notifications.filter(item => item.notificationId).length;
+
   const navigationConfig = [
     { id: 'dashboard', label: role === 'Member' ? 'Home' : 'Dashboard', permission: 'dashboard' },
     { id: 'ebible', label: 'Bible', permission: 'bible' },
@@ -373,8 +377,8 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
               aria-label="Toggle notifications"
             >
               🔔
-              {notifications.length > 0 && (
-                <span style={notificationBadgeStyle}>{notifications.length}</span>
+              {unreadNotificationCount > 0 && (
+                <span style={notificationBadgeStyle}>{unreadNotificationCount}</span>
               )}
             </button>
             {notificationsOpen && (

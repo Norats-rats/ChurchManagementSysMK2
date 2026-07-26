@@ -28,7 +28,36 @@ const AttendanceTab = ({ role, userId, user }) => {
 
   useEffect(() => {
     fetchInitialData();
+
+    const handleAttendanceUpdated = () => {
+      fetchAttendanceData();
+    };
+
+    window.addEventListener('attendanceUpdated', handleAttendanceUpdated);
+
+    return () => {
+      window.removeEventListener('attendanceUpdated', handleAttendanceUpdated);
+    };
   }, [role, userId]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchAttendanceData();
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [userId]);
+
+  const fetchAttendanceData = async () => {
+    try {
+      const attRes = await api.getAttendance();
+      const attData = attRes.data || [];
+      setCheckIns(attData);
+      setHasCheckedInToday(attData.some(log => log.userId === String(userId) && log.date === todayStr));
+    } catch (err) {
+      console.error('Attendance fetch error:', err);
+    }
+  };
 
   const fetchInitialData = async () => {
     setLoading(true);

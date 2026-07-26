@@ -217,6 +217,7 @@ export default function App() {
           });
           alert(`Check-in confirmed for: ${eventTitle}`);
           window.history.replaceState({}, document.title, window.location.pathname);
+          window.dispatchEvent(new Event('attendanceUpdated'));
         } catch (err) {
           console.error("QR processing error:", err);
         }
