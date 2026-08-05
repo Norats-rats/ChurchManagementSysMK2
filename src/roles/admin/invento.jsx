@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
 
-const CATEGORY_OPTIONS = ["Instruments", "Audio Equipment", "Visual Equipment", "Documents", "Miscellaneous"];
+const CATEGORY_OPTIONS = ["Base", "Instruments", "Audio Equipment", "Visual Equipment", "Documents", "Miscellaneous"];
 const CONDITION_OPTIONS = ["Excellent", "Good", "Fair", "Poor"];
+const ASSIGNED_TO_ROLE_OPTIONS = ["Admin", "Staff", "Ministry Leader"];
 
-const InventoryForm = () => {
+const InventoryForm = ({ user, role }) => {
     const [item, setItem] = useState(""); 
     const [quantity, setQuantity] = useState("");
     const [location, setLocation] = useState("");
     const [assignedTo, setAssignedTo] = useState("");
     const [lastMaintenance, setLastMaintenance] = useState("");
-    const [category, setCategory] = useState("Instruments");
+    const [category, setCategory] = useState("Base");
     const [condition, setCondition] = useState("Good");
+    const [ministries, setMinistries] = useState([]);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [filterCategory, setFilterCategory] = useState("All Categories");
@@ -26,6 +28,21 @@ const InventoryForm = () => {
         fetchInventory(showArchived);
         fetchArchivedCount();
     }, [showArchived]);
+
+    useEffect(() => {
+        fetchMinistries();
+    }, [role]);
+
+    const fetchMinistries = async () => {
+        try {
+            const response = await api.getMinistries(role);
+            if (Array.isArray(response.data)) {
+                setMinistries(response.data.map((min) => min.name || min).filter(Boolean));
+            }
+        } catch (err) {
+            console.error("Failed to load ministries:", err);
+        }
+    };
 
     const fetchInventory = async (archived = false) => {
         setLoading(true);
@@ -57,6 +74,7 @@ const InventoryForm = () => {
             return alert("Please fill in Item Name and Quantity");
         }
 
+        const currentUserName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'System';
         const inventoryData = {
             itemName: item,
             quantity: Number(quantity),
@@ -64,7 +82,8 @@ const InventoryForm = () => {
             assignedTo,
             lastMaintenance,
             category,
-            condition
+            condition,
+            lastEditedBy: currentUserName
         };
 
         try {
@@ -83,7 +102,7 @@ const InventoryForm = () => {
 
     const resetForm = () => {
         setItem(""); setQuantity(""); setLocation(""); setAssignedTo(""); setLastMaintenance("");
-        setCategory("Instruments"); setCondition("Good");
+        setCategory("Base"); setCondition("Good");
         setIsEditing(false); setEditId(null);
     };
 
@@ -95,7 +114,7 @@ const InventoryForm = () => {
         setLocation(m.location || "");
         setAssignedTo(m.assignedTo || "");
         setLastMaintenance(m.lastMaintenance || "");
-        setCategory(m.category || "Instruments");
+        setCategory(m.category || "Base");
         setCondition(m.condition || "Good");
     };
 
@@ -149,7 +168,19 @@ const InventoryForm = () => {
                 <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item Name" />
                 <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Quantity" style={{ width: '80px' }} />
                 <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location (e.g. Office A)" />
-                <input value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} placeholder="Assigned To (e.g. Gen Staff)" />
+                <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={{ minWidth: '180px' }}>
+                    <option value="">Assign to ministry or role</option>
+                    <optgroup label="Ministries">
+                        {ministries.length > 0 ? ministries.map((ministry) => (
+                            <option key={ministry} value={ministry}>{ministry}</option>
+                        )) : <option value="" disabled>Loading ministries…</option>}
+                    </optgroup>
+                    <optgroup label="Roles">
+                        {ASSIGNED_TO_ROLE_OPTIONS.map((roleOption) => (
+                            <option key={roleOption} value={roleOption}>{roleOption}</option>
+                        ))}
+                    </optgroup>
+                </select>
                 <input type="date" value={lastMaintenance} onChange={(e) => setLastMaintenance(e.target.value)} />
                 
                 <select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -183,6 +214,10 @@ const InventoryForm = () => {
             </div>
 
             <div className="stats-container" style={{ display: 'flex', gap: '20px', marginBottom: '25px' }}>
+                <div className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, border: '1px solid #eee' }}>
+                    <span style={{ color: '#888', fontSize: '0.85rem' }}>Base</span>
+                    <span style={{ display: 'block', fontSize: '1.8rem', fontWeight: 'bold' }}>{getCategoryCount("Base")}</span>
+                </div>
                 <div className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, border: '1px solid #eee' }}>
                     <span style={{ color: '#888', fontSize: '0.85rem' }}>Instruments</span>
                     <span style={{ display: 'block', fontSize: '1.8rem', fontWeight: 'bold' }}>{getCategoryCount("Instruments")}</span>
@@ -230,14 +265,16 @@ const InventoryForm = () => {
                             <th>LOCATION</th>
                             <th>ASSIGNED TO</th>
                             <th>LAST MAINTENANCE</th>
+                            <th>LAST UPDATED</th>
+                            <th>EDITED BY</th>
                             <th>ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>Loading Inventory Data...</td></tr>
+                            <tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>Loading Inventory Data...</td></tr>
                         ) : filteredInventory.length === 0 ? (
-                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>No inventory items found.</td></tr>
+                            <tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>No inventory items found.</td></tr>
                         ) : filteredInventory.map((m) => (
                             <tr key={m._id}>
                                 <td><strong>{m.itemName || m.item}</strong></td>
@@ -256,6 +293,8 @@ const InventoryForm = () => {
                                 <td>{m.location || '—'}</td>
                                 <td>{m.assignedTo || '—'}</td>
                                 <td>{m.lastMaintenance || '—'}</td>
+                                <td>{m.updatedAt ? new Date(m.updatedAt).toLocaleString() : '—'}</td>
+                                <td>{m.lastEditedBy || '—'}</td>
                                 <td>
                                     {showArchived ? (
                                         <button className="action-icon unarchive" onClick={() => unarchiveItem(m._id)} style={{ cursor: 'pointer', border: 'none', background: 'none' }}>♻️</button>

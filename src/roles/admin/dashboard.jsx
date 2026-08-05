@@ -4,13 +4,13 @@ import churchLogo from '../../assets/churchlogo.jpg';
 import Advising from '../../components/shared/advisinglist';
 import Profile from '../../components/shared/profile';
 import {
-  canManageAttendance,
-  canManageEvents,
-  canManageMinistries,
-  canViewAnalytics,
-  canViewInventory,
-  hasPermission,
-  normalizeRole
+    canManageAttendance,
+    canManageEvents,
+    canManageMinistries,
+    canViewAnalytics,
+    canViewInventory,
+    hasPermission,
+    normalizeRole
 } from '../../permissions';
 import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
@@ -930,7 +930,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           {currentTab === 'advising' && hasPermission(role, 'advising') && <Advising role={role} user={user} />}
           {currentTab === 'finances' && hasPermission(role, 'finances') && <Finances role={role} userId={user._id} user={user} />}
           {currentTab === 'analytics' && canViewAnalytics(role) && <Analytics />}
-          {currentTab === 'inventory' && canViewInventory(role) && <InventoryForm />}
+          {currentTab === 'inventory' && canViewInventory(role) && <InventoryForm user={user} role={role} />}
         </div>
       </div>
     </div>
