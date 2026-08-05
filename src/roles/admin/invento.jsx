@@ -39,6 +39,18 @@ const InventoryForm = ({ user, role }) => {
 
     const [searchQuery, setSearchQuery] = useState("");
     const [filterCategory, setFilterCategory] = useState("All Categories");
+    const [filterBrand, setFilterBrand] = useState("");
+    const [filterWatts, setFilterWatts] = useState("");
+    const [filterPowerSupply, setFilterPowerSupply] = useState("");
+    const [filterVolt, setFilterVolt] = useState("");
+    const [filterWiredWireless, setFilterWiredWireless] = useState("");
+    const [filterType, setFilterType] = useState("");
+    const [filterConnector, setFilterConnector] = useState("");
+    const [filterMeter, setFilterMeter] = useState("");
+    const [filterChannels, setFilterChannels] = useState("");
+    const [filterActivePassive, setFilterActivePassive] = useState("");
+    const [filterPledgeDonate, setFilterPledgeDonate] = useState("");
+    const [filterRepairStatus, setFilterRepairStatus] = useState("");
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
     const [inventoryItems, setInventoryItems] = useState([]);
@@ -201,7 +213,21 @@ const InventoryForm = ({ user, role }) => {
         const matchesSearch = name.includes(search) || loc.includes(search);
         const matchesCategory = filterCategory === "All Categories" || m.category === filterCategory;
         
-        return matchesSearch && matchesCategory;
+        // additional filters
+        const matchesBrand = !filterBrand || (m.brand || '').toLowerCase().includes(filterBrand.toLowerCase());
+        const matchesPowerSupply = !filterPowerSupply || filterPowerSupply === 'All' || (m.powerSupply || '') === filterPowerSupply;
+        const matchesVolt = !filterVolt || filterVolt === 'All' || (m.volt || '') === filterVolt;
+        const matchesWiredWireless = !filterWiredWireless || filterWiredWireless === 'All' || (m.wiredWireless || '') === filterWiredWireless;
+        const matchesType = !filterType || filterType === 'All' || (m.equipmentType || '') === filterType;
+        const matchesConnector = !filterConnector || filterConnector === 'All' || (m.connectorType || '') === filterConnector;
+        const matchesMeter = !filterMeter || filterMeter === 'All' || (m.meter || '') === filterMeter;
+        const matchesChannels = !filterChannels || filterChannels === 'All' || (m.channels || '') === filterChannels;
+        const matchesActivePassive = !filterActivePassive || filterActivePassive === 'All' || (m.activePassive || '') === filterActivePassive;
+        const matchesPledgeDonate = !filterPledgeDonate || filterPledgeDonate === 'All' || (m.pledgeDonate || '') === filterPledgeDonate;
+        const matchesRepairStatus = !filterRepairStatus || filterRepairStatus === 'All' || (m.repairStatus || '') === filterRepairStatus;
+        const matchesWatts = !filterWatts || (m.watts || '').toString().toLowerCase().includes(filterWatts.toLowerCase());
+
+        return matchesSearch && matchesCategory && matchesBrand && matchesPowerSupply && matchesVolt && matchesWiredWireless && matchesType && matchesConnector && matchesMeter && matchesChannels && matchesActivePassive && matchesPledgeDonate && matchesRepairStatus && matchesWatts;
     });
 
     return (
@@ -317,14 +343,15 @@ const InventoryForm = ({ user, role }) => {
                 </div>
             </div>
 
-            <div className="search-filter-container" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <div className="search-filter-container" style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 <input 
                     type="text" 
                     placeholder="Search inventory by name or location..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
+                    style={{ flex: 1, minWidth: '220px', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
                 />
+
                 <select 
                     value={filterCategory} 
                     onChange={(e) => setFilterCategory(e.target.value)}
@@ -333,6 +360,77 @@ const InventoryForm = ({ user, role }) => {
                     <option value="All Categories">All Categories</option>
                     {CATEGORY_OPTIONS.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
+
+                <input
+                    placeholder="Brand"
+                    value={filterBrand}
+                    onChange={(e) => setFilterBrand(e.target.value)}
+                    style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd', minWidth: '140px' }}
+                />
+
+                <select value={filterPowerSupply} onChange={e => setFilterPowerSupply(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="">Power Supply</option>
+                    <option value="All">All</option>
+                    {POWER_SUPPLY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+
+                <select value={filterVolt} onChange={e => setFilterVolt(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="">Volt</option>
+                    <option value="All">All</option>
+                    {VOLT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+
+                <select value={filterWiredWireless} onChange={e => setFilterWiredWireless(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="">Wired/Wireless</option>
+                    <option value="All">All</option>
+                    {WIRED_WIRELESS_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+
+                <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="">Type</option>
+                    <option value="All">All</option>
+                    {EQUIPMENT_TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+
+                <select value={filterConnector} onChange={e => setFilterConnector(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="">Connector</option>
+                    <option value="All">All</option>
+                    {CONNECTOR_TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+
+                <select value={filterMeter} onChange={e => setFilterMeter(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="">Meter</option>
+                    <option value="All">All</option>
+                    {METER_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+
+                <select value={filterChannels} onChange={e => setFilterChannels(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="">Channels</option>
+                    <option value="All">All</option>
+                    {CHANNEL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+
+                <select value={filterActivePassive} onChange={e => setFilterActivePassive(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="">Active/Passive</option>
+                    <option value="All">All</option>
+                    {ACTIVE_PASSIVE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+
+                <select value={filterPledgeDonate} onChange={e => setFilterPledgeDonate(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="">Pledge/Donate</option>
+                    <option value="All">All</option>
+                    {PLEDGE_DONATE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+
+                <select value={filterRepairStatus} onChange={e => setFilterRepairStatus(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="">Repair Status</option>
+                    <option value="All">All</option>
+                    {REPAIR_STATUS_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+
+                <button onClick={() => {
+                    setFilterBrand(''); setFilterWatts(''); setFilterPowerSupply(''); setFilterVolt(''); setFilterWiredWireless(''); setFilterType(''); setFilterConnector(''); setFilterMeter(''); setFilterChannels(''); setFilterActivePassive(''); setFilterPledgeDonate(''); setFilterRepairStatus(''); setFilterCategory('All Categories'); setSearchQuery('');
+                }} style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff' }}>Clear Filters</button>
             </div>
 
             <div className="table-container" style={{ overflowX: 'auto', overflowY: 'hidden' }}>
