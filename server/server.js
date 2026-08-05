@@ -177,6 +177,12 @@ const Inventory = mongoose.model('Inventory', new mongoose.Schema({
   lastMaintenance: { type: String },
   category: { type: String, default: 'Miscellaneous' },
   condition: { type: String, default: 'Good' },
+  brand: { type: String, default: '' },
+  watts: { type: String, default: '' },
+  powerSupply: { type: String, default: '' },
+  activePassive: { type: String, default: '' },
+  pledgeDonate: { type: String, default: '' },
+  repairStatus: { type: String, default: '' },
   lastEditedBy: { type: String, default: '' },
   status: { type: String, enum: ['Active', 'Archived'], default: 'Active' }
 }, { timestamps: true }));

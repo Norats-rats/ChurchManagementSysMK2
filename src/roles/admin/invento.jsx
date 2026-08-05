@@ -4,6 +4,10 @@ import api from '../../api';
 const CATEGORY_OPTIONS = ["Base", "Instruments", "Audio Equipment", "Visual Equipment", "Documents", "Miscellaneous"];
 const CONDITION_OPTIONS = ["Excellent", "Good", "Fair", "Poor"];
 const ASSIGNED_TO_ROLE_OPTIONS = ["Admin", "Staff", "Ministry Leader"];
+const POWER_SUPPLY_OPTIONS = ["220V", "120V", "N/A", "Battery"];
+const ACTIVE_PASSIVE_OPTIONS = ["Active", "Passive"];
+const PLEDGE_DONATE_OPTIONS = ["Pledge", "Donated"];
+const REPAIR_STATUS_OPTIONS = ["None", "Repair", "Damaged", "Dispose"];
 
 const InventoryForm = ({ user, role }) => {
     const [item, setItem] = useState(""); 
@@ -13,6 +17,12 @@ const InventoryForm = ({ user, role }) => {
     const [lastMaintenance, setLastMaintenance] = useState("");
     const [category, setCategory] = useState("Base");
     const [condition, setCondition] = useState("Good");
+    const [brand, setBrand] = useState("");
+    const [watts, setWatts] = useState("");
+    const [powerSupply, setPowerSupply] = useState("220V");
+    const [activePassive, setActivePassive] = useState("Active");
+    const [pledgeDonate, setPledgeDonate] = useState("Pledge");
+    const [repairStatus, setRepairStatus] = useState("None");
     const [ministries, setMinistries] = useState([]);
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -83,6 +93,12 @@ const InventoryForm = ({ user, role }) => {
             lastMaintenance,
             category,
             condition,
+            brand,
+            watts,
+            powerSupply,
+            activePassive,
+            pledgeDonate,
+            repairStatus,
             lastEditedBy: currentUserName
         };
 
@@ -102,7 +118,7 @@ const InventoryForm = ({ user, role }) => {
 
     const resetForm = () => {
         setItem(""); setQuantity(""); setLocation(""); setAssignedTo(""); setLastMaintenance("");
-        setCategory("Base"); setCondition("Good");
+        setCategory("Base"); setCondition("Good"); setBrand(""); setWatts(""); setPowerSupply("220V"); setActivePassive("Active"); setPledgeDonate("Pledge"); setRepairStatus("None");
         setIsEditing(false); setEditId(null);
     };
 
@@ -116,6 +132,12 @@ const InventoryForm = ({ user, role }) => {
         setLastMaintenance(m.lastMaintenance || "");
         setCategory(m.category || "Base");
         setCondition(m.condition || "Good");
+        setBrand(m.brand || "");
+        setWatts(m.watts || "");
+        setPowerSupply(m.powerSupply || "220V");
+        setActivePassive(m.activePassive || "Active");
+        setPledgeDonate(m.pledgeDonate || "Pledge");
+        setRepairStatus(m.repairStatus || "None");
     };
 
     const archiveItem = async (id) => {
@@ -168,6 +190,20 @@ const InventoryForm = ({ user, role }) => {
                 <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item Name" />
                 <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Quantity" style={{ width: '80px' }} />
                 <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location (e.g. Office A)" />
+                <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand" style={{ minWidth: '140px' }} />
+                <input value={watts} onChange={(e) => setWatts(e.target.value)} placeholder="Watts" style={{ width: '100px' }} />
+                <select value={powerSupply} onChange={(e) => setPowerSupply(e.target.value)} style={{ minWidth: '110px' }}>
+                    {POWER_SUPPLY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+                <select value={activePassive} onChange={(e) => setActivePassive(e.target.value)} style={{ minWidth: '120px' }}>
+                    {ACTIVE_PASSIVE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+                <select value={pledgeDonate} onChange={(e) => setPledgeDonate(e.target.value)} style={{ minWidth: '120px' }}>
+                    {PLEDGE_DONATE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+                <select value={repairStatus} onChange={(e) => setRepairStatus(e.target.value)} style={{ minWidth: '120px' }}>
+                    {REPAIR_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
                 <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={{ minWidth: '180px' }}>
                     <option value="">Assign to ministry or role</option>
                     <optgroup label="Ministries">
@@ -260,6 +296,12 @@ const InventoryForm = ({ user, role }) => {
                         <tr>
                             <th>ITEM</th>
                             <th>CATEGORY</th>
+                            <th>BRAND</th>
+                            <th>WATTS</th>
+                            <th>POWER SUPPLY</th>
+                            <th>ACTIVE/PASSIVE</th>
+                            <th>PLEDGE/DONATE</th>
+                            <th>REPAIR STATUS</th>
                             <th>QUANTITY</th>
                             <th>CONDITION</th>
                             <th>LOCATION</th>
@@ -272,13 +314,19 @@ const InventoryForm = ({ user, role }) => {
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>Loading Inventory Data...</td></tr>
+                            <tr><td colSpan="16" style={{ textAlign: 'center', padding: '20px' }}>Loading Inventory Data...</td></tr>
                         ) : filteredInventory.length === 0 ? (
-                            <tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>No inventory items found.</td></tr>
+                            <tr><td colSpan="16" style={{ textAlign: 'center', padding: '20px' }}>No inventory items found.</td></tr>
                         ) : filteredInventory.map((m) => (
                             <tr key={m._id}>
                                 <td><strong>{m.itemName || m.item}</strong></td>
                                 <td>{m.category}</td>
+                                <td>{m.brand || '—'}</td>
+                                <td>{m.watts || '—'}</td>
+                                <td>{m.powerSupply || '—'}</td>
+                                <td>{m.activePassive || '—'}</td>
+                                <td>{m.pledgeDonate || '—'}</td>
+                                <td>{m.repairStatus || '—'}</td>
                                 <td>{m.quantity}</td>
                                 <td>
                                     <span style={{
