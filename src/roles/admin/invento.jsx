@@ -335,8 +335,8 @@ const InventoryForm = ({ user, role }) => {
                 </select>
             </div>
 
-            <div className="table-container">
-                <table className="member-table">
+            <div className="table-container" style={{ overflowX: 'auto', overflowY: 'hidden' }}>
+                <table className="member-table" style={{ minWidth: '1800px' }}>
                     <thead>
                         <tr>
                             <th>ITEM</th>
