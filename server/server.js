@@ -643,6 +643,34 @@ app.put('/api/members/:id', async (req, res) => {
   } catch (err) { res.status(400).json({ error: "Failed to update record" }); }
 });
 
+app.patch('/api/members/:id', async (req, res) => {
+  try {
+    const data = { ...req.body };
+    if (data.gender === 'Other' || data.gender === 'Non-binary') {
+      data.gender = 'Prefer not to say';
+    }
+    if (data.password && data.password.trim() !== "") {
+      data.password = await bcrypt.hash(data.password, 10);
+    } else { delete data.password; }
+    if (data.ministries && !Array.isArray(data.ministries)) {
+      data.ministries = [data.ministries].filter(Boolean);
+    }
+    if (!Array.isArray(data.ministries) && data.ministry) {
+      data.ministries = [data.ministry];
+    }
+    if (Array.isArray(data.ministries)) {
+      data.ministries = data.ministries.filter(Boolean);
+      if (!data.ministry) {
+        data.ministry = data.ministries[0] || 'None';
+      }
+    }
+    const updated = await Member.findByIdAndUpdate(req.params.id, data, { new: true }).select('-password');
+    const out = updated ? updated.toObject() : null;
+    if (out && out.password) delete out.password;
+    res.json(out);
+  } catch (err) { res.status(400).json({ error: "Failed to update record" }); }
+});
+
 app.delete('/api/members/:id', async (req, res) => {
   try {
     await Member.findByIdAndDelete(req.params.id);
