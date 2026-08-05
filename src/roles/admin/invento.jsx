@@ -206,9 +206,7 @@ const InventoryForm = ({ user, role }) => {
         const matchesSearch = name.includes(search) || loc.includes(search);
         const matchesCategory = filterCategory === "All Categories" || m.category === filterCategory;
         
-        // additional filters
         const matchesBrand = !filterBrand || (m.brand || '').toLowerCase().includes(filterBrand.toLowerCase());
-        // powerSupply → channels filters removed
         const matchesActivePassive = !filterActivePassive || filterActivePassive === 'All' || (m.activePassive || '') === filterActivePassive;
         const matchesPledgeDonate = !filterPledgeDonate || filterPledgeDonate === 'All' || (m.pledgeDonate || '') === filterPledgeDonate;
         const matchesRepairStatus = !filterRepairStatus || filterRepairStatus === 'All' || (m.repairStatus || '') === filterRepairStatus;
@@ -355,7 +353,6 @@ const InventoryForm = ({ user, role }) => {
                     style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd', minWidth: '140px' }}
                 />
 
-                {/* Removed powerSupply → channels filters per request */}
 
                 <select value={filterActivePassive} onChange={e => setFilterActivePassive(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
                     <option value="">Active/Passive</option>
@@ -377,7 +374,7 @@ const InventoryForm = ({ user, role }) => {
 
                 <button onClick={() => {
                     setFilterBrand(''); setFilterWatts(''); setFilterActivePassive(''); setFilterPledgeDonate(''); setFilterRepairStatus(''); setFilterCategory('All Categories'); setSearchQuery('');
-                }} style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff' }}>Clear Filters</button>
+                }} style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', color: '#111' }}>Clear Filters</button>
             </div>
 
             <div className="table-container" style={{ overflowX: 'auto', overflowY: 'hidden' }}>
