@@ -273,7 +273,7 @@ const Ministries = ({ role, user }) => {
             <div style={inputGroup}>
               <label style={labelStyle}>Ministry Leader</label>
               <select 
-                style={inputStyle} 
+                style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#fff' }} 
                 value={formData.leader} 
                 onChange={e => setFormData({...formData, leader: e.target.value})} 
                 required
@@ -289,7 +289,12 @@ const Ministries = ({ role, user }) => {
 
             <div style={inputGroup}>
               <label style={labelStyle}>Theme Color</label>
-              <input type="color" style={{ height: '40px', width: '100%' }} value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} />
+              <input 
+                type="color" 
+                style={{ height: '44px', width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', padding: '0', cursor: 'pointer' }} 
+                value={formData.color} 
+                onChange={e => setFormData({...formData, color: e.target.value})} 
+              />
             </div>
           </div>
 
@@ -315,7 +320,7 @@ const Ministries = ({ role, user }) => {
           const isExpanded = expandedId === m._id;
 
           return (
-            <div key={m._id} style={cardStyle}>
+            <div key={m._id} style={{ ...cardStyle, borderLeft: `6px solid ${m.color || '#2563eb'}`, paddingLeft: '20px' }}>
               <div 
                 onClick={() => toggleDropdown(m._id)} 
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', cursor: 'pointer', userSelect: 'none' }}
@@ -324,7 +329,10 @@ const Ministries = ({ role, user }) => {
                   <span style={{ fontSize: '12px', color: '#94a3b8', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease', display: 'inline-block' }}>
                     ▼
                   </span>
-                  {m.name}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: m.color || '#2563eb', border: '1px solid #cbd5e1', boxShadow: '0 0 0 1px rgba(0,0,0,0.05)' }} />
+                    {m.name}
+                  </span>
                 </h3>
                 {m.status === 'Deactive' && <span style={inactivePill}>INACTIVE</span>}
               </div>
@@ -333,7 +341,7 @@ const Ministries = ({ role, user }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginLeft: '20px' }}>
                   <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>UPDATE LEADER</label>
                   <select 
-                    style={inputStyle} 
+                    style={{ ...inputStyle, width: '100%', minWidth: '0', color: '#111', backgroundColor: '#fff', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' }} 
                     value={editLeaderData} 
                     onChange={e => setEditLeaderData(e.target.value)}
                   >
@@ -398,12 +406,12 @@ const Ministries = ({ role, user }) => {
 
                   {canManage && (
                     <div style={{ display: 'flex', gap: '6px', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', marginTop: '4px' }}>
-                      <select 
-                        style={{ ...inputStyle, padding: '6px', fontSize: '12px', flex: 1 }}
+                        <select 
+                        style={{ ...selectStyle, padding: '6px', fontSize: '12px', flex: 1 }}
                         value={selectedMemberId}
                         onChange={e => setSelectedMemberId(e.target.value)}
                       >
-                        <option value="">+ Add Member</option>
+                        <option style={{ color: '#111', backgroundColor: '#fff' }} value="">+ Add Member</option>
                         {allMembers
                           .filter(mem => {
                             const memberMinistries = normalizeMemberMinistries(mem);
@@ -555,7 +563,9 @@ const formStyle = { background: 'white', padding: '24px', borderRadius: '12px', 
 const cardStyle = { background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
 const inputGroup = { display: 'flex', flexDirection: 'column', gap: '5px' };
 const labelStyle = { fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' };
-const inputStyle = { padding: '10px', borderRadius: '8px', border: '1px solid #085dc3', backgroundColor: 'white' };
+const inputStyle = { width: '100%', minWidth: 0, boxSizing: 'border-box', padding: '10px', borderRadius: '8px', border: '1px solid #085dc3', backgroundColor: '#fff', color: '#111', outline: 'none', position: 'relative', zIndex: 1 };
+const selectStyle = { ...inputStyle, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#fff', cursor: 'pointer' };
+const colorInputStyle = { height: '44px', width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', padding: '0', cursor: 'pointer' };
 const btnSubmit = { padding: '12px 30px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
 const btnCancel = { padding: '12px 20px', backgroundColor: '#d20700', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' };
 
