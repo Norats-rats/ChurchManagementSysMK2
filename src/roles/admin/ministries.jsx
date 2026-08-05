@@ -262,7 +262,7 @@ const Ministries = ({ role, user }) => {
       </div>
 
       {canManage && showCreateForm && (
-        <form onSubmit={handleCreate} style={formStyle}>
+        <form onSubmit={handleCreate} style={formStyle} onClick={(e) => e.stopPropagation()}>
           <h3 style={{ marginTop: 0, marginBottom: '20px' }}>New Ministry Details</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
             <div style={inputGroup}>
@@ -424,7 +424,11 @@ const Ministries = ({ role, user }) => {
                           ))}
                       </select>
                       <button 
-                        onClick={() => handleAddMember(selectedMemberId, m.name)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddMember(selectedMemberId, m.name);
+                        }}
                         style={{ padding: '6px 12px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
                         disabled={!selectedMemberId}
                       >
