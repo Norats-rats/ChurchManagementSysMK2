@@ -41,13 +41,6 @@ const InventoryForm = ({ user, role }) => {
     const [filterCategory, setFilterCategory] = useState("All Categories");
     const [filterBrand, setFilterBrand] = useState("");
     const [filterWatts, setFilterWatts] = useState("");
-    const [filterPowerSupply, setFilterPowerSupply] = useState("");
-    const [filterVolt, setFilterVolt] = useState("");
-    const [filterWiredWireless, setFilterWiredWireless] = useState("");
-    const [filterType, setFilterType] = useState("");
-    const [filterConnector, setFilterConnector] = useState("");
-    const [filterMeter, setFilterMeter] = useState("");
-    const [filterChannels, setFilterChannels] = useState("");
     const [filterActivePassive, setFilterActivePassive] = useState("");
     const [filterPledgeDonate, setFilterPledgeDonate] = useState("");
     const [filterRepairStatus, setFilterRepairStatus] = useState("");
@@ -215,19 +208,13 @@ const InventoryForm = ({ user, role }) => {
         
         // additional filters
         const matchesBrand = !filterBrand || (m.brand || '').toLowerCase().includes(filterBrand.toLowerCase());
-        const matchesPowerSupply = !filterPowerSupply || filterPowerSupply === 'All' || (m.powerSupply || '') === filterPowerSupply;
-        const matchesVolt = !filterVolt || filterVolt === 'All' || (m.volt || '') === filterVolt;
-        const matchesWiredWireless = !filterWiredWireless || filterWiredWireless === 'All' || (m.wiredWireless || '') === filterWiredWireless;
-        const matchesType = !filterType || filterType === 'All' || (m.equipmentType || '') === filterType;
-        const matchesConnector = !filterConnector || filterConnector === 'All' || (m.connectorType || '') === filterConnector;
-        const matchesMeter = !filterMeter || filterMeter === 'All' || (m.meter || '') === filterMeter;
-        const matchesChannels = !filterChannels || filterChannels === 'All' || (m.channels || '') === filterChannels;
+        // powerSupply → channels filters removed
         const matchesActivePassive = !filterActivePassive || filterActivePassive === 'All' || (m.activePassive || '') === filterActivePassive;
         const matchesPledgeDonate = !filterPledgeDonate || filterPledgeDonate === 'All' || (m.pledgeDonate || '') === filterPledgeDonate;
         const matchesRepairStatus = !filterRepairStatus || filterRepairStatus === 'All' || (m.repairStatus || '') === filterRepairStatus;
         const matchesWatts = !filterWatts || (m.watts || '').toString().toLowerCase().includes(filterWatts.toLowerCase());
 
-        return matchesSearch && matchesCategory && matchesBrand && matchesPowerSupply && matchesVolt && matchesWiredWireless && matchesType && matchesConnector && matchesMeter && matchesChannels && matchesActivePassive && matchesPledgeDonate && matchesRepairStatus && matchesWatts;
+        return matchesSearch && matchesCategory && matchesBrand && matchesActivePassive && matchesPledgeDonate && matchesRepairStatus && matchesWatts;
     });
 
     return (
@@ -368,47 +355,7 @@ const InventoryForm = ({ user, role }) => {
                     style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd', minWidth: '140px' }}
                 />
 
-                <select value={filterPowerSupply} onChange={e => setFilterPowerSupply(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="">Power Supply</option>
-                    <option value="All">All</option>
-                    {POWER_SUPPLY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-
-                <select value={filterVolt} onChange={e => setFilterVolt(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="">Volt</option>
-                    <option value="All">All</option>
-                    {VOLT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-
-                <select value={filterWiredWireless} onChange={e => setFilterWiredWireless(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="">Wired/Wireless</option>
-                    <option value="All">All</option>
-                    {WIRED_WIRELESS_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-
-                <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="">Type</option>
-                    <option value="All">All</option>
-                    {EQUIPMENT_TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-
-                <select value={filterConnector} onChange={e => setFilterConnector(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="">Connector</option>
-                    <option value="All">All</option>
-                    {CONNECTOR_TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-
-                <select value={filterMeter} onChange={e => setFilterMeter(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="">Meter</option>
-                    <option value="All">All</option>
-                    {METER_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-
-                <select value={filterChannels} onChange={e => setFilterChannels(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="">Channels</option>
-                    <option value="All">All</option>
-                    {CHANNEL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
+                {/* Removed powerSupply → channels filters per request */}
 
                 <select value={filterActivePassive} onChange={e => setFilterActivePassive(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
                     <option value="">Active/Passive</option>
@@ -429,7 +376,7 @@ const InventoryForm = ({ user, role }) => {
                 </select>
 
                 <button onClick={() => {
-                    setFilterBrand(''); setFilterWatts(''); setFilterPowerSupply(''); setFilterVolt(''); setFilterWiredWireless(''); setFilterType(''); setFilterConnector(''); setFilterMeter(''); setFilterChannels(''); setFilterActivePassive(''); setFilterPledgeDonate(''); setFilterRepairStatus(''); setFilterCategory('All Categories'); setSearchQuery('');
+                    setFilterBrand(''); setFilterWatts(''); setFilterActivePassive(''); setFilterPledgeDonate(''); setFilterRepairStatus(''); setFilterCategory('All Categories'); setSearchQuery('');
                 }} style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff' }}>Clear Filters</button>
             </div>
 
