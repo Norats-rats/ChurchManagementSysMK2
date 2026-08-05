@@ -262,7 +262,7 @@ const Ministries = ({ role, user }) => {
       </div>
 
       {canManage && showCreateForm && (
-        <form onSubmit={handleCreate} style={formStyle} onClick={(e) => e.stopPropagation()}>
+        <form onSubmit={(e) => { e.stopPropagation(); handleCreate(e); }} style={formStyle}>
           <h3 style={{ marginTop: 0, marginBottom: '20px' }}>New Ministry Details</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
             <div style={inputGroup}>
@@ -299,8 +299,8 @@ const Ministries = ({ role, user }) => {
           </div>
 
           <div style={{ marginTop: '25px', display: 'flex', gap: '10px' }}>
-            <button type="submit" style={btnSubmit}>Save Ministry</button>
-            <button type="button" onClick={() => setShowCreateForm(false)} style={btnCancel}>Cancel</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); handleCreate(e); }} style={btnSubmit}>Save Ministry</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); setShowCreateForm(false); }} style={btnCancel}>Cancel</button>
           </div>
         </form>
       )}
@@ -426,6 +426,7 @@ const Ministries = ({ role, user }) => {
                       <button 
                         type="button"
                         onClick={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
                           handleAddMember(selectedMemberId, m.name);
                         }}
