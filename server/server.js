@@ -154,9 +154,7 @@ const Ministry = mongoose.model('Ministry', new mongoose.Schema({
   name: { type: String, required: true },
   leader: { type: String, required: true },
   members: { type: Number, default: 0 },
-  schedule: { type: String, required: true },
   color: { type: String, default: "#2563eb" },
-  growth: { type: String, default: "+0%" },
   status: { type: String, default: "Active" },
   announcementText: { type: String, default: '' },
   joinRequests: [{
