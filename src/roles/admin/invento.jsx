@@ -8,7 +8,6 @@ const POWER_SUPPLY_OPTIONS = ["220V", "120V", "N/A", "Battery"];
 const ACTIVE_PASSIVE_OPTIONS = ["Active", "Passive"];
 const PLEDGE_DONATE_OPTIONS = ["Pledge", "Donated"];
 const REPAIR_STATUS_OPTIONS = ["None", "Repair", "Damaged", "Dispose"];
-const VOLT_OPTIONS = ["220V", "120V", "12V", "N/A"];
 const WIRED_WIRELESS_OPTIONS = ["Wired", "Wireless"];
 const EQUIPMENT_TYPE_OPTIONS = ["Projector", "Monitor", "Keyboard", "Drums", "Guitar", "Bass", "Amp", "Cable", "Microphone", "Other"];
 const CONNECTOR_TYPE_OPTIONS = ["XLR", "Jack", "HDMI", "VGA", "USB", "RCA", "Speaker Wire", "Other"];
@@ -29,7 +28,6 @@ const InventoryForm = ({ user, role }) => {
     const [activePassive, setActivePassive] = useState("Active");
     const [pledgeDonate, setPledgeDonate] = useState("Pledge");
     const [repairStatus, setRepairStatus] = useState("None");
-    const [volt, setVolt] = useState("220V");
     const [wiredWireless, setWiredWireless] = useState("Wired");
     const [equipmentType, setEquipmentType] = useState("");
     const [connectorType, setConnectorType] = useState("");
@@ -116,7 +114,6 @@ const InventoryForm = ({ user, role }) => {
             activePassive,
             pledgeDonate,
             repairStatus,
-            volt,
             wiredWireless,
             equipmentType,
             connectorType,
@@ -142,7 +139,7 @@ const InventoryForm = ({ user, role }) => {
     const resetForm = () => {
         setItem(""); setQuantity(""); setLocation(""); setAssignedTo(""); setLastMaintenance("");
         setCategory("Base"); setCondition("Good"); setBrand(""); setWatts(""); setPowerSupply("220V"); setActivePassive("Active"); setPledgeDonate("Pledge"); setRepairStatus("None");
-        setVolt("220V"); setWiredWireless("Wired"); setEquipmentType(""); setConnectorType(""); setMeter("N/A"); setChannels("N/A");
+        setWiredWireless("Wired"); setEquipmentType(""); setConnectorType(""); setMeter("N/A"); setChannels("N/A");
         setIsEditing(false); setEditId(null);
     };
 
@@ -162,7 +159,6 @@ const InventoryForm = ({ user, role }) => {
         setActivePassive(m.activePassive || "Active");
         setPledgeDonate(m.pledgeDonate || "Pledge");
         setRepairStatus(m.repairStatus || "None");
-        setVolt(m.volt || "220V");
         setWiredWireless(m.wiredWireless || "Wired");
         setEquipmentType(m.equipmentType || "");
         setConnectorType(m.connectorType || "");
@@ -239,9 +235,6 @@ const InventoryForm = ({ user, role }) => {
                 </select>
                 <select value={repairStatus} onChange={(e) => setRepairStatus(e.target.value)} style={{ minWidth: '120px' }}>
                     {REPAIR_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
-                <select value={volt} onChange={(e) => setVolt(e.target.value)} style={{ minWidth: '110px' }}>
-                    {VOLT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
                 <select value={wiredWireless} onChange={(e) => setWiredWireless(e.target.value)} style={{ minWidth: '110px' }}>
                     {WIRED_WIRELESS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
@@ -385,7 +378,6 @@ const InventoryForm = ({ user, role }) => {
                             <th>CATEGORY</th>
                             <th>BRAND</th>
                             <th>TYPE</th>
-                            <th>VOLT</th>
                             <th>WATTS</th>
                             <th>POWER SUPPLY</th>
                             <th>CONNECTOR</th>
@@ -407,16 +399,15 @@ const InventoryForm = ({ user, role }) => {
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan="23" style={{ textAlign: 'center', padding: '20px' }}>Loading Inventory Data...</td></tr>
+                            <tr><td colSpan="21" style={{ textAlign: 'center', padding: '20px' }}>Loading Inventory Data...</td></tr>
                         ) : filteredInventory.length === 0 ? (
-                            <tr><td colSpan="23" style={{ textAlign: 'center', padding: '20px' }}>No inventory items found.</td></tr>
+                            <tr><td colSpan="21" style={{ textAlign: 'center', padding: '20px' }}>No inventory items found.</td></tr>
                         ) : filteredInventory.map((m) => (
                             <tr key={m._id}>
                                 <td><strong>{m.itemName || m.item}</strong></td>
                                 <td>{m.category}</td>
                                 <td>{m.brand || '—'}</td>
                                 <td>{m.equipmentType || '—'}</td>
-                                <td>{m.volt || '—'}</td>
                                 <td>{m.watts || '—'}</td>
                                 <td>{m.powerSupply || '—'}</td>
                                 <td>{m.connectorType || '—'}</td>
