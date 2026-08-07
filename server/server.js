@@ -173,7 +173,7 @@ const Inventory = mongoose.model('Inventory', new mongoose.Schema({
   location: { type: String },
   assignedTo: { type: String },
   lastMaintenance: { type: String },
-  category: { type: String, default: 'misc' },
+  category: { type: String, default: 'others' },
   categoryId: { type: String, default: '' },
   condition: { type: String, default: 'Good' },
   brand: { type: String, default: '' },

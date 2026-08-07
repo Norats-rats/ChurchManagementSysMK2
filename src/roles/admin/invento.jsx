@@ -34,7 +34,6 @@ const InventoryForm = ({ user, role }) => {
     const [filterCategory, setFilterCategory] = useState("All Categories");
     const [filterBrand, setFilterBrand] = useState("");
     const [filterRepairStatus, setFilterRepairStatus] = useState("");
-    const [categorySort, setCategorySort] = useState('asc');
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
     const [inventoryItems, setInventoryItems] = useState([]);
@@ -315,18 +314,7 @@ const InventoryForm = ({ user, role }) => {
                     style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
                 >
                     <option value="All Categories">All Categories</option>
-                    {(() => {
-                        const sorted = [...CATEGORY_MAP].sort((a,b) => {
-                            const aIndex = CATEGORY_MAP.findIndex(cat => cat.key === a.key);
-                            const bIndex = CATEGORY_MAP.findIndex(cat => cat.key === b.key);
-                            return categorySort === 'asc' ? aIndex - bIndex : bIndex - aIndex;
-                        });
-                        return sorted.map(cat => <option key={cat.key} value={cat.key}>{cat.label}</option>);
-                    })()}
-                </select>
-                <select value={categorySort} onChange={e => setCategorySort(e.target.value)} title="Sort categories" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
+                    {CATEGORY_MAP.map(cat => <option key={cat.key} value={cat.key}>{cat.label}</option>)}
                 </select>
 
                 <input
