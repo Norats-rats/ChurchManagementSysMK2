@@ -15,7 +15,6 @@ const CATEGORY_MAP = [
 ];
 const CONDITION_OPTIONS = ["Excellent", "Good", "Fair", "Poor"];
 const ASSIGNED_TO_ROLE_OPTIONS = ["Admin", "Staff", "Ministry Leader"];
-const PLEDGE_DONATE_OPTIONS = ["Pledge", "Donated"];
 const REPAIR_STATUS_OPTIONS = ["None", "Repair", "Damaged", "Dispose"];
 
 const InventoryForm = ({ user, role }) => {
@@ -29,14 +28,12 @@ const InventoryForm = ({ user, role }) => {
     const [categoryId, setCategoryId] = useState('');
     const [condition, setCondition] = useState("Good");
     const [brand, setBrand] = useState("");
-    const [pledgeDonate, setPledgeDonate] = useState("Pledge");
     const [repairStatus, setRepairStatus] = useState("None");
     const [ministries, setMinistries] = useState([]);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [filterCategory, setFilterCategory] = useState("All Categories");
     const [filterBrand, setFilterBrand] = useState("");
-    const [filterPledgeDonate, setFilterPledgeDonate] = useState("");
     const [filterRepairStatus, setFilterRepairStatus] = useState("");
     const [categorySort, setCategorySort] = useState('asc');
     const [isEditing, setIsEditing] = useState(false);
@@ -120,7 +117,6 @@ const InventoryForm = ({ user, role }) => {
             categoryId: categoryId,
             condition,
             brand,
-            pledgeDonate,
             repairStatus,
             lastEditedBy: currentUserName
         };
@@ -141,7 +137,7 @@ const InventoryForm = ({ user, role }) => {
 
     const resetForm = () => {
         setItem(""); setQuantity(""); setLocation(""); setAssignedTo(""); setLastMaintenance("");
-        setCategory('misc'); setCategoryKey('misc'); setCategoryId(''); setCondition("Good"); setBrand(""); setPledgeDonate("Pledge"); setRepairStatus("None");
+        setCategory('misc'); setCategoryKey('misc'); setCategoryId(''); setCondition("Good"); setBrand(""); setRepairStatus("None");
         setIsEditing(false); setEditId(null);
     };
 
@@ -153,7 +149,6 @@ const InventoryForm = ({ user, role }) => {
         setLocation(m.location || "");
         setAssignedTo(m.assignedTo || "");
         setLastMaintenance(m.lastMaintenance || "");
-        // derive category key and id for legacy/edited items
         if (m.categoryId) {
             const prefix = (m.categoryId || '').split('-')[0];
             const found = CATEGORY_MAP.find(c => c.prefix === prefix);
@@ -167,7 +162,6 @@ const InventoryForm = ({ user, role }) => {
         }
         setCondition(m.condition || "Good");
         setBrand(m.brand || "");
-        setPledgeDonate(m.pledgeDonate || "Pledge");
         setRepairStatus(m.repairStatus || "None");
     };
 
@@ -227,10 +221,9 @@ const InventoryForm = ({ user, role }) => {
         const matchesCategory = filterCategory === "All Categories" || m.category === filterCategory;
         
         const matchesBrand = !filterBrand || (m.brand || '').toLowerCase().includes(filterBrand.toLowerCase());
-        const matchesPledgeDonate = !filterPledgeDonate || filterPledgeDonate === 'All' || (m.pledgeDonate || '') === filterPledgeDonate;
         const matchesRepairStatus = !filterRepairStatus || filterRepairStatus === 'All' || (m.repairStatus || '') === filterRepairStatus;
 
-        return matchesSearch && matchesCategory && matchesBrand && matchesPledgeDonate && matchesRepairStatus;
+        return matchesSearch && matchesCategory && matchesBrand && matchesRepairStatus;
     });
 
     return (
@@ -253,12 +246,14 @@ const InventoryForm = ({ user, role }) => {
                 </select>
                 <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item Name" />
                 <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Quantity" style={{ width: '80px' }} />
-                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location (e.g. Office A)" />
-                <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand" style={{ minWidth: '140px' }} />
-                {/* active/passive removed */}
-                <select value={pledgeDonate} onChange={(e) => setPledgeDonate(e.target.value)} style={{ minWidth: '120px' }}>
-                    {PLEDGE_DONATE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                <select value={location} onChange={(e) => setLocation(e.target.value)} style={{ minWidth: '180px' }}>
+                    <option value="">Select Location</option>
+                    <option value="Chapel Room">Chapel Room</option>
+                    <option value="Stock Room">Stock Room</option>
+                    <option value="Storage Area">Storage Area</option>
+                    <option value="Office Room">Office Room</option>
                 </select>
+                <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand" style={{ minWidth: '140px' }} />
                 <select value={repairStatus} onChange={(e) => setRepairStatus(e.target.value)} style={{ minWidth: '120px' }}>
                     {REPAIR_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
@@ -330,13 +325,17 @@ const InventoryForm = ({ user, role }) => {
                 >
                     <option value="All Categories">All Categories</option>
                     {(() => {
-                        const sorted = [...CATEGORY_MAP].sort((a,b) => categorySort === 'asc' ? a.label.localeCompare(b.label) : b.label.localeCompare(a.label));
+                        const sorted = [...CATEGORY_MAP].sort((a,b) => {
+                            const aIndex = CATEGORY_MAP.findIndex(cat => cat.key === a.key);
+                            const bIndex = CATEGORY_MAP.findIndex(cat => cat.key === b.key);
+                            return categorySort === 'asc' ? aIndex - bIndex : bIndex - aIndex;
+                        });
                         return sorted.map(cat => <option key={cat.key} value={cat.key}>{cat.label}</option>);
                     })()}
                 </select>
                 <select value={categorySort} onChange={e => setCategorySort(e.target.value)} title="Sort categories" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="asc">A → Z</option>
-                    <option value="desc">Z → A</option>
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
                 </select>
 
                 <input
@@ -349,11 +348,6 @@ const InventoryForm = ({ user, role }) => {
 
                 {/* Active/Passive filter removed */}
 
-                <select value={filterPledgeDonate} onChange={e => setFilterPledgeDonate(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="">Pledge/Donate</option>
-                    <option value="All">All</option>
-                    {PLEDGE_DONATE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
 
                 <select value={filterRepairStatus} onChange={e => setFilterRepairStatus(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
                     <option value="">Repair Status</option>
@@ -362,7 +356,7 @@ const InventoryForm = ({ user, role }) => {
                 </select>
 
                 <button onClick={() => {
-                    setFilterBrand(''); setFilterPledgeDonate(''); setFilterRepairStatus(''); setFilterCategory('All Categories'); setSearchQuery('');
+                    setFilterBrand(''); setFilterRepairStatus(''); setFilterCategory('All Categories'); setSearchQuery('');
                 }} style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', color: '#111' }}>Clear Filters</button>
             </div>
 
@@ -374,8 +368,6 @@ const InventoryForm = ({ user, role }) => {
                             <th>ITEM</th>
                             <th>CATEGORY</th>
                             <th>BRAND</th>
-                            {/* ACTIVE/PASSIVE column removed */}
-                            <th>PLEDGE/DONATE</th>
                             <th>REPAIR STATUS</th>
                             <th>QUANTITY</th>
                             <th>CONDITION</th>
@@ -398,8 +390,6 @@ const InventoryForm = ({ user, role }) => {
                                 <td><strong>{m.itemName || m.item}</strong></td>
                                 <td>{m.category}</td>
                                 <td>{m.brand || '—'}</td>
-                                {/* activePassive removed */}
-                                <td>{m.pledgeDonate || '—'}</td>
                                 <td>{m.repairStatus || '—'}</td>
                                 <td>{m.quantity}</td>
                                 <td>

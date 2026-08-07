@@ -177,7 +177,6 @@ const Inventory = mongoose.model('Inventory', new mongoose.Schema({
   categoryId: { type: String, default: '' },
   condition: { type: String, default: 'Good' },
   brand: { type: String, default: '' },
-  pledgeDonate: { type: String, default: '' },
   repairStatus: { type: String, default: '' },
   lastEditedBy: { type: String, default: '' },
   status: { type: String, enum: ['Active', 'Archived'], default: 'Active' }
