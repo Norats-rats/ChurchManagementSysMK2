@@ -13,8 +13,7 @@ const CATEGORY_MAP = [
     { key: 'visuals', label: 'Visuals', prefix: 'vs' },
     { key: 'misc', label: 'Misc', prefix: 'misc' }
 ];
-const CONDITION_OPTIONS = ["Excellent", "Good", "Fair", "Poor"];
-const ASSIGNED_TO_ROLE_OPTIONS = ["Admin", "Staff", "Ministry Leader"];
+const CONDITION_OPTIONS = ["Excellent", "Good", "Poor"];
 const REPAIR_STATUS_OPTIONS = ["None", "Repair", "Damaged", "Dispose"];
 
 const InventoryForm = ({ user, role }) => {
@@ -258,21 +257,13 @@ const InventoryForm = ({ user, role }) => {
                     {REPAIR_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
                 <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={{ minWidth: '180px' }}>
-                    <option value="">Assign to ministry or role</option>
-                    <optgroup label="Ministries">
-                        {ministries.length > 0 ? ministries.map((ministry) => (
-                            <option key={ministry} value={ministry}>{ministry}</option>
-                        )) : <option value="" disabled>Loading ministries…</option>}
-                    </optgroup>
-                    <optgroup label="Roles">
-                        {ASSIGNED_TO_ROLE_OPTIONS.map((roleOption) => (
-                            <option key={roleOption} value={roleOption}>{roleOption}</option>
-                        ))}
-                    </optgroup>
+                    <option value="">Assign to ministry</option>
+                    {ministries.length > 0 ? ministries.map((ministry) => (
+                        <option key={ministry} value={ministry}>{ministry}</option>
+                    )) : <option value="" disabled>Loading ministries…</option>}
                 </select>
                 <input type="date" value={lastMaintenance} onChange={(e) => setLastMaintenance(e.target.value)} />
                 
-                {/* category select replaced by categoryKey selector above */}
 
                 <select value={condition} onChange={(e) => setCondition(e.target.value)}>
                     {CONDITION_OPTIONS.map(cond => <option key={cond} value={cond}>{cond}</option>)}
