@@ -297,7 +297,6 @@ const Analytics = () => {
 
         <div style={styles.insightCard}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
-            <span style={{ fontSize: '24px' }}>✨</span>
             <h3 style={{ margin: 0, color: '#1e40af' }}>Live AI System Insights</h3>
           </div>
           <p style={{ fontSize: '15px', color: '#334155', lineHeight: '1.7', fontStyle: 'italic' }}>

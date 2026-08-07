@@ -325,7 +325,7 @@ const InventoryForm = ({ user, role }) => {
                 />
 
 
-                {/* Active/Passive filter removed */}
+                
 
 
                 <select value={filterRepairStatus} onChange={e => setFilterRepairStatus(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
