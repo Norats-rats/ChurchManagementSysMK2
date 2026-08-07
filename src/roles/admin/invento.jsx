@@ -505,10 +505,10 @@ const InventoryForm = ({ user, role }) => {
                                 : 'This item will be restored back to the active inventory list.'}
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                            <button onClick={closeConfirmModal} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', color: '#111827' }}>
+                            <button onClick={closeConfirmModal} style={{ padding: '10px 14px', borderRadius: '8px', border: '2px solid #2563eb', background: '#ffffff', cursor: 'pointer', color: '#111827', fontWeight: 600, boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>
                                 Cancel
                             </button>
-                            <button onClick={handleConfirmAction} style={{ padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' }}>
+                            <button onClick={handleConfirmAction} style={{ padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#2563eb', color: '#ffffff', cursor: 'pointer', fontWeight: 600, boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)' }}>
                                 {confirmModal.mode === 'archive' ? 'Archive' : 'Restore'}
                             </button>
                         </div>
