@@ -48,6 +48,7 @@ const InventoryForm = ({ user, role }) => {
     const [loading, setLoading] = useState(true);
     const [showArchived, setShowArchived] = useState(false);
     const [archivedCount, setArchivedCount] = useState(0);
+    const [confirmModal, setConfirmModal] = useState({ visible: false, mode: '', id: null });
 
     useEffect(() => {
         fetchInventory(showArchived);
@@ -167,7 +168,6 @@ const InventoryForm = ({ user, role }) => {
     };
 
     const archiveItem = async (id) => {
-        if (!window.confirm("Archive this item? It will be hidden from the default list.")) return;
         try {
             await api.archiveInventory(id);
             fetchInventory(showArchived);
@@ -179,7 +179,6 @@ const InventoryForm = ({ user, role }) => {
     };
 
     const unarchiveItem = async (id) => {
-        if (!window.confirm("Restore this item back to the active inventory?")) return;
         try {
             await api.unarchiveInventory(id);
             fetchInventory(showArchived);
@@ -188,6 +187,26 @@ const InventoryForm = ({ user, role }) => {
             console.error(err);
             alert("Failed to unarchive item.");
         }
+    };
+
+    const openConfirmModal = (mode, id) => {
+        setConfirmModal({ visible: true, mode, id });
+    };
+
+    const closeConfirmModal = () => {
+        setConfirmModal({ visible: false, mode: '', id: null });
+    };
+
+    const handleConfirmAction = async () => {
+        if (!confirmModal.id) return;
+
+        if (confirmModal.mode === 'archive') {
+            await archiveItem(confirmModal.id);
+        } else if (confirmModal.mode === 'unarchive') {
+            await unarchiveItem(confirmModal.id);
+        }
+
+        closeConfirmModal();
     };
 
     const getCategoryCount = (catName) => {
@@ -435,11 +454,11 @@ const InventoryForm = ({ user, role }) => {
                                 <td>{m.lastEditedBy || '—'}</td>
                                 <td>
                                     {showArchived ? (
-                                        <button className="action-icon unarchive" onClick={() => unarchiveItem(m._id)} style={{ cursor: 'pointer', border: 'none', background: 'none' }}>♻️</button>
+                                        <button className="action-icon unarchive" onClick={() => openConfirmModal('unarchive', m._id)} style={{ cursor: 'pointer', border: 'none', background: 'none' }}>♻️</button>
                                     ) : (
                                         <>
                                             <button className="action-icon edit" onClick={() => startEdit(m)} style={{ marginRight: '8px', cursor: 'pointer', border: 'none', background: 'none' }}>✏️</button>
-                                            <button className="action-icon archive" onClick={() => archiveItem(m._id)} style={{ cursor: 'pointer', border: 'none', background: 'none' }}>🗃️</button>
+                                            <button className="action-icon archive" onClick={() => openConfirmModal('archive', m._id)} style={{ cursor: 'pointer', border: 'none', background: 'none' }}>🗃️</button>
                                         </>
                                     )}
                                 </td>
@@ -448,6 +467,54 @@ const InventoryForm = ({ user, role }) => {
                     </tbody>
                 </table>
             </div>
+
+            {confirmModal.visible && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(15, 23, 42, 0.65)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        padding: '20px'
+                    }}
+                    onClick={closeConfirmModal}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Confirm inventory action"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: '#fff',
+                            borderRadius: '16px',
+                            width: '100%',
+                            maxWidth: '420px',
+                            padding: '24px',
+                            boxShadow: '0 15px 40px rgba(0,0,0,0.2)'
+                        }}
+                    >
+                        <h3 style={{ marginTop: 0, marginBottom: '8px', color: '#111827' }}>
+                            {confirmModal.mode === 'archive' ? 'Archive Item?' : 'Restore Item?'}
+                        </h3>
+                        <p style={{ marginTop: 0, marginBottom: '20px', color: '#4b5563', lineHeight: 1.5 }}>
+                            {confirmModal.mode === 'archive'
+                                ? 'This item will be moved to the archived list and hidden from the active inventory view.'
+                                : 'This item will be restored back to the active inventory list.'}
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button onClick={closeConfirmModal} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>
+                                Cancel
+                            </button>
+                            <button onClick={handleConfirmAction} style={{ padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' }}>
+                                {confirmModal.mode === 'archive' ? 'Archive' : 'Restore'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
