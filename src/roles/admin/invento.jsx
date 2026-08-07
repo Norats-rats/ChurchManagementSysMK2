@@ -11,7 +11,7 @@ const CATEGORY_MAP = [
     { key: 'audio mixers', label: 'Audio Mixers', prefix: 'am' },
     { key: 'cables', label: 'Cables', prefix: 'cb' },
     { key: 'visuals', label: 'Visuals', prefix: 'vs' },
-    { key: 'misc', label: 'Misc', prefix: 'misc' }
+    { key: 'others', label: 'Others', prefix: 'other' }
 ];
 const CONDITION_OPTIONS = ["Excellent", "Good", "Poor"];
 const REPAIR_STATUS_OPTIONS = ["None", "Repair", "Damaged", "Dispose"];
@@ -22,8 +22,8 @@ const InventoryForm = ({ user, role }) => {
     const [location, setLocation] = useState("");
     const [assignedTo, setAssignedTo] = useState("");
     const [lastMaintenance, setLastMaintenance] = useState("");
-    const [category, setCategory] = useState("misc");
-    const [categoryKey, setCategoryKey] = useState('misc');
+    const [category, setCategory] = useState("others");
+    const [categoryKey, setCategoryKey] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [condition, setCondition] = useState("Good");
     const [brand, setBrand] = useState("");
@@ -136,7 +136,7 @@ const InventoryForm = ({ user, role }) => {
 
     const resetForm = () => {
         setItem(""); setQuantity(""); setLocation(""); setAssignedTo(""); setLastMaintenance("");
-        setCategory('misc'); setCategoryKey('misc'); setCategoryId(''); setCondition("Good"); setBrand(""); setRepairStatus("None");
+        setCategory('others'); setCategoryKey('others'); setCategoryId(''); setCondition("Good"); setBrand(""); setRepairStatus("None");
         setIsEditing(false); setEditId(null);
     };
 
@@ -151,13 +151,13 @@ const InventoryForm = ({ user, role }) => {
         if (m.categoryId) {
             const prefix = (m.categoryId || '').split('-')[0];
             const found = CATEGORY_MAP.find(c => c.prefix === prefix);
-            setCategoryKey(found ? found.key : 'misc');
+            setCategoryKey(found ? found.key : 'others');
             setCategoryId(m.categoryId);
-            setCategory(found ? found.key : 'misc');
+            setCategory(found ? found.key : 'others');
         } else {
-            setCategoryKey(m.category || 'misc');
-            setCategoryId(m.categoryId || getNextCategoryId((CATEGORY_MAP.find(c => c.key === (m.category || 'misc')) || CATEGORY_MAP[CATEGORY_MAP.length-1]).prefix));
-            setCategory(m.category || 'misc');
+            setCategoryKey(m.category || 'others');
+            setCategoryId(m.categoryId || getNextCategoryId((CATEGORY_MAP.find(c => c.key === (m.category || 'others')) || CATEGORY_MAP[CATEGORY_MAP.length-1]).prefix));
+            setCategory(m.category || 'others');
         }
         setCondition(m.condition || "Good");
         setBrand(m.brand || "");
@@ -236,7 +236,7 @@ const InventoryForm = ({ user, role }) => {
                 <select value={categoryKey} onChange={(e) => {
                     const key = e.target.value;
                     setCategoryKey(key);
-                    const map = CATEGORY_MAP.find(c => c.key === key) || CATEGORY_MAP.find(c => c.key === 'misc');
+                    const map = CATEGORY_MAP.find(c => c.key === key) || CATEGORY_MAP.find(c => c.key === 'others');
                     const nextId = getNextCategoryId(map.prefix);
                     setCategoryId(nextId);
                     setCategory(key);
