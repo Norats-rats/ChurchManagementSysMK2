@@ -38,6 +38,7 @@ const InventoryForm = ({ user, role }) => {
     const [filterBrand, setFilterBrand] = useState("");
     const [filterPledgeDonate, setFilterPledgeDonate] = useState("");
     const [filterRepairStatus, setFilterRepairStatus] = useState("");
+    const [categorySort, setCategorySort] = useState('asc');
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
     const [inventoryItems, setInventoryItems] = useState([]);
@@ -212,16 +213,17 @@ const InventoryForm = ({ user, role }) => {
         closeConfirmModal();
     };
 
-    const getCategoryCount = (catName) => {
-        return inventoryItems.filter(item => item.category === catName).length;
+    const getCategoryCount = (catKey) => {
+        return inventoryItems.filter(item => item.category === catKey).length;
     };
 
     const filteredInventory = inventoryItems.filter(m => {
         const name = (m.itemName || m.item || "").toLowerCase();
         const loc = (m.location || "").toLowerCase();
+        const cid = (m.categoryId || '').toLowerCase();
         const search = searchQuery.toLowerCase();
-        
-        const matchesSearch = name.includes(search) || loc.includes(search);
+
+        const matchesSearch = name.includes(search) || loc.includes(search) || cid.includes(search);
         const matchesCategory = filterCategory === "All Categories" || m.category === filterCategory;
         
         const matchesBrand = !filterBrand || (m.brand || '').toLowerCase().includes(filterBrand.toLowerCase());
@@ -304,26 +306,12 @@ const InventoryForm = ({ user, role }) => {
             </div>
 
             <div className="stats-container" style={{ display: 'flex', gap: '20px', marginBottom: '25px' }}>
-                <div className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, border: '1px solid #eee' }}>
-                    <span style={{ color: '#888', fontSize: '0.85rem' }}>Base</span>
-                    <span style={{ display: 'block', fontSize: '1.8rem', fontWeight: 'bold' }}>{getCategoryCount("Base")}</span>
-                </div>
-                <div className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, border: '1px solid #eee' }}>
-                    <span style={{ color: '#888', fontSize: '0.85rem' }}>Instruments</span>
-                    <span style={{ display: 'block', fontSize: '1.8rem', fontWeight: 'bold' }}>{getCategoryCount("Instruments")}</span>
-                </div>
-                <div className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, border: '1px solid #eee' }}>
-                    <span style={{ color: '#888', fontSize: '0.85rem' }}>Audio Equipment</span>
-                    <span style={{ display: 'block', fontSize: '1.8rem', fontWeight: 'bold' }}>{getCategoryCount("Audio Equipment")}</span>
-                </div>
-                <div className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, border: '1px solid #eee' }}>
-                    <span style={{ color: '#888', fontSize: '0.85rem' }}>Visual Equipment</span>
-                    <span style={{ display: 'block', fontSize: '1.8rem', fontWeight: 'bold' }}>{getCategoryCount("Visual Equipment")}</span>
-                </div>
-                <div className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, border: '1px solid #eee' }}>
-                    <span style={{ color: '#888', fontSize: '0.85rem' }}>Documents</span>
-                    <span style={{ display: 'block', fontSize: '1.8rem', fontWeight: 'bold' }}>{getCategoryCount("Documents")}</span>
-                </div>
+                {CATEGORY_MAP.map((c) => (
+                    <div key={c.key} className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, border: '1px solid #eee' }}>
+                        <span style={{ color: '#888', fontSize: '0.85rem' }}>{c.label}</span>
+                        <span style={{ display: 'block', fontSize: '1.8rem', fontWeight: 'bold' }}>{getCategoryCount(c.key)}</span>
+                    </div>
+                ))}
             </div>
 
             <div className="search-filter-container" style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -341,7 +329,14 @@ const InventoryForm = ({ user, role }) => {
                     style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
                 >
                     <option value="All Categories">All Categories</option>
-                    {CATEGORY_MAP.map(cat => <option key={cat.key} value={cat.key}>{cat.label}</option>)}
+                    {(() => {
+                        const sorted = [...CATEGORY_MAP].sort((a,b) => categorySort === 'asc' ? a.label.localeCompare(b.label) : b.label.localeCompare(a.label));
+                        return sorted.map(cat => <option key={cat.key} value={cat.key}>{cat.label}</option>);
+                    })()}
+                </select>
+                <select value={categorySort} onChange={e => setCategorySort(e.target.value)} title="Sort categories" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                    <option value="asc">A → Z</option>
+                    <option value="desc">Z → A</option>
                 </select>
 
                 <input
