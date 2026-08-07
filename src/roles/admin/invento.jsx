@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
 
-const CATEGORY_OPTIONS = ["Base", "Instruments", "Audio Equipment", "Visual Equipment", "Documents", "Miscellaneous"];
+const CATEGORY_MAP = [
+    { key: 'mic', label: 'Mic', prefix: 'mc' },
+    { key: 'guitar', label: 'Guitar', prefix: 'gt' },
+    { key: 'drum', label: 'Drum', prefix: 'dr' },
+    { key: 'amplifier', label: 'Amplifier', prefix: 'amp' },
+    { key: 'speaker', label: 'Speaker', prefix: 'sp' },
+    { key: 'keyboard', label: 'Keyboard', prefix: 'kb' },
+    { key: 'audio mixers', label: 'Audio Mixers', prefix: 'am' },
+    { key: 'cables', label: 'Cables', prefix: 'cb' },
+    { key: 'visuals', label: 'Visuals', prefix: 'vs' },
+    { key: 'misc', label: 'Misc', prefix: 'misc' }
+];
 const CONDITION_OPTIONS = ["Excellent", "Good", "Fair", "Poor"];
 const ASSIGNED_TO_ROLE_OPTIONS = ["Admin", "Staff", "Ministry Leader"];
-const ACTIVE_PASSIVE_OPTIONS = ["Active", "Passive"];
 const PLEDGE_DONATE_OPTIONS = ["Pledge", "Donated"];
 const REPAIR_STATUS_OPTIONS = ["None", "Repair", "Damaged", "Dispose"];
 
@@ -14,10 +24,11 @@ const InventoryForm = ({ user, role }) => {
     const [location, setLocation] = useState("");
     const [assignedTo, setAssignedTo] = useState("");
     const [lastMaintenance, setLastMaintenance] = useState("");
-    const [category, setCategory] = useState("Base");
+    const [category, setCategory] = useState("misc");
+    const [categoryKey, setCategoryKey] = useState('misc');
+    const [categoryId, setCategoryId] = useState('');
     const [condition, setCondition] = useState("Good");
     const [brand, setBrand] = useState("");
-    const [activePassive, setActivePassive] = useState("Active");
     const [pledgeDonate, setPledgeDonate] = useState("Pledge");
     const [repairStatus, setRepairStatus] = useState("None");
     const [ministries, setMinistries] = useState([]);
@@ -25,7 +36,6 @@ const InventoryForm = ({ user, role }) => {
     const [searchQuery, setSearchQuery] = useState("");
     const [filterCategory, setFilterCategory] = useState("All Categories");
     const [filterBrand, setFilterBrand] = useState("");
-    const [filterActivePassive, setFilterActivePassive] = useState("");
     const [filterPledgeDonate, setFilterPledgeDonate] = useState("");
     const [filterRepairStatus, setFilterRepairStatus] = useState("");
     const [isEditing, setIsEditing] = useState(false);
@@ -54,6 +64,18 @@ const InventoryForm = ({ user, role }) => {
         } catch (err) {
             console.error("Failed to load ministries:", err);
         }
+    };
+
+    const getNextCategoryId = (prefix) => {
+        if (!prefix) return `${prefix}-000`;
+        const existing = inventoryItems
+            .map(i => i.categoryId)
+            .filter(Boolean)
+            .filter(id => id.startsWith(prefix + '-'))
+            .map(id => parseInt(id.split('-')[1], 10) || 0);
+        const max = existing.length ? Math.max(...existing) : 0;
+        const next = max + 1;
+        return `${prefix}-${String(next).padStart(3, '0')}`;
     };
 
     const fetchInventory = async (archived = false) => {
@@ -93,10 +115,10 @@ const InventoryForm = ({ user, role }) => {
             location,
             assignedTo,
             lastMaintenance,
-            category,
+            category: categoryKey,
+            categoryId: categoryId,
             condition,
             brand,
-            activePassive,
             pledgeDonate,
             repairStatus,
             lastEditedBy: currentUserName
@@ -118,7 +140,7 @@ const InventoryForm = ({ user, role }) => {
 
     const resetForm = () => {
         setItem(""); setQuantity(""); setLocation(""); setAssignedTo(""); setLastMaintenance("");
-        setCategory("Base"); setCondition("Good"); setBrand(""); setActivePassive("Active"); setPledgeDonate("Pledge"); setRepairStatus("None");
+        setCategory('misc'); setCategoryKey('misc'); setCategoryId(''); setCondition("Good"); setBrand(""); setPledgeDonate("Pledge"); setRepairStatus("None");
         setIsEditing(false); setEditId(null);
     };
 
@@ -130,10 +152,20 @@ const InventoryForm = ({ user, role }) => {
         setLocation(m.location || "");
         setAssignedTo(m.assignedTo || "");
         setLastMaintenance(m.lastMaintenance || "");
-        setCategory(m.category || "Base");
+        // derive category key and id for legacy/edited items
+        if (m.categoryId) {
+            const prefix = (m.categoryId || '').split('-')[0];
+            const found = CATEGORY_MAP.find(c => c.prefix === prefix);
+            setCategoryKey(found ? found.key : 'misc');
+            setCategoryId(m.categoryId);
+            setCategory(found ? found.key : 'misc');
+        } else {
+            setCategoryKey(m.category || 'misc');
+            setCategoryId(m.categoryId || getNextCategoryId((CATEGORY_MAP.find(c => c.key === (m.category || 'misc')) || CATEGORY_MAP[CATEGORY_MAP.length-1]).prefix));
+            setCategory(m.category || 'misc');
+        }
         setCondition(m.condition || "Good");
         setBrand(m.brand || "");
-        setActivePassive(m.activePassive || "Active");
         setPledgeDonate(m.pledgeDonate || "Pledge");
         setRepairStatus(m.repairStatus || "None");
     };
@@ -193,11 +225,10 @@ const InventoryForm = ({ user, role }) => {
         const matchesCategory = filterCategory === "All Categories" || m.category === filterCategory;
         
         const matchesBrand = !filterBrand || (m.brand || '').toLowerCase().includes(filterBrand.toLowerCase());
-        const matchesActivePassive = !filterActivePassive || filterActivePassive === 'All' || (m.activePassive || '') === filterActivePassive;
         const matchesPledgeDonate = !filterPledgeDonate || filterPledgeDonate === 'All' || (m.pledgeDonate || '') === filterPledgeDonate;
         const matchesRepairStatus = !filterRepairStatus || filterRepairStatus === 'All' || (m.repairStatus || '') === filterRepairStatus;
 
-        return matchesSearch && matchesCategory && matchesBrand && matchesActivePassive && matchesPledgeDonate && matchesRepairStatus;
+        return matchesSearch && matchesCategory && matchesBrand && matchesPledgeDonate && matchesRepairStatus;
     });
 
     return (
@@ -208,13 +239,22 @@ const InventoryForm = ({ user, role }) => {
             </div>
 
             <div className="quick-add-bar" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', background: '#fff', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #eee' }}>
+                <input value={categoryId} readOnly placeholder="Category ID" style={{ width: '140px' }} />
+                <select value={categoryKey} onChange={(e) => {
+                    const key = e.target.value;
+                    setCategoryKey(key);
+                    const map = CATEGORY_MAP.find(c => c.key === key) || CATEGORY_MAP.find(c => c.key === 'misc');
+                    const nextId = getNextCategoryId(map.prefix);
+                    setCategoryId(nextId);
+                    setCategory(key);
+                }} style={{ minWidth: '160px' }}>
+                    {CATEGORY_MAP.map(c => <option key={c.key} value={c.key}>{`${c.key} (${c.prefix}-000)`}</option>)}
+                </select>
                 <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item Name" />
                 <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Quantity" style={{ width: '80px' }} />
                 <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location (e.g. Office A)" />
                 <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand" style={{ minWidth: '140px' }} />
-                <select value={activePassive} onChange={(e) => setActivePassive(e.target.value)} style={{ minWidth: '120px' }}>
-                    {ACTIVE_PASSIVE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
+                {/* active/passive removed */}
                 <select value={pledgeDonate} onChange={(e) => setPledgeDonate(e.target.value)} style={{ minWidth: '120px' }}>
                     {PLEDGE_DONATE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
@@ -236,9 +276,7 @@ const InventoryForm = ({ user, role }) => {
                 </select>
                 <input type="date" value={lastMaintenance} onChange={(e) => setLastMaintenance(e.target.value)} />
                 
-                <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                    {CATEGORY_OPTIONS.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
+                {/* category select replaced by categoryKey selector above */}
 
                 <select value={condition} onChange={(e) => setCondition(e.target.value)}>
                     {CONDITION_OPTIONS.map(cond => <option key={cond} value={cond}>{cond}</option>)}
@@ -304,7 +342,7 @@ const InventoryForm = ({ user, role }) => {
                     style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
                 >
                     <option value="All Categories">All Categories</option>
-                    {CATEGORY_OPTIONS.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    {CATEGORY_MAP.map(cat => <option key={cat.key} value={cat.key}>{cat.label}</option>)}
                 </select>
 
                 <input
@@ -315,11 +353,7 @@ const InventoryForm = ({ user, role }) => {
                 />
 
 
-                <select value={filterActivePassive} onChange={e => setFilterActivePassive(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                    <option value="">Active/Passive</option>
-                    <option value="All">All</option>
-                    {ACTIVE_PASSIVE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
+                {/* Active/Passive filter removed */}
 
                 <select value={filterPledgeDonate} onChange={e => setFilterPledgeDonate(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
                     <option value="">Pledge/Donate</option>
@@ -334,7 +368,7 @@ const InventoryForm = ({ user, role }) => {
                 </select>
 
                 <button onClick={() => {
-                    setFilterBrand(''); setFilterActivePassive(''); setFilterPledgeDonate(''); setFilterRepairStatus(''); setFilterCategory('All Categories'); setSearchQuery('');
+                    setFilterBrand(''); setFilterPledgeDonate(''); setFilterRepairStatus(''); setFilterCategory('All Categories'); setSearchQuery('');
                 }} style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', color: '#111' }}>Clear Filters</button>
             </div>
 
@@ -344,8 +378,9 @@ const InventoryForm = ({ user, role }) => {
                         <tr>
                             <th>ITEM</th>
                             <th>CATEGORY</th>
+                            <th>CATEGORY ID</th>
                             <th>BRAND</th>
-                            <th>ACTIVE/PASSIVE</th>
+                            {/* ACTIVE/PASSIVE column removed */}
                             <th>PLEDGE/DONATE</th>
                             <th>REPAIR STATUS</th>
                             <th>QUANTITY</th>
@@ -367,8 +402,9 @@ const InventoryForm = ({ user, role }) => {
                             <tr key={m._id}>
                                 <td><strong>{m.itemName || m.item}</strong></td>
                                 <td>{m.category}</td>
+                                <td>{m.categoryId || '—'}</td>
                                 <td>{m.brand || '—'}</td>
-                                <td>{m.activePassive || '—'}</td>
+                                {/* activePassive removed */}
                                 <td>{m.pledgeDonate || '—'}</td>
                                 <td>{m.repairStatus || '—'}</td>
                                 <td>{m.quantity}</td>
