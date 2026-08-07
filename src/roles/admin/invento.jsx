@@ -239,7 +239,6 @@ const InventoryForm = ({ user, role }) => {
             </div>
 
             <div className="quick-add-bar" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', background: '#fff', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #eee' }}>
-                <input value={categoryId} readOnly placeholder="Category ID" style={{ width: '140px' }} />
                 <select value={categoryKey} onChange={(e) => {
                     const key = e.target.value;
                     setCategoryKey(key);
@@ -248,7 +247,7 @@ const InventoryForm = ({ user, role }) => {
                     setCategoryId(nextId);
                     setCategory(key);
                 }} style={{ minWidth: '160px' }}>
-                    {CATEGORY_MAP.map(c => <option key={c.key} value={c.key}>{`${c.key} (${c.prefix}-000)`}</option>)}
+                    {CATEGORY_MAP.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
                 </select>
                 <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item Name" />
                 <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Quantity" style={{ width: '80px' }} />
@@ -376,9 +375,9 @@ const InventoryForm = ({ user, role }) => {
                 <table className="member-table" style={{ minWidth: '1800px' }}>
                     <thead>
                         <tr>
+                            <th>CATEGORY ID</th>
                             <th>ITEM</th>
                             <th>CATEGORY</th>
-                            <th>CATEGORY ID</th>
                             <th>BRAND</th>
                             {/* ACTIVE/PASSIVE column removed */}
                             <th>PLEDGE/DONATE</th>
@@ -400,9 +399,9 @@ const InventoryForm = ({ user, role }) => {
                             <tr><td colSpan="14" style={{ textAlign: 'center', padding: '20px' }}>No inventory items found.</td></tr>
                         ) : filteredInventory.map((m) => (
                             <tr key={m._id}>
+                                <td>{m.categoryId || '—'}</td>
                                 <td><strong>{m.itemName || m.item}</strong></td>
                                 <td>{m.category}</td>
-                                <td>{m.categoryId || '—'}</td>
                                 <td>{m.brand || '—'}</td>
                                 {/* activePassive removed */}
                                 <td>{m.pledgeDonate || '—'}</td>
