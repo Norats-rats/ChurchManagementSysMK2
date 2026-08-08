@@ -269,6 +269,9 @@ app.get('/', (req, res) => {
 app.post('/register', async (req, res) => {
   try {
     const { firstName, lastName, email, password, gender } = req.body;
+    if (!password || password.length < 7) {
+      return res.status(400).json({ error: 'Password must be at least 7 characters long.' });
+    }
     const hashedPassword = await bcrypt.hash(password, 10);
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     const newMember = new Member({ 
@@ -310,6 +313,9 @@ app.post('/verify-otp', async (req, res) => {
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
+    if (!password || password.length < 7) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 7 characters long.' });
+    }
     const user = await Member.findOne({ email });
     if (!user) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
@@ -350,6 +356,9 @@ app.post('/forgot-password', async (req, res) => {
 app.post('/reset-password', async (req, res) => {
   const { email, otp, newPassword } = req.body;
   try {
+    if (!newPassword || newPassword.length < 7) {
+      return res.status(400).json({ message: 'Password must be at least 7 characters long.' });
+    }
     const user = await Member.findOne({ email, otp });
     if (!user) return res.status(400).json({ message: "Invalid or expired code" });
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
