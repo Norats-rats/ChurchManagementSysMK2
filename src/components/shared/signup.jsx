@@ -12,6 +12,7 @@ const Signup = ({ onGoToLogin }) => {
     agreeTerms: false
   });
   const [otp, setOtp] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -19,10 +20,19 @@ const Signup = ({ onGoToLogin }) => {
       ...formData,
       [name]: type === 'checkbox' ? checked : value
     });
+
+    if (name === 'password') {
+      setPasswordError(value && value.length < 7 ? 'Password is insecure. Use 7 or more characters.' : '');
+    }
   };
 
   const handleSignup = async (e) => {
     e.preventDefault();
+    if (formData.password.length < 7) {
+      setPasswordError('Password is insecure. Use 7 or more characters.');
+      return;
+    }
+
     try {
       const response = await api.register(formData);
       if (response.status === 201) {
@@ -139,11 +149,14 @@ const response = await api.verifyOtp({
               <input 
                 type="password" 
                 name="password" 
-                placeholder="Min. 6 characters" 
+                placeholder="Min. 7 characters" 
                 onChange={handleChange} 
                 required 
               />
             </div>
+            {passwordError && (
+              <p style={{ color: '#f87171', marginTop: '8px', fontSize: '0.9rem' }}>{passwordError}</p>
+            )}
           </div>
 
           <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>

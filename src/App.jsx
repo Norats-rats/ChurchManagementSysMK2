@@ -10,6 +10,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [newPasswordError, setNewPasswordError] = useState('');
   const [step, setStep] = useState(1); 
   const handleRequestReset = async (e) => {
     e.preventDefault();
@@ -25,6 +26,11 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
 
   const handleResetSubmit = async (e) => {
     e.preventDefault();
+    if (newPassword.length < 7) {
+      setNewPasswordError('Password is insecure. Use 7 or more characters.');
+      return;
+    }
+
     try {
       const response = await api.resetPassword({ email, otp, newPassword });
       if (response.data.success) {
@@ -73,11 +79,19 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
               <label>New Password</label>
               <input 
                 type="password" 
-                placeholder="Min. 6 characters" 
-                onChange={(e) => setNewPassword(e.target.value)} 
+                placeholder="Min. 7 characters" 
+                value={newPassword}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNewPassword(value);
+                  setNewPasswordError(value && value.length < 7 ? 'Password is insecure. Use 7 or more characters.' : '');
+                }} 
                 required 
               />
             </div>
+            {newPasswordError && (
+              <p style={{ color: '#f87171', marginTop: '8px', fontSize: '0.9rem' }}>{newPasswordError}</p>
+            )}
             <button type="submit" className="signin-button">Update Password</button>
           </form>
         )}
@@ -97,10 +111,16 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [remember, setRemember] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (password.length < 7) {
+      setPasswordError('Password is insecure. Use 7 or more characters.');
+      return;
+    }
+
     try {
       const response = await api.login({ email, password });
       const data = response.data;
@@ -150,7 +170,11 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
                 type={showPassword ? "text" : "password"} 
                 placeholder="Enter your password"
                 value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setPassword(value);
+                  setPasswordError(value && value.length < 7 ? 'Password is insecure. Use 7 or more characters.' : '');
+                }} 
                 required 
               />
               <button 
@@ -161,6 +185,9 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
                 {showPassword ? '👁️‍🗨️' : '👁️'}
               </button>
             </div>
+            {passwordError && (
+              <p style={{ color: '#f87171', marginTop: '8px', fontSize: '0.9rem' }}>{passwordError}</p>
+            )}
           </div>
 
           <div className="form-options">
