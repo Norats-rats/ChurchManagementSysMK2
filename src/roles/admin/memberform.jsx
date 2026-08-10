@@ -58,22 +58,50 @@ const MemberForm = () => {
         return [];
     };
 
-    const handleAction = async () => {
-        if (!firstName || !lastName || !email || (!isEditing && !password)) {
-            return alert("Please fill in Names, Email, and Password");
+    const validateForm = () => {
+        const trimmedFirst = firstName.trim();
+        const trimmedLast = lastName.trim();
+        const trimmedEmail = email.trim();
+        const trimmedPassword = password.trim();
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!trimmedFirst || !trimmedLast) {
+            alert("Incomplete name");
+            return false;
         }
+
+        if (!trimmedEmail || !emailPattern.test(trimmedEmail)) {
+            alert("Incomplete email please input a valid email");
+            return false;
+        }
+
+        if (!isEditing) {
+            if (!trimmedPassword || trimmedPassword.length < 7) {
+                alert("Insecure password please use 7 or more characters");
+                return false;
+            }
+        } else if (trimmedPassword && trimmedPassword.length < 7) {
+            alert("Insecure password please use 7 or more characters");
+            return false;
+        }
+
+        return true;
+    };
+
+    const handleAction = async () => {
+        if (!validateForm()) return;
 
         const validMinistries = selectedMinistries.filter(Boolean);
         const memberData = { 
-            firstName,
-            lastName,
-            email, 
-            address, 
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: email.trim(), 
+            address: address.trim(), 
             ministries: validMinistries,
             ministry: validMinistries[0] || 'None',
             role,
             category: role === "Admin" ? "Admin" : "Member",
-            ...(password && { password }) 
+            ...(password.trim() && { password: password.trim() }) 
         };
 
         try {
