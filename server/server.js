@@ -945,30 +945,59 @@ app.post('/api/prayers', async (req, res) => {
     }
 
     let aiFeedback = "";
-    if (process.env.PUTER_AUTH_TOKEN && text) {
-      try {
-        const prompt = `
-          You are an encouraging, compassionate pastoral assistant. 
-          A church member has shared this private prayer request: "${text}".
-          Provide a brief, deeply supportive response (max 2 sentences) and include one helpful Bible verse reference that provides comfort for this situation. Keep it gentle and professional. Do not return any JSON formatting, just the raw message.
-        `;
+    
+    if (text) {
+      const prompt = `
+        You are an encouraging, compassionate pastoral assistant. 
+        A church member has shared this private prayer request: "${text}".
+        Provide a brief, deeply supportive response (max 2 sentences) and include one helpful Bible verse reference that provides comfort for this situation. Keep it gentle and professional. Do not return any JSON formatting, just the raw message.
+      `;
 
-        const httpResponse = await axios.post(
-          'https://api.puter.com/puterai/openai/v1/chat/completions',
-          {
-            messages: [{ role: 'user', content: prompt }],
-            model: 'gpt-4o-mini'
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
-              'Content-Type': 'application/json'
-            }
+      const aiStrategies = [
+        async () => {
+          if (!process.env.PUTER_AUTH_TOKEN) throw new Error("No Puter token");
+          const response = await axios.post(
+            'https://api.puter.com/puterai/openai/v1/chat/completions',
+            { messages: [{ role: 'user', content: prompt }], model: 'gpt-4o-mini' },
+            { headers: { 'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`, 'Content-Type': 'application/json' } }
+          );
+          return response.data?.choices?.[0]?.message?.content?.trim();
+        },
+
+        async () => {
+          if (!process.env.OPENAI_API_KEY) throw new Error("No OpenAI key");
+          const response = await axios.post(
+            'https://api.openai.com/v1/chat/completions',
+            { messages: [{ role: 'user', content: prompt }], model: 'gpt-4o-mini' },
+            { headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
+          );
+          return response.data?.choices?.[0]?.message?.content?.trim();
+        },
+
+        async () => {
+          if (!process.env.GEMINI_API_KEY) throw new Error("No Gemini key");
+          const response = await axios.post(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            { contents: [{ parts: [{ text: prompt }] }] },
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+          return response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        }
+      ];
+
+      for (const strategy of aiStrategies) {
+        try {
+          const result = await strategy();
+          if (result) {
+            aiFeedback = result;
+            break; 
           }
-        );
-        aiFeedback = httpResponse.data?.choices?.[0]?.message?.content?.trim() || "";
-      } catch (aiErr) {
-        console.error("💡 Puter background processing failed:", aiErr.message);
+        } catch (stratErr) {
+          console.warn("⚠️ AI strategy failed, trying next fallback...", stratErr.message);
+        }
+      }
+
+      if (!aiFeedback) {
         aiFeedback = "Our ministry team is standing in agreement with you.";
       }
     }
@@ -983,9 +1012,11 @@ app.post('/api/prayers', async (req, res) => {
     });
 
     await newPrayer.save();
-    res.status(201).json(newPrayer);
+    return res.status(201).json(newPrayer);
+    
   } catch (err) { 
-    res.status(400).json({ error: "Failed to create prayer request." }); 
+    console.error("Server error:", err);
+    return res.status(400).json({ error: "Failed to create prayer request." }); 
   }
 });
 
