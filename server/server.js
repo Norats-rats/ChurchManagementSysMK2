@@ -953,52 +953,57 @@ app.post('/api/prayers', async (req, res) => {
         Provide a brief, deeply supportive response (max 2 sentences) and include one helpful Bible verse reference that provides comfort for this situation. Keep it gentle and professional. Do not return any JSON formatting, just the raw message.
       `;
 
-      // Tiered fallback strategies
+      // Strategies with identifiable names for clear error logs
       const aiStrategies = [
-        // 1. Try Puter AI first
-        async () => {
-          if (!process.env.PUTER_AUTH_TOKEN) throw new Error("No Puter token");
-          const response = await axios.post(
-            'https://api.puter.com/puterai/openai/v1/chat/completions',
-            { messages: [{ role: 'user', content: prompt }], model: 'gpt-4o-mini' },
-            { headers: { 'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`, 'Content-Type': 'application/json' } }
-          );
-          return response.data?.choices?.[0]?.message?.content?.trim();
+        {
+          name: "Puter AI",
+          execute: async () => {
+            if (!process.env.PUTER_AUTH_TOKEN) throw new Error("No Puter token configured");
+            const response = await axios.post(
+              'https://api.puter.com/puterai/openai/v1/chat/completions',
+              { messages: [{ role: 'user', content: prompt }], model: 'gpt-4o-mini' },
+              { headers: { 'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`, 'Content-Type': 'application/json' } }
+            );
+            return response.data?.choices?.[0]?.message?.content?.trim();
+          }
         },
-
-        // 2. Fallback to OpenAI API key if available
-        async () => {
-          if (!process.env.OPENAI_API_KEY) throw new Error("No OpenAI key");
-          const response = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
-            { messages: [{ role: 'user', content: prompt }], model: 'gpt-4o-mini' },
-            { headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
-          );
-          return response.data?.choices?.[0]?.message?.content?.trim();
+        {
+          name: "OpenAI",
+          execute: async () => {
+            if (!process.env.OPENAI_API_KEY) throw new Error("No OpenAI API key configured");
+            const response = await axios.post(
+              'https://api.openai.com/v1/chat/completions',
+              { messages: [{ role: 'user', content: prompt }], model: 'gpt-4o-mini' },
+              { headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
+            );
+            return response.data?.choices?.[0]?.message?.content?.trim();
+          }
         },
-
-        // 3. Fallback to Google Gemini API key if available
-        async () => {
-          if (!process.env.GEMINI_API_KEY) throw new Error("No Gemini key");
-          const response = await axios.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-            { contents: [{ parts: [{ text: prompt }] }] },
-            { headers: { 'Content-Type': 'application/json' } }
-          );
-          return response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        {
+          name: "Google Gemini",
+          execute: async () => {
+            if (!process.env.GEMINI_API_KEY) throw new Error("No Gemini API key configured");
+            const response = await axios.post(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+              { contents: [{ parts: [{ text: prompt }] }] },
+              { headers: { 'Content-Type': 'application/json' } }
+            );
+            return response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          }
         }
       ];
 
-      // Execute strategies sequentially until one succeeds
+      // Execute strategies sequentially, explicitly logging which provider failed
       for (const strategy of aiStrategies) {
         try {
-          const result = await strategy();
+          const result = await strategy.execute();
           if (result) {
             aiFeedback = result;
+            console.log(`✅ Successfully generated AI response using [${strategy.name}]`);
             break; 
           }
         } catch (stratErr) {
-          console.warn("⚠️ AI strategy failed, trying next fallback...", stratErr.message);
+          console.warn(`⚠️ [${strategy.name}] strategy failed: ${stratErr.message}. Trying next fallback...`);
         }
       }
 
