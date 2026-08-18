@@ -11,7 +11,14 @@ const EVENT_LOCATIONS = [
   'FBCFI Cubao',
   'Carlos P. Garcia High School Cubao',
   'FBCFI Caloocan',
+  'FBCFI Montalban Rizal',
+  'FBCFI Cay Pombo, Santa Maria, Bulacan',
   'FBCFI Bagong Silangan, Quezon City',
+  'FBCFI Pampanga',
+  'FBCFI Iba, Zambales',
+  'FBCFI Subic',
+  'FBCFI Dapla',
+  'FBCFI Acoje',
   'FBCFI SAN PEDRO Church',
   'Pacita Astrodome',
   'FBCFI TAGAPO STA ROSA',
@@ -19,7 +26,9 @@ const EVENT_LOCATIONS = [
   'FBCFI Calamba Laguna',
   'La Chassah Felisa Calamba Laguna',
   'FBCFI Tanauan City Batangas',
-  'Gymnasium 1 Tanauan City Batangas'
+  'Gymnasium 1 Tanauan City Batangas',
+  'FBCFI Candelaria Quezon',
+  'FBCFI Caluag Quezon'
 ];
 
 const EventTab = ({ role, userId }) => {
