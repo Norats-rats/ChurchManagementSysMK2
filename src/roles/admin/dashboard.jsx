@@ -279,7 +279,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
         })
         .sort((a, b) => new Date(a.date) - new Date(b.date));
         
-      const activeMinistries = Array.isArray(ministriesRes.data) ? ministriesRes.data.filter(m => m.status !== 'Deactive').length : 0;
+      const activeMinistries = Array.isArray(ministriesRes.data) ? ministriesRes.data.filter(m => m.status !== 'Archived').length : 0;
 
       setStats({
         memberCount: Array.isArray(membersRes.data) ? membersRes.data.length : 0,

@@ -117,8 +117,8 @@ const Ministries = ({ role, user }) => {
 
   const handleToggleStatus = async (ministry) => {
     const nextStatus = ministry.status === 'Archived' ? 'Active' : 'Archived';
-    const actionText = nextStatus === 'Archived' ? 'archive' : 'activate';
-
+    const actionText = nextStatus === 'Archived' ? 'archive' : 'restore';
+    
     if (window.confirm(`Are you sure you want to ${actionText} this ministry?`)) {
       try {
         const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}`, {
@@ -334,7 +334,7 @@ const Ministries = ({ role, user }) => {
                     {m.name}
                   </span>
                 </h3>
-                {m.status === 'Deactive' && <span style={inactivePill}>INACTIVE</span>}
+                {m.status === 'Archived' && <span style={inactivePill}>ARCHIVED</span>}
               </div>
               
               {canManage && editingId === m._id ? (
@@ -552,7 +552,7 @@ const Ministries = ({ role, user }) => {
                       borderColor: m.status === 'Archived' ? '#a7f3d0' : '#fecaca'
                     }}
                   >
-                    {m.status === 'Archived' ? 'Activate' : 'Archive'}
+                    {m.status === 'Archived' ? 'Restore' : 'Archive'}
                   </button>
                 </div>
               )}
