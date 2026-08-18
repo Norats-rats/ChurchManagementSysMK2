@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../../api';
-import churchLogo from '../../assets/churchlogo.jpg';
+import churchLogo from '../../assets/churchlogole.webp';
 import Advising from '../../components/shared/advisinglist';
 import Profile from '../../components/shared/profile';
 import {
-    canManageAttendance,
-    canManageEvents,
-    canManageMinistries,
-    canViewAnalytics,
-    canViewInventory,
-    hasPermission,
-    normalizeRole
+  canManageAttendance,
+  canManageEvents,
+  canManageMinistries,
+  canViewAnalytics,
+  canViewInventory,
+  hasPermission,
+  normalizeRole
 } from '../../permissions';
 import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
