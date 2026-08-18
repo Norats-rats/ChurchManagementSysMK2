@@ -945,70 +945,30 @@ app.post('/api/prayers', async (req, res) => {
     }
 
     let aiFeedback = "";
-    
-    if (text) {
-      const prompt = `
-        You are an encouraging, compassionate pastoral assistant. 
-        A church member has shared this private prayer request: "${text}".
-        Provide a brief, deeply supportive response (max 2 sentences) and include one helpful Bible verse reference that provides comfort for this situation. Keep it gentle and professional. Do not return any JSON formatting, just the raw message.
-      `;
+    if (process.env.PUTER_AUTH_TOKEN && text) {
+      try {
+        const prompt = `
+          You are an encouraging, compassionate pastoral assistant. 
+          A church member has shared this private prayer request: "${text}".
+          Provide a brief, deeply supportive response (max 2 sentences) and include one helpful Bible verse reference that provides comfort for this situation. Keep it gentle and professional. Do not return any JSON formatting, just the raw message.
+        `;
 
-      // Strategies with identifiable names for clear error logs
-      const aiStrategies = [
-        {
-          name: "Puter AI",
-          execute: async () => {
-            if (!process.env.PUTER_AUTH_TOKEN) throw new Error("No Puter token configured");
-            const response = await axios.post(
-              'https://api.puter.com/puterai/openai/v1/chat/completions',
-              { messages: [{ role: 'user', content: prompt }], model: 'gpt-4o-mini' },
-              { headers: { 'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`, 'Content-Type': 'application/json' } }
-            );
-            return response.data?.choices?.[0]?.message?.content?.trim();
+        const httpResponse = await axios.post(
+          'https://api.puter.com/puterai/openai/v1/chat/completions',
+          {
+            messages: [{ role: 'user', content: prompt }],
+            model: 'gpt-4o-mini'
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
+              'Content-Type': 'application/json'
+            }
           }
-        },
-        {
-          name: "OpenAI",
-          execute: async () => {
-            if (!process.env.OPENAI_API_KEY) throw new Error("No OpenAI API key configured");
-            const response = await axios.post(
-              'https://api.openai.com/v1/chat/completions',
-              { messages: [{ role: 'user', content: prompt }], model: 'gpt-4o-mini' },
-              { headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
-            );
-            return response.data?.choices?.[0]?.message?.content?.trim();
-          }
-        },
-        {
-          name: "Google Gemini",
-          execute: async () => {
-            if (!process.env.GEMINI_API_KEY) throw new Error("No Gemini API key configured");
-            const response = await axios.post(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-              { contents: [{ parts: [{ text: prompt }] }] },
-              { headers: { 'Content-Type': 'application/json' } }
-            );
-            return response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          }
-        }
-      ];
-
-      // Execute strategies sequentially, explicitly logging which provider failed
-      for (const strategy of aiStrategies) {
-        try {
-          const result = await strategy.execute();
-          if (result) {
-            aiFeedback = result;
-            console.log(`✅ Successfully generated AI response using [${strategy.name}]`);
-            break; 
-          }
-        } catch (stratErr) {
-          console.warn(`⚠️ [${strategy.name}] strategy failed: ${stratErr.message}. Trying next fallback...`);
-        }
-      }
-
-      // Final default fallback if all APIs fail
-      if (!aiFeedback) {
+        );
+        aiFeedback = httpResponse.data?.choices?.[0]?.message?.content?.trim() || "";
+      } catch (aiErr) {
+        console.error("💡 Puter background processing failed:", aiErr.message);
         aiFeedback = "Our ministry team is standing in agreement with you.";
       }
     }
@@ -1023,11 +983,9 @@ app.post('/api/prayers', async (req, res) => {
     });
 
     await newPrayer.save();
-    return res.status(201).json(newPrayer);
-    
+    res.status(201).json(newPrayer);
   } catch (err) { 
-    console.error("Server error:", err);
-    return res.status(400).json({ error: "Failed to create prayer request." }); 
+    res.status(400).json({ error: "Failed to create prayer request." }); 
   }
 });
 
