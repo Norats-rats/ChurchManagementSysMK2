@@ -116,9 +116,9 @@ const Ministries = ({ role, user }) => {
   };
 
   const handleToggleStatus = async (ministry) => {
-    const nextStatus = ministry.status === 'Deactive' ? 'Active' : 'Deactive';
-    const actionText = nextStatus === 'Deactive' ? 'deactivate' : 'activate';
-    
+    const nextStatus = ministry.status === 'Archived' ? 'Active' : 'Archived';
+    const actionText = nextStatus === 'Archived' ? 'archive' : 'activate';
+
     if (window.confirm(`Are you sure you want to ${actionText} this ministry?`)) {
       try {
         const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}`, {
@@ -547,12 +547,12 @@ const Ministries = ({ role, user }) => {
                       fontWeight: 'bold',
                       cursor: 'pointer',
                       border: '1px solid',
-                      backgroundColor: m.status === 'Deactive' ? '#ecfdf5' : '#fef2f2',
-                      color: m.status === 'Deactive' ? '#059669' : '#dc2626',
-                      borderColor: m.status === 'Deactive' ? '#a7f3d0' : '#fecaca'
+                      backgroundColor: m.status === 'Archived' ? '#ecfdf5' : '#fef2f2',
+                      color: m.status === 'Archived' ? '#059669' : '#dc2626',
+                      borderColor: m.status === 'Archived' ? '#a7f3d0' : '#fecaca'
                     }}
                   >
-                    {m.status === 'Deactive' ? 'Activate' : 'Deactivate'}
+                    {m.status === 'Archived' ? 'Activate' : 'Archive'}
                   </button>
                 </div>
               )}
