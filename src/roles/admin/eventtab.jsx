@@ -2,6 +2,26 @@ import { useEffect, useState } from 'react';
 import api from '../../api';
 import { canManageEvents } from '../../permissions';
 
+const EVENT_LOCATIONS = [
+  'Polytechnic University of the Philippines Taguig Branch Chapel Area',
+  'Polytechnic University of the Philippines Taguig Branch Gymnasium',
+  'Taguig City University Auditorium',
+  'FBCFI Taguig Central Bicutan Pastoral House',
+  'FBCFI Pinagsama Taguig Pastoral House',
+  'FBCFI Cubao',
+  'Carlos P. Garcia High School Cubao',
+  'FBCFI Caloocan',
+  'FBCFI Bagong Silangan, Quezon City',
+  'FBCFI SAN PEDRO Church',
+  'Pacita Astrodome',
+  'FBCFI TAGAPO STA ROSA',
+  'Santa Rosa City Auditorium',
+  'FBCFI Calamba Laguna',
+  'La Chassah Felisa Calamba Laguna',
+  'FBCFI Tanauan City Batangas',
+  'Gymnasium 1 Tanauan City Batangas'
+];
+
 const EventTab = ({ role, userId }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,15 +40,19 @@ const EventTab = ({ role, userId }) => {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
+  const [leaderOptions, setLeaderOptions] = useState([]);
+
   const [formData, setFormData] = useState({
-    titleSelection: 'Worship Service', 
+    titleSelection: 'Worship Service',
     reservationName: '',
     category: 'Worship',
     date: new Date().toISOString().split('T')[0],
-    time: '08:00 AM',
+    timeStart: '08:00',
+    timeEnd: '09:00',
     room: '',
     type: 'Once',
     role: '',
+    leadPeople: [],
     status: 'active'
   });
 
@@ -39,7 +63,22 @@ const EventTab = ({ role, userId }) => {
 
   useEffect(() => {
     fetchEvents();
+    fetchLeaderOptions();
   }, []);
+
+  const fetchLeaderOptions = async () => {
+    try {
+      const response = await api.getMembers();
+      const members = Array.isArray(response.data) ? response.data : [];
+      const ministryLeaders = members.filter(member =>
+        member.role === 'Ministry Leader' || member.role === 'Ministry'
+      );
+      setLeaderOptions(ministryLeaders);
+    } catch (err) {
+      console.error('Failed to fetch ministry leaders:', err);
+      setLeaderOptions([]);
+    }
+  };
 
   const fetchEvents = async () => {
     try {
@@ -150,61 +189,78 @@ const EventTab = ({ role, userId }) => {
     setAiSuggestion(null);
   };
 
-const handleCreateOrUpdate = async (e) => {
+  const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
-    
+
     const selectedDateObj = new Date(formData.date + 'T00:00:00');
     if (selectedDateObj < today && !editingId) {
-      alert("Cannot schedule new events for past dates.");
+      alert('Cannot schedule new events for past dates.');
       return;
     }
 
-    const combinedTitle = `${formData.titleSelection} for ${formData.reservationName}`;
-    const isNameTaken = events.some(ev => 
-      ev.title.toLowerCase() === combinedTitle.toLowerCase() && 
-      ev._id !== editingId
-    );
-
-    if (isNameTaken) {
-      alert(`The name "${combinedTitle}" is already in use for another event. Please use a new name.`);
+    const trimmedReservation = formData.reservationName.trim();
+    const trimmedTitle = formData.titleSelection.trim();
+    if (!trimmedReservation) {
+      alert('Please enter a booking/reservation name.');
       return;
     }
 
-    const isRoomTaken = events.some(ev => 
-      formData.room.trim() !== '' &&
-      ev.room.toLowerCase() === formData.room.trim().toLowerCase() && 
+    if (formData.leadPeople.length < 2 || formData.leadPeople.length > 3) {
+      alert('Please select between 2 and 3 ministry leaders for this event.');
+      return;
+    }
+
+    const combinedTitle = `${trimmedTitle} for ${trimmedReservation}`;
+    const duplicateEvent = events.some(ev =>
       ev.date === formData.date &&
-      ev.time === formData.time &&
+      ev.reservationName?.trim().toLowerCase() === trimmedReservation.toLowerCase() &&
+      ev.titleSelection?.trim().toLowerCase() === trimmedTitle.toLowerCase() &&
+      ev.room?.trim().toLowerCase() === formData.room.trim().toLowerCase() &&
+      ((ev.timeStart || ev.time || '00:00') === formData.timeStart || (ev.timeEnd || ev.time || '00:00') === formData.timeEnd) &&
       ev._id !== editingId
     );
 
-    if (isRoomTaken) {
-      alert(`"${formData.room}" is already booked on ${formData.date} at ${formData.time}. Please choose a different location or time.`);
+    if (duplicateEvent) {
+      alert(`This exact event is already scheduled for ${formData.date}. Please choose a different time, room, or event title.`);
       return;
     }
 
-    const submissionData = { 
-        ...formData, 
-        title: combinedTitle, 
-        status: editingId ? formData.status : 'active' 
+    const submissionData = {
+      ...formData,
+      reservationName: trimmedReservation,
+      title: combinedTitle,
+      time: `${formData.timeStart} - ${formData.timeEnd}`,
+      timeStart: formData.timeStart,
+      timeEnd: formData.timeEnd,
+      leadPeople: formData.leadPeople,
+      role: formData.leadPeople.join(', '),
+      status: editingId ? formData.status : 'active'
     };
 
     try {
       if (editingId) {
-        await api.updateEvent(editingId, submissionData); 
+        await api.updateEvent(editingId, submissionData);
       } else {
-        await api.createEvent(submissionData); 
+        await api.createEvent(submissionData);
       }
       setEditingId(null);
       setAiSuggestion(null);
-      setFormData({ 
-        titleSelection: 'Worship Service', reservationName: '', 
-        category: 'Worship', date: formData.date, time: '08:00 AM', 
-        room: '', role: '', status: 'active'
+      setFormData({
+        titleSelection: 'Worship Service',
+        reservationName: '',
+        category: 'Worship',
+        date: formData.date,
+        timeStart: '08:00',
+        timeEnd: '09:00',
+        room: '',
+        role: '',
+        leadPeople: [],
+        status: 'active'
       });
       fetchEvents();
     } catch (err) {
-      alert("Error saving event");
+      const message = err.response?.data?.message || err.response?.data?.error || 'Error saving event';
+      alert(message);
     }
   };
 
@@ -274,10 +330,19 @@ const handleCreateOrUpdate = async (e) => {
     attendBtn: (isAttending) => ({ width: '100%', padding: '10px', backgroundColor: isAttending ? '#ef4444' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' })
   };
 
+  const parseTimeValue = (value) => {
+    if (!value) return 0;
+    const match = String(value).match(/(\d{1,2}):(\d{2})/);
+    if (!match) return 0;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    return hours * 60 + minutes;
+  };
+
   const selectedEvents = getEventsForSelectedDate();
   const sortedSelectedEvents = [...selectedEvents].sort((a, b) => {
-    const aTime = new Date(`${a.date} ${a.time}`);
-    const bTime = new Date(`${b.date} ${b.time}`);
+    const aTime = parseTimeValue(a.timeStart || a.time || '00:00');
+    const bTime = parseTimeValue(b.timeStart || b.time || '00:00');
     return sortOrder === 'furthest' ? bTime - aTime : aTime - bTime;
   });
   const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -386,9 +451,62 @@ const handleCreateOrUpdate = async (e) => {
 
                 <input style={styles.input} placeholder="Booking/Reservation Name" value={formData.reservationName} onChange={e => setFormData({...formData, reservationName: e.target.value})} required />
                 <input type="date" style={styles.input} value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required />
-                <input type="text" style={styles.input} placeholder="e.g. 08:00 AM" value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} required />
-                <input style={styles.input} placeholder="Location (Room/Hall)" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} />
-                <input style={styles.input} placeholder="Lead Person" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
+                <input type="time" style={styles.input} value={formData.timeStart} onChange={e => setFormData({...formData, timeStart: e.target.value})} required />
+                <input type="time" style={styles.input} value={formData.timeEnd} onChange={e => setFormData({...formData, timeEnd: e.target.value})} required />
+                <select style={styles.input} value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} required>
+                  <option value="">Select location</option>
+                  {EVENT_LOCATIONS.map(location => (
+                    <option key={location} value={location}>{location}</option>
+                  ))}
+                </select>
+                <div style={{ gridColumn: '1 / -1', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
+                  <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>
+                      Lead persons (select 2-3 ministry leaders)
+                    </div>
+                    {formData.leadPeople.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, leadPeople: [] }))}
+                        style={{ border: '1px solid #cbd5e1', background: '#fff', color: '#475569', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                      >
+                        Clear Selection
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                    {leaderOptions.length === 0 ? (
+                      <div style={{ fontSize: '13px', color: '#64748b' }}>No ministry leaders available yet.</div>
+                    ) : (
+                      leaderOptions.map(leader => {
+                        const fullName = `${leader.firstName || ''} ${leader.lastName || ''}`.trim();
+                        const checked = formData.leadPeople.includes(fullName);
+                        return (
+                          <label key={leader._id || fullName} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', background: '#fff', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                setFormData(prev => {
+                                  const selected = prev.leadPeople || [];
+                                  if (e.target.checked) {
+                                    if (selected.length >= 3) {
+                                      alert('You can select up to 3 ministry leaders for an event.');
+                                      return prev;
+                                    }
+                                    return { ...prev, leadPeople: [...selected, fullName] };
+                                  }
+                                  return { ...prev, leadPeople: selected.filter(name => name !== fullName) };
+                                });
+                              }}
+                            />
+                            <span>{fullName}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
@@ -441,11 +559,13 @@ const handleCreateOrUpdate = async (e) => {
                       </span>
                     </div>
                     <h4 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#1a202c' }}>{event.title}</h4>
-                    <p style={{ fontSize: '12px', color: '#718096', margin: 0 }}>Lead: {event.role || "N/A"}</p>
-                    
+                    <p style={{ fontSize: '12px', color: '#718096', margin: 0 }}>
+                      Lead: {Array.isArray(event.leadPeople) && event.leadPeople.length > 0 ? event.leadPeople.join(', ') : (event.role || 'N/A')}
+                    </p>
+
                     <div style={styles.infoGrid}>
-                      <span>🕒 {event.time}</span>
-                      <span>📍 {event.room || "No location"}</span>
+                      <span>🕒 {event.time || `${event.timeStart || 'N/A'} - ${event.timeEnd || 'N/A'}`}</span>
+                      <span>📍 {event.room || 'No location'}</span>
                       <span style={{ color: '#4f46e5', fontWeight: '600' }}>👥 {event.attendees?.length || 0} Attending</span>
                     </div>
                   </div>
@@ -456,7 +576,15 @@ const handleCreateOrUpdate = async (e) => {
                     ) : (
                       canManage ? (
                         <>
-                          <button style={{ border: 'none', background: '#f1f9f8', color:'#047715' , padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} onClick={() => { setEditingId(event._id); setFormData(event); }}>Edit</button>
+                          <button style={{ border: 'none', background: '#f1f9f8', color:'#047715' , padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} onClick={() => {
+                          setEditingId(event._id);
+                          setFormData({
+                            ...event,
+                            timeStart: event.timeStart || (event.time ? event.time.split('-')[0]?.trim() : '08:00'),
+                            timeEnd: event.timeEnd || (event.time ? event.time.split('-')[1]?.trim() : '09:00'),
+                            leadPeople: Array.isArray(event.leadPeople) ? event.leadPeople : (event.role ? [event.role] : [])
+                          });
+                        }}>Edit</button>
                           <button style={{ border: 'none', background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} onClick={() => archiveEvent(event._id)}>Archive</button>
                         </>
                       ) : (

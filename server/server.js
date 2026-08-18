@@ -99,17 +99,20 @@ const Member = mongoose.model('members', new mongoose.Schema({
 }));
 
 const Event = mongoose.model('events', new mongoose.Schema({
-  title: String,             
-  titleSelection: String,    
+  title: String,
+  titleSelection: String,
   reservationName: String,
-  category: String, 
-  date: String,     
+  category: String,
+  date: String,
   time: String,
-  room: String,    
+  timeStart: String,
+  timeEnd: String,
+  room: String,
   expected: { type: Number, default: 0 },
-  attendees: [{ type: String }], 
-  type: String,     
-  role: String,      
+  attendees: [{ type: String }],
+  type: String,
+  role: String,
+  leadPeople: [{ type: String }],
   status: { type: String, default: 'active' }
 }, { timestamps: true }));
 
@@ -767,28 +770,74 @@ app.post('/api/events/:id/toggle-attendance', async (req, res) => {
   }
 });
 
+const toMinutes = (value) => {
+  if (!value) return 0;
+  const match = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return 0;
+  let [_, hours, minutes, meridiem] = match;
+  let hour = Number(hours);
+  if (meridiem.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+  if (meridiem.toUpperCase() === 'AM' && hour === 12) hour = 0;
+  return hour * 60 + Number(minutes);
+};
+
+const timesOverlap = (startA, endA, startB, endB) => {
+  const start1 = toMinutes(startA);
+  const end1 = toMinutes(endA) || 24 * 60;
+  const start2 = toMinutes(startB);
+  const end2 = toMinutes(endB) || 24 * 60;
+  return start1 < end2 && start2 < end1;
+};
+
 app.post('/api/events', async (req, res) => {
   try {
-    const { date, time, room } = req.body;
-    const clash = await Event.findOne({ date, time, room });
+    const { date, timeStart, timeEnd, room, reservationName, titleSelection } = req.body;
+    const normalizedReservation = (reservationName || '').trim();
+    const normalizedTitle = (titleSelection || '').trim();
 
-    if (clash) {
-      const standardSlots = ["08:00 AM", "10:00 AM", "01:00 PM", "03:00 PM", "05:00 PM"];
-      const bookedEvents = await Event.find({ date, room });
-      const bookedTimes = bookedEvents.map(e => e.time);
-      const suggestions = standardSlots.filter(slot => !bookedTimes.includes(slot));
-
-      return res.status(409).json({ 
-        error: "Schedule Conflict", 
-        message: `The ${room} is already booked at ${time}.`,
-        suggestions: suggestions.length > 0 ? suggestions : ["No other slots available today"]
+    if (date && room && timeStart && timeEnd) {
+      const existingEvents = await Event.find({ date, room });
+      const clash = existingEvents.find((event) => {
+        if (event._id && req.body._id && event._id.toString() === req.body._id.toString()) return false;
+        if (!event.timeStart || !event.timeEnd) return event.time === req.body.time;
+        return timesOverlap(timeStart, timeEnd, event.timeStart, event.timeEnd);
       });
+
+      if (clash) {
+        return res.status(409).json({
+          error: 'Schedule Conflict',
+          message: `The ${room} is already booked on ${date} during that time range.`,
+          suggestions: ['Choose a different room or a different schedule window']
+        });
+      }
     }
+
+    if (date && normalizedReservation && normalizedTitle && room && timeStart && timeEnd) {
+      const duplicate = await Event.findOne({
+        date,
+        reservationName: normalizedReservation,
+        titleSelection: normalizedTitle,
+        room,
+        $or: [
+          { timeStart: timeStart, timeEnd: timeEnd },
+          { time: `${timeStart} - ${timeEnd}` }
+        ]
+      });
+
+      if (duplicate) {
+        return res.status(409).json({
+          error: 'Duplicate Event',
+          message: `This exact event is already scheduled for ${date}. Please choose a different time, room, or event title.`
+        });
+      }
+    }
+
     const newEvent = new Event(req.body);
     await newEvent.save();
     res.status(201).json(newEvent);
   } catch (err) {
-    res.status(400).json({ error: "Failed to create event" });
+    console.error('Create Event Error:', err);
+    res.status(400).json({ error: 'Failed to create event' });
   }
 });
 
@@ -804,15 +853,56 @@ app.get('/api/events', async (req, res) => {
 
 app.put('/api/events/:id', async (req, res) => {
   try {
+    const { date, timeStart, timeEnd, room, reservationName, titleSelection } = req.body;
+    const normalizedReservation = (reservationName || '').trim();
+    const normalizedTitle = (titleSelection || '').trim();
+
+    if (date && room && timeStart && timeEnd) {
+      const existingEvents = await Event.find({ date, room, _id: { $ne: req.params.id } });
+      const clash = existingEvents.find((event) => {
+        if (!event.timeStart || !event.timeEnd) return event.time === req.body.time;
+        return timesOverlap(timeStart, timeEnd, event.timeStart, event.timeEnd);
+      });
+
+      if (clash) {
+        return res.status(409).json({
+          error: 'Schedule Conflict',
+          message: `The ${room} is already booked on ${date} during that time range.`,
+          suggestions: ['Choose a different room or a different schedule window']
+        });
+      }
+    }
+
+    if (date && normalizedReservation && normalizedTitle && room && timeStart && timeEnd) {
+      const duplicate = await Event.findOne({
+        date,
+        reservationName: normalizedReservation,
+        titleSelection: normalizedTitle,
+        room,
+        _id: { $ne: req.params.id },
+        $or: [
+          { timeStart: timeStart, timeEnd: timeEnd },
+          { time: `${timeStart} - ${timeEnd}` }
+        ]
+      });
+
+      if (duplicate) {
+        return res.status(409).json({
+          error: 'Duplicate Event',
+          message: `This exact event is already scheduled for ${date}. Please choose a different time, room, or event title.`
+        });
+      }
+    }
+
     const updatedEvent = await Event.findByIdAndUpdate(
-      req.params.id, 
-      req.body, 
-      { new: true } 
+      req.params.id,
+      req.body,
+      { new: true }
     );
-    if (!updatedEvent) return res.status(404).send("Event not found");
+    if (!updatedEvent) return res.status(404).send('Event not found');
     res.json(updatedEvent);
   } catch (err) {
-    res.status(400).send("Error updating event: " + err.message);
+    res.status(400).send('Error updating event: ' + err.message);
   }
 });
 
