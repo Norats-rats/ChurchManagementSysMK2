@@ -190,6 +190,11 @@ const EventTab = ({ role, userId }) => {
       return;
     }
 
+    if (formData.timeEnd <= formData.timeStart) {
+      alert('The event end time must be later than the start time.');
+      return;
+    }
+
     const trimmedReservation = formData.reservationName.trim();
     const trimmedTitle = formData.titleSelection.trim();
     if (!trimmedReservation) {
@@ -199,6 +204,25 @@ const EventTab = ({ role, userId }) => {
 
     if (formData.leadPeople.length < 2 || formData.leadPeople.length > 3) {
       alert('Please select between 2 and 3 ministry leaders for this event.');
+      return;
+    }
+
+    const timeRangesOverlap = (startA, endA, startB, endB) =>
+      startA < endB && startB < endA;
+
+    const locationConflict = events.some(event => {
+      const eventStart = event.timeStart || '';
+      const eventEnd = event.timeEnd || '';
+      return event._id !== editingId &&
+        event.status !== 'archived' &&
+        event.date === formData.date &&
+        event.room?.trim().toLowerCase() === formData.room.trim().toLowerCase() &&
+        eventStart && eventEnd &&
+        timeRangesOverlap(formData.timeStart, formData.timeEnd, eventStart, eventEnd);
+    });
+
+    if (locationConflict) {
+      alert(`The ${formData.room} is already booked on ${formData.date} during that time range.`);
       return;
     }
 

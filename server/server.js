@@ -819,20 +819,28 @@ app.post('/api/events/:id/toggle-attendance', async (req, res) => {
 
 const toMinutes = (value) => {
   if (!value) return 0;
-  const match = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  const match = String(value).trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
   if (!match) return 0;
-  let [_, hours, minutes, meridiem] = match;
+  let [, hours, minutes, meridiem] = match;
   let hour = Number(hours);
-  if (meridiem.toUpperCase() === 'PM' && hour !== 12) hour += 12;
-  if (meridiem.toUpperCase() === 'AM' && hour === 12) hour = 0;
-  return hour * 60 + Number(minutes);
+  const minute = Number(minutes);
+  if (minute > 59) return 0;
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return 0;
+    if (meridiem.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+    if (meridiem.toUpperCase() === 'AM' && hour === 12) hour = 0;
+  } else if (hour > 23) {
+    return 0;
+  }
+  return hour * 60 + minute;
 };
 
 const timesOverlap = (startA, endA, startB, endB) => {
   const start1 = toMinutes(startA);
-  const end1 = toMinutes(endA) || 24 * 60;
+  const end1 = toMinutes(endA);
   const start2 = toMinutes(startB);
-  const end2 = toMinutes(endB) || 24 * 60;
+  const end2 = toMinutes(endB);
+  if (end1 <= start1 || end2 <= start2) return false;
   return start1 < end2 && start2 < end1;
 };
 
@@ -841,6 +849,13 @@ app.post('/api/events', async (req, res) => {
     const { date, timeStart, timeEnd, room, reservationName, titleSelection } = req.body;
     const normalizedReservation = (reservationName || '').trim();
     const normalizedTitle = (titleSelection || '').trim();
+
+    if (date && room && timeStart && timeEnd && toMinutes(timeEnd) <= toMinutes(timeStart)) {
+      return res.status(400).json({
+        error: 'Invalid Schedule',
+        message: 'The event end time must be later than the start time.'
+      });
+    }
 
     if (date && room && timeStart && timeEnd) {
       const existingEvents = await Event.find({ date, room });
@@ -913,6 +928,13 @@ app.put('/api/events/:id', async (req, res) => {
     const { date, timeStart, timeEnd, room, reservationName, titleSelection } = req.body;
     const normalizedReservation = (reservationName || '').trim();
     const normalizedTitle = (titleSelection || '').trim();
+
+    if (date && room && timeStart && timeEnd && toMinutes(timeEnd) <= toMinutes(timeStart)) {
+      return res.status(400).json({
+        error: 'Invalid Schedule',
+        message: 'The event end time must be later than the start time.'
+      });
+    }
 
     if (date && room && timeStart && timeEnd) {
       const existingEvents = await Event.find({ date, room, _id: { $ne: req.params.id } });
