@@ -37,6 +37,40 @@ const SettingSchema = new mongoose.Schema({
 
 const Setting = mongoose.model('Setting', SettingSchema);
 
+const defaultEventLocations = [
+  'Polytechnic University of the Philippines Taguig Branch Chapel Area',
+  'Polytechnic University of the Philippines Taguig Branch Gymnasium',
+  'Taguig City University Auditorium',
+  'FBCFI Taguig Central Bicutan Pastoral House',
+  'FBCFI Pinagsama Taguig Pastoral House',
+  'FBCFI Cubao',
+  'Carlos P. Garcia High School Cubao',
+  'FBCFI Caloocan',
+  'FBCFI Montalban Rizal',
+  'FBCFI Cay Pombo, Santa Maria, Bulacan',
+  'FBCFI Bagong Silangan, Quezon City',
+  'FBCFI Pampanga',
+  'FBCFI Iba, Zambales',
+  'FBCFI Subic',
+  'FBCFI Dapla',
+  'FBCFI Acoje',
+  'FBCFI SAN PEDRO Church',
+  'Pacita Astrodome',
+  'FBCFI TAGAPO STA ROSA',
+  'Santa Rosa City Auditorium',
+  'FBCFI Calamba Laguna',
+  'La Chassah Felisa Calamba Laguna',
+  'FBCFI Tanauan City Batangas',
+  'Gymnasium 1 Tanauan City Batangas',
+  'FBCFI Candelaria Quezon',
+  'FBCFI Caluag Quezon'
+];
+
+const Location = mongoose.model('locations', new mongoose.Schema({
+  name: { type: String, required: true, unique: true, trim: true },
+  status: { type: String, enum: ['active', 'archived'], default: 'active' }
+}, { timestamps: true }));
+
 const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
   try {
     const subject = isPasswordReset ? 'Password Reset Code' : 'Verify Your Church Account';
@@ -70,7 +104,14 @@ const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
 };
 
 mongoose.connect(mongoURI)
-  .then(() => console.log("✅ MongoDB Connected"))
+  .then(async () => {
+    console.log("✅ MongoDB Connected");
+    const locationCount = await Location.countDocuments();
+    if (locationCount === 0) {
+      await Location.insertMany(defaultEventLocations.map(name => ({ name })));
+      console.log(`✅ Seeded ${defaultEventLocations.length} event locations`);
+    }
+  })
   .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
 // --- SCHEMAS & MODELS ---
@@ -848,6 +889,16 @@ app.get('/api/events', async (req, res) => {
   } catch (err) {
     console.error("Fetch Events Error:", err);
     res.status(500).json({ error: "Failed to fetch events" });
+  }
+});
+
+app.get('/api/locations', async (req, res) => {
+  try {
+    const locations = await Location.find({ status: 'active' }).sort({ name: 1 });
+    res.json(locations);
+  } catch (err) {
+    console.error("Fetch Locations Error:", err);
+    res.status(500).json({ error: "Failed to fetch event locations" });
   }
 });
 

@@ -47,6 +47,7 @@ export const api = {
 
   // Events
   getEvents: () => apiClient.get('/api/events'), 
+  getLocations: () => apiClient.get('/api/locations'),
   createEvent: (eventData) => apiClient.post('/api/events', eventData), 
   updateEvent: (id, eventData) => apiClient.put(`/api/events/${id}`, eventData), 
   archiveEvent: (id) => apiClient.patch(`/api/events/${id}/archive`),

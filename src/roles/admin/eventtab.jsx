@@ -2,37 +2,9 @@ import { useEffect, useState } from 'react';
 import api from '../../api';
 import { canManageEvents } from '../../permissions';
 
-const EVENT_LOCATIONS = [
-  'Polytechnic University of the Philippines Taguig Branch Chapel Area',
-  'Polytechnic University of the Philippines Taguig Branch Gymnasium',
-  'Taguig City University Auditorium',
-  'FBCFI Taguig Central Bicutan Pastoral House',
-  'FBCFI Pinagsama Taguig Pastoral House',
-  'FBCFI Cubao',
-  'Carlos P. Garcia High School Cubao',
-  'FBCFI Caloocan',
-  'FBCFI Montalban Rizal',
-  'FBCFI Cay Pombo, Santa Maria, Bulacan',
-  'FBCFI Bagong Silangan, Quezon City',
-  'FBCFI Pampanga',
-  'FBCFI Iba, Zambales',
-  'FBCFI Subic',
-  'FBCFI Dapla',
-  'FBCFI Acoje',
-  'FBCFI SAN PEDRO Church',
-  'Pacita Astrodome',
-  'FBCFI TAGAPO STA ROSA',
-  'Santa Rosa City Auditorium',
-  'FBCFI Calamba Laguna',
-  'La Chassah Felisa Calamba Laguna',
-  'FBCFI Tanauan City Batangas',
-  'Gymnasium 1 Tanauan City Batangas',
-  'FBCFI Candelaria Quezon',
-  'FBCFI Caluag Quezon'
-];
-
 const EventTab = ({ role, userId }) => {
   const [events, setEvents] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   
@@ -72,8 +44,19 @@ const EventTab = ({ role, userId }) => {
 
   useEffect(() => {
     fetchEvents();
+    fetchLocations();
     fetchLeaderOptions();
   }, []);
+
+  const fetchLocations = async () => {
+    try {
+      const response = await api.getLocations();
+      setLocations(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error('Failed to fetch event locations:', err);
+      setLocations([]);
+    }
+  };
 
   const fetchLeaderOptions = async () => {
     try {
@@ -463,9 +446,9 @@ const EventTab = ({ role, userId }) => {
                 <input type="time" style={styles.input} value={formData.timeStart} onChange={e => setFormData({...formData, timeStart: e.target.value})} required />
                 <input type="time" style={styles.input} value={formData.timeEnd} onChange={e => setFormData({...formData, timeEnd: e.target.value})} required />
                 <select style={styles.input} value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} required>
-                  <option value="">Select location</option>
-                  {EVENT_LOCATIONS.map(location => (
-                    <option key={location} value={location}>{location}</option>
+                  <option value="">{locations.length ? 'Select location' : 'No locations available'}</option>
+                  {locations.map(location => (
+                    <option key={location._id} value={location.name}>{location.name}</option>
                   ))}
                 </select>
                 <div style={{ gridColumn: '1 / -1', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
