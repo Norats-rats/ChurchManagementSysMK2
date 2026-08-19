@@ -305,7 +305,7 @@ const AttendanceTab = ({ role, userId, user }) => {
                   <h4 style={{ margin: 0, color: '#0f172a' }}>Attendance History</h4>
                   <div style={styles.sortControls}>
                     <select value={attendanceSortField} onChange={e => setAttendanceSortField(e.target.value)} aria-label="Sort attendance by" style={styles.sortSelect}>
-                      <option value="alphabetical">Alphabetical</option>
+                      <option value="alphabetical">Name</option>
                       <option value="time">Time</option>
                     </select>
                     <select value={attendanceSortDirection} onChange={e => setAttendanceSortDirection(e.target.value)} aria-label="Attendance sort direction" style={styles.sortSelect}>
