@@ -895,28 +895,31 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                           onChange={(e) => setNewAnnouncement(e.target.value)}
                         />
                         <button className="post-btn" onClick={postAnnouncement} style={postBtnStyle}>Sync Bulletin</button>
-                        <button className="post-btn" onClick={toggleAnnouncementHistory} style={historyBtnStyle}>
-                          Board History
-                        </button>
                       </div>
-                      {historyOpen && (
-                        <div className="announcement-history" style={announcementHistoryStyle}>
-                          <h5 style={{ margin: '0 0 12px', color: '#1e40af' }}>Bulletin History</h5>
-                          {historyLoading ? <p style={{ margin: 0 }}>Loading history...</p> : announcementHistory.length === 0 ? (
-                            <p style={{ margin: 0 }}>No previous announcements yet.</p>
-                          ) : announcementHistory.map((item) => (
-                            <div key={item._id} style={historyItemStyle}>
-                              <p style={{ margin: '0 0 6px' }}>{item.text}</p>
-                              <small style={{ color: '#64748b' }}>
-                                Announced by {item.announcedBy} on {new Date(item.announcedAt).toLocaleString()}
-                              </small>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </>
                 )}
+
+                <div className="announcement-history-toggle" style={{ marginTop: isLeader ? '14px' : 0 }}>
+                  <button className="post-btn" onClick={toggleAnnouncementHistory} style={historyBtnStyle}>
+                    Board History
+                  </button>
+                  {historyOpen && (
+                    <div className="announcement-history" style={announcementHistoryStyle}>
+                      <h5 style={{ margin: '0 0 12px', color: '#1e40af' }}>Bulletin History</h5>
+                      {historyLoading ? <p style={{ margin: 0 }}>Loading history...</p> : announcementHistory.length === 0 ? (
+                        <p style={{ margin: 0 }}>No previous announcements yet.</p>
+                      ) : announcementHistory.map((item) => (
+                        <div key={item._id} style={historyItemStyle}>
+                          <p style={{ margin: '0 0 6px' }}>{item.text}</p>
+                          <small style={{ color: '#64748b' }}>
+                            Announced by {item.announcedBy} on {new Date(item.announcedAt).toLocaleString()}
+                          </small>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <div className="responsive-grid-2-1">
                   <div className="bulletin-card" style={bulletinCardStyle}>
