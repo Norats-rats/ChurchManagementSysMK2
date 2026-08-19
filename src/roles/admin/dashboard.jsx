@@ -33,6 +33,9 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const [nextEvent, setNextEvent] = useState(null);
   const [announcement, setAnnouncement] = useState("Loading church updates...");
   const [newAnnouncement, setNewAnnouncement] = useState("");
+  const [announcementHistory, setAnnouncementHistory] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [expandedNotificationId, setExpandedNotificationId] = useState(null);
@@ -298,13 +301,34 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const postAnnouncement = async () => {
     if (!newAnnouncement.trim()) return;
     try {
-      await api.updateAnnouncement(newAnnouncement);
+      const userName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+      await api.updateAnnouncement(newAnnouncement, userName);
       setAnnouncement(newAnnouncement);
       setNewAnnouncement("");
+      if (historyOpen) fetchAnnouncementHistory();
       alert("Bulletin Updated for all members!");
     } catch (err) {
       alert("Error syncing announcement to database.");
     }
+  };
+
+  const fetchAnnouncementHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const response = await api.getAnnouncementHistory();
+      setAnnouncementHistory(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error('Failed to fetch bulletin history:', err);
+      alert('Unable to load bulletin history.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const toggleAnnouncementHistory = () => {
+    const nextOpen = !historyOpen;
+    setHistoryOpen(nextOpen);
+    if (nextOpen) fetchAnnouncementHistory();
   };
 
   const fetchDailyVerse = async () => {
@@ -865,13 +889,31 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                         <input 
                           className="leader-input"
-                          style={inputStyle} 
+                          style={{ ...inputStyle, flex: '1 1 420px', minWidth: '0' }}
                           placeholder="Type a message for all members..." 
                           value={newAnnouncement}
                           onChange={(e) => setNewAnnouncement(e.target.value)}
                         />
                         <button className="post-btn" onClick={postAnnouncement} style={postBtnStyle}>Sync Bulletin</button>
+                        <button className="post-btn" onClick={toggleAnnouncementHistory} style={historyBtnStyle}>
+                          Board History
+                        </button>
                       </div>
+                      {historyOpen && (
+                        <div className="announcement-history" style={announcementHistoryStyle}>
+                          <h5 style={{ margin: '0 0 12px', color: '#1e40af' }}>Bulletin History</h5>
+                          {historyLoading ? <p style={{ margin: 0 }}>Loading history...</p> : announcementHistory.length === 0 ? (
+                            <p style={{ margin: 0 }}>No previous announcements yet.</p>
+                          ) : announcementHistory.map((item) => (
+                            <div key={item._id} style={historyItemStyle}>
+                              <p style={{ margin: '0 0 6px' }}>{item.text}</p>
+                              <small style={{ color: '#64748b' }}>
+                                Announced by {item.announcedBy} on {new Date(item.announcedAt).toLocaleString()}
+                              </small>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -939,6 +981,9 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
 const bulletinCardStyle = { background: '#fff', padding: '30px', borderRadius: '24px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' };
 const announcementBoxStyle = { background: '#f8fafc', padding: '25px', borderRadius: '16px', borderLeft: '5px solid var(--color-accent)', fontSize: '19px', color: '#1e293b', margin: '20px 0' };
+const historyBtnStyle = { ...postBtnStyle, background: '#1e40af' };
+const announcementHistoryStyle = { marginTop: '14px', padding: '16px', background: '#fff', border: '1px solid #dbeafe', borderRadius: '12px', maxHeight: '260px', overflowY: 'auto' };
+const historyItemStyle = { padding: '10px 0', borderBottom: '1px solid #e2e8f0', lineHeight: '1.45' };
 const triviaBoxStyle = { marginTop: '20px', padding: '15px', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fef3c7' };
 const leaderInputCard = { background: '#f0fdf4', padding: '20px', borderRadius: '16px', border: '2px solid rgba(34,197,94,0.12)', marginBottom: '20px' };
 const kpiCardStyle = { background: '#fff', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center' };

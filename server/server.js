@@ -37,6 +37,12 @@ const SettingSchema = new mongoose.Schema({
 
 const Setting = mongoose.model('Setting', SettingSchema);
 
+const BulletinAnnouncement = mongoose.model('BulletinAnnouncement', new mongoose.Schema({
+  text: { type: String, required: true, trim: true },
+  announcedBy: { type: String, required: true, trim: true },
+  announcedAt: { type: Date, default: Date.now }
+}, { timestamps: true }));
+
 const defaultEventLocations = [
   'Polytechnic University of the Philippines Taguig Branch Chapel Area',
   'Polytechnic University of the Philippines Taguig Branch Gymnasium',
@@ -1347,17 +1353,41 @@ app.patch('/api/advising/:id/ignore', async (req, res) => {
 
 // --- SETTINGS ROUTES ---
 app.get('/api/settings/announcement', async (req, res) => {
-  const ann = await Setting.findOne({ key: 'announcement' });
-  res.json({ text: ann ? ann.value : "Welcome to the Fellowship!" });
+  try {
+    const ann = await Setting.findOne({ key: 'announcement' });
+    res.json({ text: ann ? ann.value : "Welcome to the Fellowship!" });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch announcement.' });
+  }
+});
+
+app.get('/api/settings/announcement/history', async (req, res) => {
+  try {
+    const history = await BulletinAnnouncement.find().sort({ announcedAt: -1 });
+    res.json(history);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch announcement history.' });
+  }
 });
 
 app.post('/api/settings/announcement', async (req, res) => {
-  await Setting.findOneAndUpdate(
-    { key: 'announcement' },
-    { value: req.body.text },
-    { upsert: true }
-  );
-  res.json({ success: true });
+  try {
+    const text = String(req.body.text || '').trim();
+    if (!text) return res.status(400).json({ error: 'Announcement text is required.' });
+
+    await Setting.findOneAndUpdate(
+      { key: 'announcement' },
+      { value: text },
+      { upsert: true }
+    );
+    await BulletinAnnouncement.create({
+      text,
+      announcedBy: String(req.body.userName || 'Church Administration').trim()
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save announcement.' });
+  }
  });
 
 // --- AI ROUTES ---

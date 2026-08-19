@@ -22,7 +22,8 @@ export const api = {
 
   //announcement
   getAnnouncement: () => apiClient.get('/api/settings/announcement'),
-  updateAnnouncement: (text) => apiClient.post('/api/settings/announcement', { text }),
+  getAnnouncementHistory: () => apiClient.get('/api/settings/announcement/history'),
+  updateAnnouncement: (text, userName) => apiClient.post('/api/settings/announcement', { text, userName }),
 
   //qr thing
   recordAttendance: (checkInData) => apiClient.post('/api/attendance', checkInData),
