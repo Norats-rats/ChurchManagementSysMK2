@@ -11,6 +11,11 @@ const AttendanceTab = ({ role, userId, user }) => {
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
   const [creatingEvent, setCreatingEvent] = useState(false);
+  const [eventFilter, setEventFilter] = useState('');
+  const [eventSortField, setEventSortField] = useState('time');
+  const [eventSortDirection, setEventSortDirection] = useState('asc');
+  const [attendanceSortField, setAttendanceSortField] = useState('time');
+  const [attendanceSortDirection, setAttendanceSortDirection] = useState('asc');
   const [newEventData, setNewEventData] = useState({
     titleSelection: 'Worship Service',
     reservationName: 'New Session',
@@ -59,13 +64,41 @@ const AttendanceTab = ({ role, userId, user }) => {
     return cleanEventDate === cleanTodayStr;
   });
 
-  useEffect(() => {
-    if (!selectedTodayEventId && todaysEvents.length > 0) {
-      setSelectedTodayEventId(todaysEvents[0]._id || todaysEvents[0].id);
-    }
-  }, [todaysEvents, selectedTodayEventId]);
-
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
+
+  const getEventTitle = (event) => event.title || event.titleSelection || event.reservationName || event.category || 'Untitled Event';
+  const getEventDateTime = (event) => {
+    const timestamp = new Date(`${event.date || todayStr} ${event.time || '12:00 AM'}`).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  };
+  const getAttendeeName = (record) => record.name || record.userName || record.userId || '';
+  const getAttendanceTime = (record) => {
+    const timestamp = new Date(`${record.date || todayStr} ${record.time || '12:00 AM'}`).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  };
+
+  const filteredSortedTodaysEvents = todaysEvents
+    .filter(event => getEventTitle(event).toLowerCase().includes(eventFilter.trim().toLowerCase()))
+    .sort((firstEvent, secondEvent) => {
+      const comparison = eventSortField === 'alphabetical'
+        ? getEventTitle(firstEvent).localeCompare(getEventTitle(secondEvent))
+        : getEventDateTime(firstEvent) - getEventDateTime(secondEvent);
+      return eventSortDirection === 'desc' ? comparison * -1 : comparison;
+    });
+
+  useEffect(() => {
+    if (filteredSortedTodaysEvents.length === 0) {
+      setSelectedTodayEventId(null);
+      return;
+    }
+
+    const selectedStillVisible = filteredSortedTodaysEvents.some(
+      event => String(event._id || event.id) === String(selectedTodayEventId)
+    );
+    if (!selectedStillVisible) {
+      setSelectedTodayEventId(filteredSortedTodaysEvents[0]._id || filteredSortedTodaysEvents[0].id);
+    }
+  }, [eventFilter, eventSortField, eventSortDirection, todaysEvents, filteredSortedTodaysEvents, selectedTodayEventId]);
 
   const selectedTodayEvent = todaysEvents.find(event => String(event._id || event.id) === String(selectedTodayEventId)) || null;
 
@@ -74,6 +107,13 @@ const AttendanceTab = ({ role, userId, user }) => {
   const selectedEventAttendees = selectedTodayEvent
     ? checkIns.filter(record => String(record.eventId) === String(selectedTodayEvent._id || selectedTodayEvent.id))
     : [];
+
+  const sortedSelectedEventAttendees = [...selectedEventAttendees].sort((firstRecord, secondRecord) => {
+    const comparison = attendanceSortField === 'alphabetical'
+      ? getAttendeeName(firstRecord).localeCompare(getAttendeeName(secondRecord))
+      : getAttendanceTime(firstRecord) - getAttendanceTime(secondRecord);
+    return attendanceSortDirection === 'desc' ? comparison * -1 : comparison;
+  });
 
   const handleCreateEvent = async (e) => {
     e.preventDefault();
@@ -148,6 +188,24 @@ const AttendanceTab = ({ role, userId, user }) => {
               <div>
                 <h3 style={styles.cardTitle}>Today's Event Selector</h3>
                 <p style={styles.cardSubtitle}>Pick an event, then close the sidebar to free screen space.</p>
+                <input
+                  type="search"
+                  value={eventFilter}
+                  onChange={e => setEventFilter(e.target.value)}
+                  placeholder="Filter events"
+                  aria-label="Filter today's events"
+                  style={{ ...styles.formInput, marginTop: '12px' }}
+                />
+                <div style={styles.sortControls}>
+                  <select value={eventSortField} onChange={e => setEventSortField(e.target.value)} aria-label="Sort events by" style={styles.sortSelect}>
+                    <option value="alphabetical">Alphabetical</option>
+                    <option value="time">Time</option>
+                  </select>
+                  <select value={eventSortDirection} onChange={e => setEventSortDirection(e.target.value)} aria-label="Event sort direction" style={styles.sortSelect}>
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                  </select>
+                </div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -166,12 +224,12 @@ const AttendanceTab = ({ role, userId, user }) => {
           </div>
 
           <div style={{ ...styles.eventSidebar, ...(sidebarExpanded ? styles.sidebarExpanded : styles.sidebarCollapsed) }}>
-            {todaysEvents.length === 0 ? (
+            {filteredSortedTodaysEvents.length === 0 ? (
               <div style={styles.noEventCard}>
-                <p style={{ margin: 0, color: '#475569' }}>No events scheduled for today.</p>
+                <p style={{ margin: 0, color: '#475569' }}>{eventFilter ? 'No events match this filter.' : 'No events scheduled for today.'}</p>
               </div>
             ) : (
-              todaysEvents.map((event) => {
+              filteredSortedTodaysEvents.map((event) => {
                 const eventId = event._id || event.id;
                 const count = checkIns.filter(record => String(record.eventId) === String(eventId)).length;
                 const selected = String(selectedTodayEventId) === String(eventId);
@@ -197,7 +255,7 @@ const AttendanceTab = ({ role, userId, user }) => {
                       textOverflow: 'ellipsis',
                       wordBreak: sidebarExpanded ? 'normal' : 'break-word'
                     }}>
-                      {event.title || event.titleSelection || event.reservationName || event.category || 'Untitled Event'}
+                      {getEventTitle(event)}
                     </span>
                     {sidebarExpanded && <span style={styles.eventCount}>{count} checked in</span>}
                   </button>
@@ -234,12 +292,24 @@ const AttendanceTab = ({ role, userId, user }) => {
               </div>
 
               <div style={{ padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
-                <h4 style={{ margin: '0 0 12px 0', color: '#0f172a' }}>Attendance History</h4>
+                <div style={styles.historyHeader}>
+                  <h4 style={{ margin: 0, color: '#0f172a' }}>Attendance History</h4>
+                  <div style={styles.sortControls}>
+                    <select value={attendanceSortField} onChange={e => setAttendanceSortField(e.target.value)} aria-label="Sort attendance by" style={styles.sortSelect}>
+                      <option value="alphabetical">Alphabetical</option>
+                      <option value="time">Time</option>
+                    </select>
+                    <select value={attendanceSortDirection} onChange={e => setAttendanceSortDirection(e.target.value)} aria-label="Attendance sort direction" style={styles.sortSelect}>
+                      <option value="asc">Ascending</option>
+                      <option value="desc">Descending</option>
+                    </select>
+                  </div>
+                </div>
                 {selectedEventAttendees.length === 0 ? (
                   <p style={{ color: '#64748b', fontSize: '14px' }}>No attendees have checked in yet for this event.</p>
                 ) : (
                   <div style={styles.historyTable}>
-                    {selectedEventAttendees.map((att, idx) => (
+                    {sortedSelectedEventAttendees.map((att, idx) => (
                       <div key={`${selectedTodayEvent._id || selectedTodayEvent.id}-${idx}`} style={styles.historyRow}>
                         <span>{att.name || att.userName || att.userId}</span>
                         <span>{att.time}</span>
@@ -291,6 +361,9 @@ const styles = {
   formInput: { width: '100%', padding: '10px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' },
   historyTable: { display: 'grid', gap: '10px', marginTop: '10px' },
   historyRow: { display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '12px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', fontSize: '13px' },
+  historyHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' },
+  sortControls: { display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' },
+  sortSelect: { padding: '8px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#334155', fontSize: '12px' },
   eventSidebar: { padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '12px' },
   eventToggle: { width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' },
   eventToggleCompact: { width: '100%', textAlign: 'center', padding: '10px 10px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '13px', boxSizing: 'border-box', overflow: 'hidden', flexDirection: 'column', gap: '6px', margin: '6px 0' },
