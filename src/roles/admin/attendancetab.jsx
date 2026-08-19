@@ -12,8 +12,7 @@ const AttendanceTab = ({ role, userId, user }) => {
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [eventFilter, setEventFilter] = useState('');
-  const [eventSortField, setEventSortField] = useState('time');
-  const [eventSortDirection, setEventSortDirection] = useState('asc');
+  const [eventTypeFilter, setEventTypeFilter] = useState('all');
   const [attendanceSortField, setAttendanceSortField] = useState('time');
   const [attendanceSortDirection, setAttendanceSortDirection] = useState('asc');
   const [newEventData, setNewEventData] = useState({
@@ -67,38 +66,47 @@ const AttendanceTab = ({ role, userId, user }) => {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   const getEventTitle = (event) => event.title || event.titleSelection || event.reservationName || event.category || 'Untitled Event';
-  const getEventDateTime = (event) => {
-    const timestamp = new Date(`${event.date || todayStr} ${event.time || '12:00 AM'}`).getTime();
-    return Number.isNaN(timestamp) ? 0 : timestamp;
-  };
+  const getEventType = (event) => event.titleSelection || event.type || event.category || 'Other';
   const getAttendeeName = (record) => record.name || record.userName || record.userId || '';
   const getAttendanceTime = (record) => {
     const timestamp = new Date(`${record.date || todayStr} ${record.time || '12:00 AM'}`).getTime();
     return Number.isNaN(timestamp) ? 0 : timestamp;
   };
 
-  const filteredSortedTodaysEvents = todaysEvents
-    .filter(event => getEventTitle(event).toLowerCase().includes(eventFilter.trim().toLowerCase()))
-    .sort((firstEvent, secondEvent) => {
-      const comparison = eventSortField === 'alphabetical'
-        ? getEventTitle(firstEvent).localeCompare(getEventTitle(secondEvent))
-        : getEventDateTime(firstEvent) - getEventDateTime(secondEvent);
-      return eventSortDirection === 'desc' ? comparison * -1 : comparison;
-    });
+  const eventTypeOptions = [
+    'Jail Preaching',
+    'Wedding',
+    'Dedication',
+    'Anniversary',
+    'Healing Crusade',
+    'Feeding Program',
+    'Baptism',
+    'Bible Study',
+    'Prayer Meeting',
+    'Youth Camp',
+    'Worship Service'
+  ];
+
+  const filteredTodaysEvents = todaysEvents.filter(event => {
+    const searchText = eventFilter.trim().toLowerCase();
+    const matchesText = getEventTitle(event).toLowerCase().includes(searchText);
+    const matchesType = eventTypeFilter === 'all' || getEventType(event).toLowerCase() === eventTypeFilter.toLowerCase();
+    return matchesText && matchesType;
+  });
 
   useEffect(() => {
-    if (filteredSortedTodaysEvents.length === 0) {
+    if (filteredTodaysEvents.length === 0) {
       setSelectedTodayEventId(null);
       return;
     }
 
-    const selectedStillVisible = filteredSortedTodaysEvents.some(
+    const selectedStillVisible = filteredTodaysEvents.some(
       event => String(event._id || event.id) === String(selectedTodayEventId)
     );
     if (!selectedStillVisible) {
-      setSelectedTodayEventId(filteredSortedTodaysEvents[0]._id || filteredSortedTodaysEvents[0].id);
+      setSelectedTodayEventId(filteredTodaysEvents[0]._id || filteredTodaysEvents[0].id);
     }
-  }, [eventFilter, eventSortField, eventSortDirection, todaysEvents, filteredSortedTodaysEvents, selectedTodayEventId]);
+  }, [eventFilter, eventTypeFilter, todaysEvents, filteredTodaysEvents, selectedTodayEventId]);
 
   const selectedTodayEvent = todaysEvents.find(event => String(event._id || event.id) === String(selectedTodayEventId)) || null;
 
@@ -196,16 +204,17 @@ const AttendanceTab = ({ role, userId, user }) => {
                   aria-label="Filter today's events"
                   style={{ ...styles.formInput, marginTop: '12px' }}
                 />
-                <div style={styles.sortControls}>
-                  <select value={eventSortField} onChange={e => setEventSortField(e.target.value)} aria-label="Sort events by" style={styles.sortSelect}>
-                    <option value="alphabetical">Alphabetical</option>
-                    <option value="time">Time</option>
-                  </select>
-                  <select value={eventSortDirection} onChange={e => setEventSortDirection(e.target.value)} aria-label="Event sort direction" style={styles.sortSelect}>
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
-                  </select>
-                </div>
+                <select
+                  value={eventTypeFilter}
+                  onChange={e => setEventTypeFilter(e.target.value)}
+                  aria-label="Filter events by type"
+                  style={{ ...styles.sortSelect, marginTop: '10px', width: '100%' }}
+                >
+                  <option value="all">All event types</option>
+                  {eventTypeOptions.map(eventType => (
+                    <option key={eventType} value={eventType}>{eventType}</option>
+                  ))}
+                </select>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -224,12 +233,12 @@ const AttendanceTab = ({ role, userId, user }) => {
           </div>
 
           <div style={{ ...styles.eventSidebar, ...(sidebarExpanded ? styles.sidebarExpanded : styles.sidebarCollapsed) }}>
-            {filteredSortedTodaysEvents.length === 0 ? (
+            {filteredTodaysEvents.length === 0 ? (
               <div style={styles.noEventCard}>
-                <p style={{ margin: 0, color: '#475569' }}>{eventFilter ? 'No events match this filter.' : 'No events scheduled for today.'}</p>
+                <p style={{ margin: 0, color: '#475569' }}>{eventFilter || eventTypeFilter !== 'all' ? 'No events match these filters.' : 'No events scheduled for today.'}</p>
               </div>
             ) : (
-              filteredSortedTodaysEvents.map((event) => {
+              filteredTodaysEvents.map((event) => {
                 const eventId = event._id || event.id;
                 const count = checkIns.filter(record => String(record.eventId) === String(eventId)).length;
                 const selected = String(selectedTodayEventId) === String(eventId);
