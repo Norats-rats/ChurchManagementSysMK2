@@ -905,7 +905,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                       <h2 style={{ color: '#1e3a8a', margin: 0 }}>Community Bulletin</h2>
                       <button className="post-btn" onClick={toggleAnnouncementHistory} style={historyBtnStyle}>
-                        Board History
+                        {isLeader ? 'Board History' : 'Announcements'}
                       </button>
                     </div>
                     <div className="announcement-box" style={announcementBoxStyle}>
