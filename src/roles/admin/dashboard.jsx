@@ -913,7 +913,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                       </div>
                     {historyOpen && (
                       <div className="announcement-history" style={announcementHistoryStyle}>
-                        <h5 style={{ margin: '0 0 12px', color: '#1e40af' }}>Bulletin History</h5>
+                        <h5 style={{ margin: '0 0 12px', color: '#1e40af' }}>{isLeader ? 'Bulletin History' : 'Announcements'}</h5>
                         {historyLoading ? <p style={{ margin: 0 }}>Loading history...</p> : announcementHistory.length === 0 ? (
                           <p style={{ margin: 0 }}>No previous announcements yet.</p>
                         ) : announcementHistory.map((item) => (
