@@ -17,7 +17,7 @@ const PrayerRequests = ({ user, role }) => {
   const [filterStatus, setFilterStatus] = useState('All'); 
   const [sortBy, setSortBy] = useState('newest'); 
 
-  const categories = ["Health", "Career", "Financial", "Family", "Testimony", "Ministry", "Relationships", "Travel"];
+  const categories = ["Health", "Career", "Financial", "Family", "Testimony", "Ministry", "Relationships", "Travel", "Academics", "Spiritual Growth", "Other"];
   
   const loggedInId = user?._id || user?.id;
   const isAdminOrMinistry = canManagePrayers(role);
@@ -223,7 +223,7 @@ const PrayerRequests = ({ user, role }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Status:</span>
           <select style={styles.select} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="All">Active & Unarchived</option>
+            <option value="All">Active & Answered</option>
             <option value="Active">Active</option>
             <option value="Answered">Answered</option>
           </select>
