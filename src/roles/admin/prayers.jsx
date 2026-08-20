@@ -17,7 +17,7 @@ const PrayerRequests = ({ user, role }) => {
   const [filterStatus, setFilterStatus] = useState('All'); 
   const [sortBy, setSortBy] = useState('newest'); 
 
-  const categories = ["Health", "Career", "Financial", "Family", "Testimony", "Ministry", "Relationships", "Travel", "Academics", "Other"];
+  const categories = ["Health", "Career", "Financial", "Family", "Testimony", "Ministry", "Relationships", "Travel"];
   
   const loggedInId = user?._id || user?.id;
   const isAdminOrMinistry = canManagePrayers(role);
@@ -90,7 +90,7 @@ const PrayerRequests = ({ user, role }) => {
 
   const handleMarkPrayed = async (id) => {
     try {
-      const response = await api.markAnswered(id, role); 
+      const response = await api.markAnswered(id, role);
       if (response.status === 200) {
         setRequests(prevRequests => 
           prevRequests.map(item => 
@@ -104,7 +104,19 @@ const PrayerRequests = ({ user, role }) => {
       console.error("Error marking as prayed:", err);
     }
   };
-  
+
+  const availableYears = useMemo(() => {
+    const yearsSet = new Set();
+    requests.forEach(r => {
+      if (r.date) {
+        yearsSet.add(new Date(r.date).getFullYear().toString());
+      }
+    });
+    yearsSet.add(new Date().getFullYear().toString());
+    
+    return Array.from(yearsSet).sort((a, b) => b - a);
+  }, [requests]);
+
   const filteredAndSortedRequests = useMemo(() => {
     return requests.filter(r => {
       const isCreator = loggedInId && r.userId && String(loggedInId) === String(r.userId);
@@ -199,11 +211,12 @@ const PrayerRequests = ({ user, role }) => {
           </select>
         </div>
 
+        {/* Dynamically Populated Year Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Year:</span>
           <select style={styles.select} value={filterYear} onChange={(e) => setFilterYear(e.target.value)}>
             <option value="All">All Years</option>
-            {['2024', '2025', '2026'].map(y => <option key={y} value={y}>{y}</option>)}
+            {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
 
