@@ -312,6 +312,16 @@ export default function App() {
     return null;
   }
 
+  const dashboardElement = userData ? (
+    <Dashboard
+      role={userRole}
+      user={userData}
+      theme={theme}
+      onToggleTheme={toggleTheme}
+      onLogout={handleLogout}
+    />
+  ) : <Navigate to="/login" replace />;
+
   return (
     <div className="App">
       <Routes>
@@ -325,15 +335,18 @@ export default function App() {
         } />
         <Route path="/signup" element={<Signup onGoToLogin={() => navigate('/login')} />} />
         <Route path="/forgot-password" element={<ForgotPasswordView onGoToLogin={() => navigate('/login')} />} />
-        <Route path="/home" element={userData ? (
-          <Dashboard
-            role={userRole}
-            user={userData}
-            theme={theme}
-            onToggleTheme={toggleTheme}
-            onLogout={handleLogout}
-          />
-        ) : <Navigate to="/login" replace />} />
+        <Route path="/home" element={dashboardElement} />
+        <Route path="/bible" element={dashboardElement} />
+        <Route path="/profile" element={dashboardElement} />
+        <Route path="/analytics" element={dashboardElement} />
+        <Route path="/prayers" element={dashboardElement} />
+        <Route path="/advising" element={dashboardElement} />
+        <Route path="/ministry" element={dashboardElement} />
+        <Route path="/finances" element={dashboardElement} />
+        <Route path="/inventory" element={dashboardElement} />
+        <Route path="/events" element={dashboardElement} />
+        <Route path="/attendance" element={dashboardElement} />
+        <Route path="/members" element={dashboardElement} />
         <Route path="*" element={<Navigate to={userData ? '/home' : '/login'} replace />} />
       </Routes>
     </div>

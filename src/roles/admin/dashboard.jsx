@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import churchLogo from '../../assets/churchlogo.jpg';
 import Advising from '../../components/shared/advisinglist';
 import Profile from '../../components/shared/profile';
 import {
-  canManageAttendance,
-  canManageEvents,
-  canManageMinistries,
-  canViewAnalytics,
-  canViewInventory,
-  hasPermission,
-  normalizeRole
+    canManageAttendance,
+    canManageEvents,
+    canManageMinistries,
+    canViewAnalytics,
+    canViewInventory,
+    hasPermission,
+    normalizeRole
 } from '../../permissions';
 import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
@@ -23,12 +24,29 @@ import Ministries from './ministries';
 import Prayers from './prayers';
 
 const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const role = normalizeRole(rawRole);
   const isLeader = role === 'Admin' || role === 'Ministry Leader';
   const isAdmin = role === 'Admin';
   const canManage = canManageEvents(role) || canManageAttendance(role) || canManageMinistries(role);
 
-  const [currentTab, setCurrentTab] = useState('dashboard');
+  const routeToTab = {
+    '/home': 'dashboard',
+    '/bible': 'ebible',
+    '/profile': 'profile',
+    '/analytics': 'analytics',
+    '/prayers': 'prayers',
+    '/advising': 'advising',
+    '/ministry': 'ministries',
+    '/finances': 'finances',
+    '/inventory': 'inventory',
+    '/events': 'events',
+    '/attendance': 'attendance',
+    '/members': 'members'
+  };
+  const tabToRoute = Object.fromEntries(Object.entries(routeToTab).map(([path, tab]) => [tab, path]));
+  const currentTab = routeToTab[location.pathname] || 'dashboard';
   const [stats, setStats] = useState({ memberCount: 0, attendanceCount: 0, eventCount: 0, ministryCount: 0 });
   const [nextEvent, setNextEvent] = useState(null);
   const [announcement, setAnnouncement] = useState("Loading church updates...");
@@ -61,9 +79,9 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
   useEffect(() => {
     if (currentTab !== 'profile' && !visibleTabs.some(tab => tab.id === currentTab)) {
-      setCurrentTab('dashboard');
+      navigate('/home', { replace: true });
     }
-  }, [currentTab, visibleTabs]);
+  }, [currentTab, navigate, visibleTabs]);
 
   const getLoginTimestamp = () => {
     const stored = sessionStorage.getItem('loginTimestamp');
@@ -155,12 +173,12 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   };
 
   const handleReviewRequests = () => {
-    setCurrentTab('ministries');
+    navigate('/ministry');
     setNotificationsOpen(false);
   };
 
   const handleGoToMinistries = () => {
-    setCurrentTab('ministries');
+    navigate('/ministry');
     setNotificationsOpen(false);
   };
 
@@ -818,7 +836,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
             </div>
             <button
               type="button"
-              onClick={() => setCurrentTab('profile')}
+              onClick={() => navigate('/profile')}
               style={profileAvatarButtonStyle}
               aria-label="Open profile"
             >
@@ -850,7 +868,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
             <button
               key={tab.id}
               className={`menu-item ${currentTab === tab.id ? 'active' : ''}`}
-              onClick={() => setCurrentTab(tab.id)}
+              onClick={() => navigate(tabToRoute[tab.id])}
               title={tab.label}
               aria-current={currentTab === tab.id ? 'page' : undefined}
             >
