@@ -529,15 +529,7 @@ body, .App {
 }
 
 .dashboard-content .menu-bar.sidebar-collapsed {
-  flex-basis: 72px;
-  width: 72px;
-  padding-inline: 8px;
-}
-
-.dashboard-content .menu-bar.sidebar-collapsed:hover,
-.dashboard-content .menu-bar.sidebar-collapsed:focus-within {
-  flex-basis: 232px;
-  width: 232px;
+  display: none;
 }
 
 .dashboard-content .menu-bar .menu-item,
@@ -588,33 +580,52 @@ body, .App {
   transition: opacity 120ms ease;
 }
 
-.sidebar-collapsed .nav-label,
-.sidebar-collapsed .sidebar-toggle-label {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.sidebar-collapsed:hover .nav-label,
-.sidebar-collapsed:hover .sidebar-toggle-label,
-.sidebar-collapsed:focus-within .nav-label,
-.sidebar-collapsed:focus-within .sidebar-toggle-label {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.sidebar-collapsed .menu-item,
-.sidebar-collapsed .sidebar-toggle {
+.sidebar-open-toggle {
+  position: fixed;
+  top: 108px;
+  left: 14px;
+  z-index: 20;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  padding: 0;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  cursor: pointer;
 }
 
-.sidebar-collapsed:hover .menu-item,
-.sidebar-collapsed:hover .sidebar-toggle,
-.sidebar-collapsed:focus-within .menu-item,
-.sidebar-collapsed:focus-within .sidebar-toggle {
-  justify-content: flex-start;
+.sidebar-open-toggle:hover {
+  background: #eef6f3;
+  color: var(--color-primary);
+}
+
+.hamburger-icon {
+  width: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hamburger-icon span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  border-radius: 2px;
+  background: currentColor;
 }
 
 .theme-dark .sidebar-toggle {
+  background: #0b1930;
+  border-color: rgba(255,255,255,0.1);
+  color: #cfe9ff;
+}
+
+.theme-dark .sidebar-open-toggle {
   background: #0b1930;
   border-color: rgba(255,255,255,0.1);
   color: #cfe9ff;
@@ -625,6 +636,7 @@ body, .App {
   .dashboard-content .menu-bar.sidebar-collapsed,
   .dashboard-content .menu-bar.sidebar-collapsed:hover,
   .dashboard-content .menu-bar.sidebar-collapsed:focus-within {
+    display: flex;
     flex: 0 0 auto;
     width: 100%;
     min-height: auto;
@@ -646,12 +658,12 @@ body, .App {
     flex: 0 0 auto;
   }
 
+  .sidebar-open-toggle {
+    display: none;
+  }
+
   .sidebar-collapsed .nav-label,
-  .sidebar-collapsed .sidebar-toggle-label,
-  .sidebar-collapsed:hover .nav-label,
-  .sidebar-collapsed:hover .sidebar-toggle-label,
-  .sidebar-collapsed:focus-within .nav-label,
-  .sidebar-collapsed:focus-within .sidebar-toggle-label {
+  .sidebar-collapsed .sidebar-toggle-label {
     opacity: 1;
     pointer-events: auto;
   }

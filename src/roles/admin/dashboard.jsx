@@ -872,6 +872,17 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       </nav>
 
       <div className="dashboard-content">
+        {!sidebarExpanded && (
+          <button
+            type="button"
+            className="sidebar-open-toggle"
+            onClick={toggleSidebar}
+            aria-label="Open navigation"
+            title="Open navigation"
+          >
+            <span aria-hidden="true" className="hamburger-icon"><span></span><span></span><span></span></span>
+          </button>
+        )}
         <div className={`menu-bar ${sidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
           <button
             type="button"
