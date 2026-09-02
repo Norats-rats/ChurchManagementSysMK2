@@ -267,7 +267,7 @@ export default function App() {
       try {
         const user = JSON.parse(remembered);
         setUserData(user);
-        setUserRole(normalizeRole(rememberedRole));
+        setUserRole(normalizeRole(user.role || rememberedRole));
         sessionStorage.setItem('loginTimestamp', Date.now().toString());
         if (window.location.pathname === '/' || window.location.pathname === '/login') {
           navigate('/home', { replace: true });
@@ -280,7 +280,7 @@ export default function App() {
   }, [navigate]);
 
   const handleLoginSuccess = (role, user, remember) => {
-    const normalizedRole = normalizeRole(role);
+    const normalizedRole = normalizeRole(role || user?.role);
     setUserRole(normalizedRole);
     setUserData(user);
     sessionStorage.setItem('loginTimestamp', Date.now().toString());

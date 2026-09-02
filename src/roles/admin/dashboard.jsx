@@ -26,7 +26,7 @@ import Prayers from './prayers';
 const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const role = normalizeRole(rawRole);
+  const role = normalizeRole(user?.role || rawRole);
   const isLeader = role === 'Admin' || role === 'Ministry Leader';
   const isAdmin = role === 'Admin';
   const canManage = canManageEvents(role) || canManageAttendance(role) || canManageMinistries(role);
@@ -46,7 +46,8 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
     '/members': 'members'
   };
   const tabToRoute = Object.fromEntries(Object.entries(routeToTab).map(([path, tab]) => [tab, path]));
-  const currentTab = routeToTab[location.pathname] || 'dashboard';
+  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+  const currentTab = routeToTab[normalizedPath] || 'dashboard';
   const [stats, setStats] = useState({ memberCount: 0, attendanceCount: 0, eventCount: 0, ministryCount: 0 });
   const [nextEvent, setNextEvent] = useState(null);
   const [announcement, setAnnouncement] = useState("Loading church updates...");
