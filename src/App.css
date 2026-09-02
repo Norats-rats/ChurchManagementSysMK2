@@ -509,6 +509,154 @@ body, .App {
 /* Ensure headings and text inside themed cards are visible */
 .theme-dark .bulletin-card h2, .theme-dark .bulletin-card h4, .theme-dark .services-card h4 { color: #e6eef8 !important; }
 
+/* Desktop navigation can yield space to wide data views when collapsed. */
+.dashboard-content {
+  align-items: stretch;
+}
+
+.dashboard-content .menu-bar {
+  flex: 0 0 232px;
+  width: 232px;
+  min-height: calc(100svh - 95px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  transition: flex-basis 180ms ease, width 180ms ease, padding 180ms ease;
+}
+
+.dashboard-content .menu-bar.sidebar-collapsed {
+  flex-basis: 72px;
+  width: 72px;
+  padding-inline: 8px;
+}
+
+.dashboard-content .menu-bar.sidebar-collapsed:hover,
+.dashboard-content .menu-bar.sidebar-collapsed:focus-within {
+  flex-basis: 232px;
+  width: 232px;
+}
+
+.dashboard-content .menu-bar .menu-item,
+.sidebar-toggle {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.dashboard-content .menu-bar .menu-item {
+  padding: 10px 13px;
+}
+
+.sidebar-toggle {
+  justify-content: flex-start;
+  padding: 9px 13px;
+  margin-bottom: 8px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sidebar-toggle:hover {
+  background: #eef6f3;
+  color: var(--color-primary);
+}
+
+.sidebar-toggle > span:first-child {
+  width: 20px;
+  flex: 0 0 20px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.nav-label,
+.sidebar-toggle-label {
+  opacity: 1;
+  transition: opacity 120ms ease;
+}
+
+.sidebar-collapsed .nav-label,
+.sidebar-collapsed .sidebar-toggle-label {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-collapsed:hover .nav-label,
+.sidebar-collapsed:hover .sidebar-toggle-label,
+.sidebar-collapsed:focus-within .nav-label,
+.sidebar-collapsed:focus-within .sidebar-toggle-label {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar-collapsed .menu-item,
+.sidebar-collapsed .sidebar-toggle {
+  justify-content: center;
+}
+
+.sidebar-collapsed:hover .menu-item,
+.sidebar-collapsed:hover .sidebar-toggle,
+.sidebar-collapsed:focus-within .menu-item,
+.sidebar-collapsed:focus-within .sidebar-toggle {
+  justify-content: flex-start;
+}
+
+.theme-dark .sidebar-toggle {
+  background: #0b1930;
+  border-color: rgba(255,255,255,0.1);
+  color: #cfe9ff;
+}
+
+@media (max-width: 768px) {
+  .dashboard-content .menu-bar,
+  .dashboard-content .menu-bar.sidebar-collapsed,
+  .dashboard-content .menu-bar.sidebar-collapsed:hover,
+  .dashboard-content .menu-bar.sidebar-collapsed:focus-within {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: auto;
+    flex-direction: row;
+    padding: 10px;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .sidebar-toggle {
+    width: auto;
+    flex: 0 0 auto;
+    margin-bottom: 0;
+  }
+
+  .dashboard-content .menu-bar .menu-item {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .sidebar-collapsed .nav-label,
+  .sidebar-collapsed .sidebar-toggle-label,
+  .sidebar-collapsed:hover .nav-label,
+  .sidebar-collapsed:hover .sidebar-toggle-label,
+  .sidebar-collapsed:focus-within .nav-label,
+  .sidebar-collapsed:focus-within .sidebar-toggle-label {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 /* Light-mode explicit tweaks (in case theme class toggles incorrectly) */
 .theme-light .login-card { background: #ffffff !important; color: #0f172a; }
 .theme-light .signin-button { background: linear-gradient(to right, var(--color-primary), var(--color-accent)) !important; color: #fff !important; }

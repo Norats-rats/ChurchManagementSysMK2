@@ -5,13 +5,13 @@ import churchLogo from '../../assets/churchlogo.jpg';
 import Advising from '../../components/shared/advisinglist';
 import Profile from '../../components/shared/profile';
 import {
-    canManageAttendance,
-    canManageEvents,
-    canManageMinistries,
-    canViewAnalytics,
-    canViewInventory,
-    hasPermission,
-    normalizeRole
+  canManageAttendance,
+  canManageEvents,
+  canManageMinistries,
+  canViewAnalytics,
+  canViewInventory,
+  hasPermission,
+  normalizeRole
 } from '../../permissions';
 import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
@@ -59,7 +59,16 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const [expandedNotificationId, setExpandedNotificationId] = useState(null);
   const [hidePrayerNotifications, setHidePrayerNotifications] = useState(false);
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => localStorage.getItem('sidebarExpanded') !== 'false');
   const notificationsRef = useRef(null);
+
+  const toggleSidebar = () => {
+    setSidebarExpanded(prev => {
+      const next = !prev;
+      localStorage.setItem('sidebarExpanded', String(next));
+      return next;
+    });
+  };
 
   const navigationConfig = [
     { id: 'dashboard', label: role === 'Member' ? 'Home' : 'Dashboard', permission: 'dashboard' },
@@ -863,7 +872,17 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       </nav>
 
       <div className="dashboard-content">
-        <div className="menu-bar">
+        <div className={`menu-bar ${sidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={toggleSidebar}
+            aria-label={sidebarExpanded ? 'Collapse navigation' : 'Expand navigation'}
+            title={sidebarExpanded ? 'Collapse navigation' : 'Expand navigation'}
+          >
+            <span aria-hidden="true">{sidebarExpanded ? '<<' : '>>'}</span>
+            <span className="sidebar-toggle-label">{sidebarExpanded ? 'Collapse' : 'Expand'}</span>
+          </button>
           {visibleTabs.map(tab => (
             <button
               key={tab.id}
@@ -872,7 +891,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
               title={tab.label}
               aria-current={currentTab === tab.id ? 'page' : undefined}
             >
-              {tab.label}
+              <span className="nav-label">{tab.label}</span>
             </button>
           ))}
         </div>
