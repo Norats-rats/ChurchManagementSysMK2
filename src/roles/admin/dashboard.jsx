@@ -87,10 +87,13 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const visibleTabs = navigationConfig.filter(tab => hasPermission(role, tab.permission));
 
   useEffect(() => {
-    if (currentTab !== 'profile' && !visibleTabs.some(tab => tab.id === currentTab)) {
+    if (!role || currentTab === 'profile') return;
+
+    const currentPermission = navigationConfig.find(tab => tab.id === currentTab)?.permission;
+    if (currentPermission && !hasPermission(role, currentPermission)) {
       navigate('/home', { replace: true });
     }
-  }, [currentTab, navigate, visibleTabs]);
+  }, [currentTab, navigate, role]);
 
   const getLoginTimestamp = () => {
     const stored = sessionStorage.getItem('loginTimestamp');

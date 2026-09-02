@@ -269,7 +269,9 @@ export default function App() {
         setUserData(user);
         setUserRole(normalizeRole(rememberedRole));
         sessionStorage.setItem('loginTimestamp', Date.now().toString());
-        navigate('/home', { replace: true });
+        if (window.location.pathname === '/' || window.location.pathname === '/login') {
+          navigate('/home', { replace: true });
+        }
       } catch (err) {
         console.warn('Failed to parse remembered user', err);
       }
