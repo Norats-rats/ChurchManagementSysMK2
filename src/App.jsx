@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import api from './api';
 import './App.css';
 import churchLogo from './assets/churchlogo.jpg';
@@ -221,10 +222,11 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
 };
 
 export default function App() {
-  const [view, setView] = useState('login');
+  const navigate = useNavigate();
   const [userRole, setUserRole] = useState(null);
   const [userData, setUserData] = useState(null);
   const [theme, setTheme] = useState('light');
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -267,12 +269,13 @@ export default function App() {
         setUserData(user);
         setUserRole(normalizeRole(rememberedRole));
         sessionStorage.setItem('loginTimestamp', Date.now().toString());
-        setView('dashboard');
+        navigate('/home', { replace: true });
       } catch (err) {
         console.warn('Failed to parse remembered user', err);
       }
     }
-  }, []);
+    setAuthChecked(true);
+  }, [navigate]);
 
   const handleLoginSuccess = (role, user, remember) => {
     const normalizedRole = normalizeRole(role);
@@ -286,7 +289,7 @@ export default function App() {
       localStorage.removeItem('rememberedUser');
       localStorage.removeItem('rememberedRole');
     }
-    setView('dashboard');
+    navigate('/home', { replace: true });
   };
 
   const toggleTheme = () => {
@@ -296,42 +299,43 @@ export default function App() {
     document.documentElement.classList.toggle('theme-dark', next === 'dark');
   };
 
-  const renderView = () => {
-    switch(view) {
-      case 'dashboard':
-        return (
-          <Dashboard 
-            role={userRole} 
-            user={userData} 
-            theme={theme}
-            onToggleTheme={toggleTheme}
-            onLogout={() => {
-              setView('login');
-              setUserData(null);
-              setUserRole(null);
-              sessionStorage.removeItem('loginTimestamp');
-            }} 
-          />
-        );
-      case 'signup':
-        return <Signup onGoToLogin={() => setView('login')} />;
-      case 'forgot-password':
-        return <ForgotPasswordView onGoToLogin={() => setView('login')} />;
-      case 'login':
-      default:
-        return (
-          <LoginScreen 
-            onLoginSuccess={handleLoginSuccess} 
-            onGoToSignup={() => setView('signup')} 
-            onGoToForgot={() => setView('forgot-password')} 
-          />
-        );
-    }
+  const handleLogout = () => {
+    setUserData(null);
+    setUserRole(null);
+    localStorage.removeItem('rememberedUser');
+    localStorage.removeItem('rememberedRole');
+    sessionStorage.removeItem('loginTimestamp');
+    navigate('/login', { replace: true });
   };
+
+  if (!authChecked) {
+    return null;
+  }
 
   return (
     <div className="App">
-      {renderView()}
+      <Routes>
+        <Route path="/" element={<Navigate to={userData ? '/home' : '/login'} replace />} />
+        <Route path="/login" element={
+          <LoginScreen
+            onLoginSuccess={handleLoginSuccess}
+            onGoToSignup={() => navigate('/signup')}
+            onGoToForgot={() => navigate('/forgot-password')}
+          />
+        } />
+        <Route path="/signup" element={<Signup onGoToLogin={() => navigate('/login')} />} />
+        <Route path="/forgot-password" element={<ForgotPasswordView onGoToLogin={() => navigate('/login')} />} />
+        <Route path="/home" element={userData ? (
+          <Dashboard
+            role={userRole}
+            user={userData}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onLogout={handleLogout}
+          />
+        ) : <Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to={userData ? '/home' : '/login'} replace />} />
+      </Routes>
     </div>
   );
 }
