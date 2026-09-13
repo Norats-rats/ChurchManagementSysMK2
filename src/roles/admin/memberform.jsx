@@ -15,6 +15,7 @@ const MemberForm = () => {
   const [query, setQuery] = useState('');
   const [ministryFilter, setMinistryFilter] = useState('All Ministries');
   const [roleFilter, setRoleFilter] = useState('All Roles');
+  const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [sortBy, setSortBy] = useState('name-asc');
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState(null);
@@ -61,7 +62,9 @@ const MemberForm = () => {
       const matchesQuery = `${name} ${member.email || ''}`.includes(query.toLowerCase());
       const matchesMinistry = ministryFilter === 'All Ministries' || ministriesFor(member).includes(ministryFilter);
       const matchesRole = roleFilter === 'All Roles' || (member.role || 'Member') === roleFilter;
-      return matchesQuery && matchesMinistry && matchesRole;
+      const memberStatus = member.status || 'Active';
+      const matchesStatus = statusFilter === 'All Statuses' || memberStatus === statusFilter;
+      return matchesQuery && matchesMinistry && matchesRole && matchesStatus;
     });
 
     return result.sort((first, second) => {
@@ -82,13 +85,13 @@ const MemberForm = () => {
       }
       return firstName.localeCompare(secondName);
     });
-  }, [members, query, ministryFilter, roleFilter, sortBy]);
+  }, [members, query, ministryFilter, roleFilter, statusFilter, sortBy]);
 
   const pageSize = 20;
   const pageCount = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
   const visibleMembers = filteredMembers.slice((page - 1) * pageSize, page * pageSize);
 
-  useEffect(() => { setPage(1); }, [query, ministryFilter, roleFilter, sortBy]);
+  useEffect(() => { setPage(1); }, [query, ministryFilter, roleFilter, statusFilter, sortBy]);
 
   const setField = (field, value) => setForm(previous => ({ ...previous, [field]: value }));
   const normalizeDate = value => value ? new Date(value).toISOString().split('T')[0] : '';
@@ -137,9 +140,9 @@ const MemberForm = () => {
   };
 
   const archiveMember = async member => {
-    if (member.status === 'Inactive') return showResult('This account is already inactive.');
+    if (member.status === 'Archived') return showResult('This account is already archived.');
     askForConfirmation('Are you sure you want to archive this account?', async () => {
-      try { await api.updateMember(member._id, { status: 'Inactive' }); await fetchMembers(); showResult('Account archived successfully.'); }
+      try { await api.updateMember(member._id, { status: 'Archived' }); await fetchMembers(); showResult('Account archived successfully.'); }
       catch { showResult('Archive process failed.'); }
     });
   };
@@ -188,6 +191,7 @@ const MemberForm = () => {
       <input className="search-input" placeholder="Search users..." value={query} onChange={event => setQuery(event.target.value)} />
       <select className="filter-select" value={roleFilter} onChange={event => setRoleFilter(event.target.value)}><option>All Roles</option>{roleOptions.map(option => <option key={option}>{option}</option>)}</select>
       <select className="filter-select" value={ministryFilter} onChange={event => setMinistryFilter(event.target.value)}><option>All Ministries</option>{MINISTRY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select>
+      <select className="filter-select" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option>All Statuses</option><option>Active</option><option>Inactive</option><option>Archived</option></select>
       <select className="filter-select" value={sortBy} onChange={event => setSortBy(event.target.value)}><option value="name-asc">Name: A-Z</option><option value="name-desc">Name: Z-A</option><option value="age-asc">Age: Youngest first</option><option value="age-desc">Age: Oldest first</option></select>
     </div>
     <div className="stats-container" style={{ display: 'flex', gap: 20, marginBottom: 25 }}><div className="stat-card"><span>Total Accounts</span><strong>{members.length}</strong></div><div className="stat-card"><span>Active Users</span><strong style={{ color: '#28a745' }}>{activeCount}</strong></div><div className="stat-card"><span>Registrations (Month)</span><strong style={{ color: '#007bff' }}>{newThisMonth}</strong></div></div>

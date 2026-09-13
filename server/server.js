@@ -28,8 +28,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-app.use(cors({
-  origin: [
+const allowedOrigins = [
     process.env.FRONTEND_URL,
     process.env.MOBILE_URL,
     "https://churchmanagementsys.pages.dev",
@@ -37,7 +36,17 @@ app.use(cors({
     "https://church-management-app.lancemanemail.workers.dev",
     "https://www.ecclsync.org",
     "https://ecclsync.org"
-  ],
+  ].filter(Boolean).map(origin => origin.replace(/\/$/, ''));
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-user-id', 'x-user-role', 'x-user-name'],
   credentials: true
 }));
 
@@ -248,6 +257,14 @@ const Inventory = mongoose.model('Inventory', new mongoose.Schema({
   status: { type: String, enum: ['Active', 'Archived'], default: 'Active' }
 }, { timestamps: true }));
 
+const InventoryActivity = mongoose.model('InventoryActivity', new mongoose.Schema({
+  inventoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory', required: true },
+  itemName: { type: String, required: true },
+  action: { type: String, enum: ['added', 'used', 'updated', 'archived', 'restored'], required: true },
+  quantity: { type: Number, default: 0 },
+  changedBy: { type: String, default: '' }
+}, { timestamps: true }));
+
 const Finance = mongoose.model('finances', new mongoose.Schema({
   description: { type: String, required: true },
   type: { type: String, enum: ['Income', 'Expense'], required: true },
@@ -451,6 +468,13 @@ app.post('/api/inventory', async (req, res) => {
 
     const newItem = new Inventory(payload);
     await newItem.save();
+    await InventoryActivity.create({
+      inventoryId: newItem._id,
+      itemName: newItem.itemName,
+      action: 'added',
+      quantity: newItem.quantity,
+      changedBy: newItem.lastEditedBy || ''
+    });
     res.status(201).json(newItem);
   } catch (err) {
     console.error("Failed to create inventory item:", err);
@@ -472,10 +496,31 @@ app.get('/api/inventory', async (req, res) => {
   }
 });
 
+app.get('/api/inventory/activity', async (req, res) => {
+  try {
+    const from = req.query.from ? new Date(req.query.from) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const to = req.query.to ? new Date(req.query.to) : new Date();
+    const activities = await InventoryActivity.find({ createdAt: { $gte: from, $lte: to } }).sort({ createdAt: -1 });
+    res.json(activities);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch inventory activity' });
+  }
+});
+
 app.put('/api/inventory/:id', async (req, res) => {
   try {
+    const existing = await Inventory.findById(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Item not found" });
     const updated = await Inventory.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!updated) return res.status(404).json({ error: "Item not found" });
+    const quantityChanged = Number(req.body.quantity ?? existing.quantity) !== Number(existing.quantity);
+    const assignmentChanged = req.body.assignedTo !== undefined && req.body.assignedTo !== existing.assignedTo;
+    await InventoryActivity.create({
+      inventoryId: updated._id,
+      itemName: updated.itemName,
+      action: quantityChanged || assignmentChanged ? 'used' : 'updated',
+      quantity: Math.abs(Number(updated.quantity || 0) - Number(existing.quantity || 0)),
+      changedBy: updated.lastEditedBy || ''
+    });
     res.json(updated);
   } catch (err) {
     res.status(400).json({ error: "Failed to update inventory item" });
@@ -486,6 +531,7 @@ app.patch('/api/inventory/:id/archive', async (req, res) => {
   try {
     const archived = await Inventory.findByIdAndUpdate(req.params.id, { status: 'Archived' }, { new: true });
     if (!archived) return res.status(404).json({ error: "Item not found" });
+    await InventoryActivity.create({ inventoryId: archived._id, itemName: archived.itemName, action: 'archived', quantity: archived.quantity, changedBy: archived.lastEditedBy || '' });
     res.json(archived);
   } catch (err) {
     res.status(500).json({ error: "Failed to archive item" });
@@ -496,6 +542,7 @@ app.patch('/api/inventory/:id/unarchive', async (req, res) => {
   try {
     const unarchived = await Inventory.findByIdAndUpdate(req.params.id, { status: 'Active' }, { new: true });
     if (!unarchived) return res.status(404).json({ error: "Item not found" });
+    await InventoryActivity.create({ inventoryId: unarchived._id, itemName: unarchived.itemName, action: 'restored', quantity: unarchived.quantity, changedBy: unarchived.lastEditedBy || '' });
     res.json(unarchived);
   } catch (err) {
     res.status(500).json({ error: "Failed to unarchive item" });

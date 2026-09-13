@@ -13,6 +13,7 @@ export const api = {
 
   // Inventory
   getInventory: (status) => apiClient.get('/api/inventory', { params: status ? { status } : {} }),
+  getInventoryActivity: (params) => apiClient.get('/api/inventory/activity', { params }),
   createInventory: (itemData) => apiClient.post('/api/inventory', itemData),
   updateInventory: (id, itemData) => apiClient.put(`/api/inventory/${id}`, itemData),
   archiveInventory: (id) => apiClient.patch(`/api/inventory/${id}/archive`),
@@ -57,7 +58,6 @@ export const api = {
 
   // Attendance
   getAttendance: () => apiClient.get('/api/attendance'),
-  recordAttendance: (checkInData) => apiClient.post('/api/attendance', checkInData),
 
   // Finances
   getFinances: (userId, role) => apiClient.get('/api/finances', {

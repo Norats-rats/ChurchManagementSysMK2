@@ -53,6 +53,8 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const [dashboardMetrics, setDashboardMetrics] = useState({
     attendanceRate: 0,
     inventoryUsage: 0,
+    inventoryAdded: 0,
+    inventoryUsed: 0,
     recentUsers: [],
     attendanceByCategory: []
   });
@@ -306,13 +308,13 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
   const fetchBulletinData = async () => {
     try {
-      const [membersRes, eventsRes, attendanceRes, announceRes, ministriesRes, inventoryRes] = await Promise.all([
+      const [membersRes, eventsRes, attendanceRes, announceRes, ministriesRes, inventoryActivityRes] = await Promise.all([
         api.getMembers(), 
         api.getEvents(), 
         api.getAttendance(),
         api.getAnnouncement().catch(() => ({ data: { text: "Welcome to our Fellowship!" } })),
         api.getMinistries().catch(() => ({ data: [] })),
-        api.getInventory().catch(() => ({ data: [] }))
+        api.getInventoryActivity().catch(() => ({ data: [] }))
       ]);
 
       const allEvents = eventsRes.data || [];
@@ -329,9 +331,9 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       const activeMinistries = Array.isArray(ministriesRes.data) ? ministriesRes.data.filter(m => m.status !== 'Archived').length : 0;
       const members = Array.isArray(membersRes.data) ? membersRes.data : [];
       const attendance = Array.isArray(attendanceRes.data) ? attendanceRes.data : [];
-      const inventory = Array.isArray(inventoryRes.data) ? inventoryRes.data : [];
-      const inventoryTotal = inventory.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-      const inventoryAssigned = inventory.filter(item => item.assignedTo).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      const inventoryActivity = Array.isArray(inventoryActivityRes.data) ? inventoryActivityRes.data : [];
+      const inventoryAdded = inventoryActivity.filter(item => item.action === 'added').length;
+      const inventoryUsed = inventoryActivity.filter(item => item.action === 'used').length;
       const attendanceByCategory = {};
       attendance.forEach(record => {
         const event = allEvents.find(item => String(item._id) === String(record.eventId));
@@ -354,7 +356,9 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       });
       setDashboardMetrics({
         attendanceRate: members.length ? Math.min(100, Math.round((new Set(attendance.map(item => item.userId).filter(Boolean)).size / members.length) * 100)) : 0,
-        inventoryUsage: inventoryTotal ? Math.round((inventoryAssigned / inventoryTotal) * 100) : 0,
+        inventoryUsage: inventoryAdded + inventoryUsed ? Math.round((inventoryUsed / (inventoryAdded + inventoryUsed)) * 100) : 0,
+        inventoryAdded,
+        inventoryUsed,
         recentUsers,
         attendanceByCategory: Object.entries(attendanceByCategory).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
       });
@@ -1052,7 +1056,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                     </div>
                     <div className="dashboard-chart-grid">
                       <div className="dashboard-chart-card"><span>Attendance Rate</span><strong>{dashboardMetrics.attendanceRate}%</strong><div className="dashboard-progress"><i style={{ width: `${dashboardMetrics.attendanceRate}%` }} /></div></div>
-                      <div className="dashboard-chart-card"><span>Inventory Usage</span><strong>{dashboardMetrics.inventoryUsage}%</strong><div className="dashboard-progress inventory"><i style={{ width: `${dashboardMetrics.inventoryUsage}%` }} /></div></div>
+                      <div className="dashboard-chart-card"><span>Monthly Inventory Activity</span><strong>{dashboardMetrics.inventoryUsed + dashboardMetrics.inventoryAdded}</strong><div className="dashboard-inventory-breakdown"><small>Used {dashboardMetrics.inventoryUsed}</small><small>Added {dashboardMetrics.inventoryAdded}</small></div><div className="dashboard-progress inventory"><i style={{ width: `${dashboardMetrics.inventoryUsage}%` }} /></div></div>
                       <div className="dashboard-chart-card dashboard-chart-wide"><span>Attendance by Event Category</span>{dashboardMetrics.attendanceByCategory.length ? dashboardMetrics.attendanceByCategory.slice(0, 4).map(item => <div className="dashboard-bar-row" key={item.name}><small>{item.name}</small><div><i style={{ width: `${Math.max(8, Math.round((item.value / dashboardMetrics.attendanceByCategory[0].value) * 100))}%` }} /></div><b>{item.value}</b></div>) : <small className="dashboard-muted">No attendance data yet.</small>}</div>
                       <div className="dashboard-chart-card dashboard-chart-wide"><span>Recent User Activity</span>{dashboardMetrics.recentUsers.length ? dashboardMetrics.recentUsers.map(item => <div className="dashboard-user-row" key={`${item.name}-${item.role}`}><span>{item.name}</span><small>{item.role}</small></div>) : <small className="dashboard-muted">No recent user activity.</small>}</div>
                     </div>
