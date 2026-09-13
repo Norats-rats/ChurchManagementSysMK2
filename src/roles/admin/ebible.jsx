@@ -6,6 +6,17 @@ const DEFAULT_READER_PREFERENCES = {
   textColor: '#1e293b'
 };
 
+const READER_COLOR_OPTIONS = [
+  { value: '#1e293b', label: 'Ink' },
+  { value: '#334155', label: 'Slate' },
+  { value: '#475569', label: 'Graphite' },
+  { value: '#1f2937', label: 'Charcoal' },
+  { value: '#1d4ed8', label: 'Readable blue' },
+  { value: '#166534', label: 'Readable green' },
+  { value: '#7c2d12', label: 'Readable brown' },
+  { value: '#86198f', label: 'Readable plum' }
+];
+
 const EBible = ({ userId }) => {
   const [view, setView] = useState('toc'); 
   const [selectedBook, setSelectedBook] = useState('');
@@ -70,6 +81,11 @@ const EBible = ({ userId }) => {
 
   const updateReaderPreference = (field, value) => {
     setReaderPreferences(previous => ({ ...previous, [field]: value }));
+  };
+
+  const isPresetTextColor = READER_COLOR_OPTIONS.some(option => option.value === readerPreferences.textColor);
+  const handleCustomHexChange = (value) => {
+    if (/^#[0-9a-f]{0,6}$/i.test(value)) updateReaderPreference('textColor', value);
   };
 
   const fetchScripture = async (book, chapter) => {
@@ -138,7 +154,7 @@ const EBible = ({ userId }) => {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h2 style={{ color: 'var(--color-primary)', margin: 0 }}>📖 eBible</h2>
+        <h2 className="ebible-title" style={{ margin: 0 }}>📖 eBible</h2>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {view === 'reading' && <button onClick={resetToTOC} style={{ padding: '8px 16px', cursor: 'pointer' }}>Back to Books</button>}
           <button type="button" className="ebible-reader-menu-button" onClick={() => setReaderMenuOpen(previous => !previous)} aria-expanded={readerMenuOpen}>
@@ -161,7 +177,12 @@ const EBible = ({ userId }) => {
             <h4>Reader Settings</h4>
             <label>Text size<input type="range" min="14" max="30" step="1" value={readerPreferences.fontSize} onChange={event => updateReaderPreference('fontSize', Number(event.target.value))} /></label>
             <label>Alignment<select value={readerPreferences.textAlign} onChange={event => updateReaderPreference('textAlign', event.target.value)}><option value="left">Left</option><option value="center">Center</option><option value="justify">Justified</option></select></label>
-            <label>Text color<select value={readerPreferences.textColor} onChange={event => updateReaderPreference('textColor', event.target.value)}><option value="#1e293b">Dark</option><option value="#334155">Slate</option><option value="#1d4ed8">Blue</option><option value="#166534">Green</option></select></label>
+            <label>Text color<select value={isPresetTextColor ? readerPreferences.textColor : 'custom'} onChange={event => updateReaderPreference('textColor', event.target.value === 'custom' ? '#111827' : event.target.value)}>{READER_COLOR_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}<option value="custom">Custom</option></select></label>
+            {!isPresetTextColor && <div className="ebible-custom-color-controls">
+              <label>Hex color<input type="text" value={readerPreferences.textColor} maxLength={7} placeholder="#1e293b" onChange={event => handleCustomHexChange(event.target.value)} /></label>
+              <label>Color picker<input type="color" value={/^#[0-9a-f]{6}$/i.test(readerPreferences.textColor) ? readerPreferences.textColor : '#1e293b'} onChange={event => updateReaderPreference('textColor', event.target.value)} /></label>
+              <small>Use a six-digit hex color that remains readable on a white background.</small>
+            </div>}
             <button type="button" className="ebible-drawer-reset" onClick={() => setReaderPreferences(DEFAULT_READER_PREFERENCES)}>Reset preferences</button>
           </div>
         </aside>
