@@ -4,7 +4,7 @@ const EBible = () => {
   const [view, setView] = useState('toc'); 
   const [selectedBook, setSelectedBook] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
-  const [version, setVersion] = useState('web');
+  const [version] = useState('web');
   
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -73,6 +73,11 @@ const EBible = () => {
     fetchScripture(selectedBook, chapter);
   };
 
+  const handleNextChapter = () => {
+    if (!selectedBook || !selectedChapter || selectedChapter >= bookData[selectedBook]) return;
+    handleChapterSelect(Number(selectedChapter) + 1);
+  };
+
   const resetToTOC = () => {
     setView('toc');
     setSelectedBook('');
@@ -115,27 +120,27 @@ const EBible = () => {
           {!selectedBook ? (
             <>
               <h3>Select a Book</h3>
-              <div>
-                <div>
-                  <h4 style={{ marginBottom: '10px' }}>Old Testament</h4>
+              <div className="ebible-book-spread">
+                <section className="ebible-testament-panel">
+                  <h4>Old Testament</h4>
                   <div style={styles.grid}>
                     {oldTestament.map((book) => (
-                      <div key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
+                      <button type="button" key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
                         {book}
-                      </div>
+                      </button>
                     ))}
                   </div>
-                </div>
-                <div style={{ marginTop: '30px' }}>
-                  <h4 style={{ marginBottom: '10px' }}>New Testament</h4>
+                </section>
+                <section className="ebible-testament-panel">
+                  <h4>New Testament</h4>
                   <div style={styles.grid}>
                     {newTestament.map((book) => (
-                      <div key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
+                      <button type="button" key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
                         {book}
-                      </div>
+                      </button>
                     ))}
                   </div>
-                </div>
+                </section>
               </div>
             </>
           ) : (
@@ -158,16 +163,21 @@ const EBible = () => {
         </div>
       )}
       {view === 'reading' && content && (
-        <div>
+        <div className="ebible-reading-shell">
           <h3 style={{ textAlign: 'center', fontSize: '24px' }}>{content.reference}</h3>
           <p style={{ textAlign: 'center', fontSize: '14px', color: '#475569', marginTop: '6px' }}>Translation: {versionLabel}</p>
-          <div style={{ marginTop: '30px' }}>
+          <div className="ebible-verse-scroll" style={{ marginTop: '30px' }}>
             {content.verses.map((v) => (
               <p key={v.verse} style={styles.verse}>
                 <span style={styles.verseNum}>{v.verse}</span>
                 {v.text}
               </p>
             ))}
+          </div>
+          <div className="ebible-reading-actions">
+            <button type="button" onClick={handleNextChapter} disabled={selectedChapter >= bookData[selectedBook]} style={styles.chapterBtn}>
+              Next Chapter {selectedChapter < bookData[selectedBook] ? `(${Number(selectedChapter) + 1})` : ''}
+            </button>
           </div>
         </div>
       )}
