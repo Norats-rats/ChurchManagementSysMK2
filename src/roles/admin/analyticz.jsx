@@ -2,6 +2,26 @@ import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import api from '../../api';
 
+const getAgeFromBirthdate = (birthdate) => {
+  const date = new Date(birthdate);
+  if (Number.isNaN(date.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  const dayDiff = today.getDate() - date.getDate();
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age -= 1;
+  return age;
+};
+
+const getNextBirthday = (birthdate) => {
+  const date = new Date(birthdate);
+  if (Number.isNaN(date.getTime())) return null;
+  const today = new Date();
+  const nextBirthday = new Date(today.getFullYear(), date.getMonth(), date.getDate());
+  if (nextBirthday < today) nextBirthday.setFullYear(nextBirthday.getFullYear() + 1);
+  return nextBirthday;
+};
+
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
   const [aiInsight, setAiInsight] = useState("Generating live machine learning overview...");
@@ -15,6 +35,7 @@ const Analytics = () => {
     ministryDistribution: [],
     genderDistribution: [],
     ageGroupDistribution: [],
+    attendanceByCategory: [],
     averageAge: 0,
     nextBirthdays: [],
     topEvents: []
@@ -112,6 +133,12 @@ const Analytics = () => {
       });
 
       const eventsWithAttendance = Object.keys(eventAttendanceCounts).length;
+      const attendanceByCategoryCounts = {};
+      attendanceRecords.forEach(record => {
+        const event = events.find(evt => String(evt._id) === String(record.eventId));
+        const category = event?.category || event?.titleSelection || event?.type || 'Other';
+        attendanceByCategoryCounts[category] = (attendanceByCategoryCounts[category] || 0) + 1;
+      });
       const topEvents = Object.entries(eventAttendanceCounts)
         .map(([eventId, count]) => {
           const event = events.find((evt) => String(evt._id) === String(eventId));
@@ -144,6 +171,9 @@ const Analytics = () => {
         ministryDistribution: distribution,
         ageGroupDistribution: ageRanges.map(range => ({ name: range.name, value: ageGroupCounts[range.name] || 0 })),
         genderDistribution,
+        attendanceByCategory: Object.entries(attendanceByCategoryCounts)
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => b.value - a.value),
         averageAge: ages.length > 0 ? Math.round(ages.reduce((sum, value) => sum + value, 0) / ages.length) : 0,
         nextBirthdays: upcomingBirthdays.sort((a, b) => a.birthday - b.birthday).slice(0, 5),
         topEvents
@@ -172,28 +202,6 @@ const Analytics = () => {
   useEffect(() => {
     fetchLiveAnalytics();
   }, []);
-
-  const getAgeFromBirthdate = (birthdate) => {
-    const date = new Date(birthdate);
-    if (isNaN(date)) return null;
-    const today = new Date();
-    let age = today.getFullYear() - date.getFullYear();
-    const monthDiff = today.getMonth() - date.getMonth();
-    const dayDiff = today.getDate() - date.getDate();
-    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age -= 1;
-    return age;
-  };
-
-  const getNextBirthday = (birthdate) => {
-    const date = new Date(birthdate);
-    if (isNaN(date)) return null;
-    const today = new Date();
-    const nextBirthday = new Date(today.getFullYear(), date.getMonth(), date.getDate());
-    if (nextBirthday < today) {
-      nextBirthday.setFullYear(nextBirthday.getFullYear() + 1);
-    }
-    return nextBirthday;
-  };
 
   const getChartUrl = () => {
     const config = {
@@ -235,6 +243,44 @@ const Analytics = () => {
     return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(config))}`;
   };
 
+  const getAgeChartUrl = () => {
+    const config = {
+      type: 'bar',
+      data: {
+        labels: dbStats.ageGroupDistribution.map(d => d.name),
+        datasets: [{
+          label: 'Members',
+          data: dbStats.ageGroupDistribution.map(d => d.value),
+          backgroundColor: '#2563eb'
+        }]
+      },
+      options: {
+        legend: { display: false },
+        scales: { yAxes: [{ ticks: { beginAtZero: true, precision: 0 } }] }
+      }
+    };
+    return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(config))}`;
+  };
+
+  const getAttendanceCategoryChartUrl = () => {
+    const config = {
+      type: 'bar',
+      data: {
+        labels: dbStats.attendanceByCategory.map(d => d.name),
+        datasets: [{
+          label: 'Attendance',
+          data: dbStats.attendanceByCategory.map(d => d.value),
+          backgroundColor: '#10b981'
+        }]
+      },
+      options: {
+        legend: { display: false },
+        scales: { yAxes: [{ ticks: { beginAtZero: true, precision: 0 } }] }
+      }
+    };
+    return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(config))}`;
+  };
+
   const exportExcel = () => {
     const rows = [
       { Metric: "Total Congregation", Value: dbStats.totalMembers },
@@ -246,6 +292,7 @@ const Analytics = () => {
       { Metric: "Average Age", Value: dbStats.averageAge },
       ...dbStats.ageGroupDistribution.map(d => ({ Metric: `Age Range: ${d.name}`, Value: d.value })),
       ...dbStats.genderDistribution.map(d => ({ Metric: `Gender: ${d.name}`, Value: d.value })),
+      ...dbStats.attendanceByCategory.map(d => ({ Metric: `Attendance Category: ${d.name}`, Value: d.value })),
       ...dbStats.topEvents.map((event, idx) => ({ Metric: `Top Event ${idx + 1}: ${event.name}`, Value: event.count })),
       ...dbStats.ministryDistribution.map(d => ({ Metric: `Ministry: ${d.name}`, Value: `${d.value}%` }))
     ];
@@ -325,6 +372,7 @@ const Analytics = () => {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px', marginTop: '25px' }}>
         <div style={styles.card}>
           <h3 style={{ marginTop: 0 }}>Age Range Breakdown</h3>
+          <img src={getAgeChartUrl()} alt="Member age distribution chart" style={{ width: '100%', height: '230px', objectFit: 'contain', marginTop: '4px' }} />
           <div style={{ display: 'grid', gap: '10px', marginTop: '18px' }}>
             {dbStats.ageGroupDistribution.map((group) => (
               <div key={group.name} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
@@ -337,6 +385,7 @@ const Analytics = () => {
 
         <div style={styles.card}>
           <h3 style={{ marginTop: 0 }}>Gender Profile & Birthdays</h3>
+          <img src={getGenderChartUrl()} alt="Member gender distribution chart" style={{ width: '100%', height: '230px', objectFit: 'contain', marginTop: '4px' }} />
           <div style={{ display: 'grid', gap: '18px', marginTop: '18px' }}>
             <div>
               <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px' }}>Gender Distribution</div>
@@ -362,6 +411,18 @@ const Analytics = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div style={{ ...styles.card, marginTop: '25px' }}>
+        <h3 style={{ marginTop: 0 }}>Attendance by Event Category</h3>
+        <p style={{ margin: '0 0 8px', color: '#64748b', fontSize: '13px' }}>
+          Registrations grouped by event category, including weddings and other event types.
+        </p>
+        {dbStats.attendanceByCategory.length > 0 ? (
+          <img src={getAttendanceCategoryChartUrl()} alt="Attendance by event category chart" style={{ width: '100%', height: '300px', objectFit: 'contain' }} />
+        ) : (
+          <div style={{ padding: '35px 0', color: '#64748b', textAlign: 'center' }}>No event attendance data available.</div>
+        )}
       </div>
     </div>
   );
