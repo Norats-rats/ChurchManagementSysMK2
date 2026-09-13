@@ -1,341 +1,139 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import api from '../../api';
 
 const MINISTRY_OPTIONS = [
-    "Worship Team",
-    "Youth Ministry",
-    "Children's Ministry",
-    "Outreach",
-    "General Staff",
-    "Jail ministry",
-    "Marshall Ministry",
-    "Usher Ministry",
-    "Sanitation ministry",
-    "Kitchen ministry",
-    "Social and Live Ministry",
-    "Technical Ministry",
-    "Music ministry",
-    "None"
+  'Worship Team', 'Youth Ministry', "Children's Ministry", 'Outreach', 'General Staff',
+  'Jail ministry', 'Marshall Ministry', 'Usher Ministry', 'Sanitation ministry',
+  'Kitchen ministry', 'Social and Live Ministry', 'Technical Ministry', 'Music ministry'
 ];
 
+const emptyForm = { firstName: '', lastName: '', email: '', password: '', address: '', phone: '', birthdate: '', gender: '', role: 'Member', ministries: ['Worship Team'] };
+
 const MemberForm = () => {
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState(""); 
-    const [address, setAddress] = useState("");
-    const [selectedMinistries, setSelectedMinistries] = useState(["Worship Team"]);
-    const [role, setRole] = useState("Member");
-    
-    const [searchQuery, setSearchQuery] = useState("");
-    const [filterMinistry, setFilterMinistry] = useState("All Ministries");
-    const [isEditing, setIsEditing] = useState(false);
-    const [editId, setEditId] = useState(null);
-    const [allMembers, setAllMembers] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [ministryFilter, setMinistryFilter] = useState('All Ministries');
+  const [page, setPage] = useState(1);
+  const [expandedId, setExpandedId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [showCreate, setShowCreate] = useState(false);
 
-    useEffect(() => {
-        fetchMembers();
-    }, []);
+  const fetchMembers = async () => {
+    try {
+      const response = await api.getMembers();
+      setMembers(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Failed to fetch members:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const fetchMembers = async () => {
-        try {
-            const response = await api.getMembers();
-            const data = response.data;
-            if (Array.isArray(data)) {
-                setAllMembers(data);
-            }
-            setLoading(false);
-        } catch (err) {
-            console.error("Database connection failed:", err);
-            setLoading(false);
-        }
-    };
+  useEffect(() => { fetchMembers(); }, []);
 
-    const normalizeMemberMinistries = (member) => {
-        if (Array.isArray(member?.ministries)) return member.ministries;
-        if (member?.ministry) return [member.ministry];
-        return [];
-    };
+  const ministriesFor = member => Array.isArray(member?.ministries) && member.ministries.length
+    ? member.ministries : member?.ministry ? [member.ministry] : [];
 
-    const validateForm = () => {
-        const trimmedFirst = firstName.trim();
-        const trimmedLast = lastName.trim();
-        const trimmedEmail = email.trim();
-        const trimmedPassword = password.trim();
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const filteredMembers = useMemo(() => members.filter(member => {
+    const name = `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase();
+    const matchesQuery = `${name} ${member.email || ''}`.includes(query.toLowerCase());
+    const matchesMinistry = ministryFilter === 'All Ministries' || ministriesFor(member).includes(ministryFilter);
+    return matchesQuery && matchesMinistry;
+  }), [members, query, ministryFilter]);
 
-        if (!trimmedFirst || !trimmedLast) {
-            alert("Incomplete name");
-            return false;
-        }
+  const pageSize = 20;
+  const pageCount = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
+  const visibleMembers = filteredMembers.slice((page - 1) * pageSize, page * pageSize);
 
-        if (!trimmedEmail || !emailPattern.test(trimmedEmail)) {
-            alert("Incomplete email please input a valid email");
-            return false;
-        }
+  useEffect(() => { setPage(1); }, [query, ministryFilter]);
 
-        if (!isEditing) {
-            if (!trimmedPassword || trimmedPassword.length < 7) {
-                alert("Insecure password please use 7 or more characters");
-                return false;
-            }
-        } else if (trimmedPassword && trimmedPassword.length < 7) {
-            alert("Insecure password please use 7 or more characters");
-            return false;
-        }
+  const setField = (field, value) => setForm(previous => ({ ...previous, [field]: value }));
+  const normalizeDate = value => value ? new Date(value).toISOString().split('T')[0] : '';
 
-        return true;
-    };
-
-    const handleAction = async () => {
-        if (!validateForm()) return;
-
-        const validMinistries = selectedMinistries.filter(Boolean);
-        const memberData = { 
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            email: email.trim(), 
-            address: address.trim(), 
-            ministries: validMinistries,
-            ministry: validMinistries[0] || 'None',
-            role,
-            category: role === "Admin" ? "Admin" : "Member",
-            ...(password.trim() && { password: password.trim() }) 
-        };
-
-        try {
-            if (isEditing) {
-                await api.updateMember(editId, memberData); 
-            } else {
-                await api.createMember(memberData);
-            }
-            resetForm();
-            fetchMembers();
-        } catch (err) {
-            alert("Could not save to database.");
-        }
-    };
-
-    const resetForm = () => {
-        setFirstName(""); setLastName(""); setEmail(""); setPassword("");
-        setAddress(""); setSelectedMinistries(["Worship Team"]); setRole("Member");
-        setIsEditing(false); setEditId(null);
-    };
-
-    const toggleStatus = async (member) => {
-        const newStatus = member.status === "Active" ? "Inactive" : "Active";
-        try {
-            await api.updateMember(member._id, { ...member, status: newStatus });
-            fetchMembers();
-        } catch (err) {
-            console.error("Failed to update status:", err);
-        }
-    };
-
-    const archiveMember = async (id, currentMemberData) => {
-        if (currentMemberData.status === "Inactive") {
-            alert("This member is already archived.");
-            return;
-        }
-        if (!window.confirm("Are you sure you want to archive this user? This will set their status to Inactive.")) return;
-        try {
-            await api.updateMember(id, { ...currentMemberData, status: "Inactive" });
-            fetchMembers();
-        } catch (err) {
-            alert("Archive process failed");
-        }
-    };
-
-    const startEdit = (member) => {
-        setIsEditing(true);
-        setEditId(member._id);
-        setFirstName(member.firstName || "");
-        setLastName(member.lastName || "");
-        setEmail(member.email || "");
-        setAddress(member.address || "");
-        const currentMinistries = normalizeMemberMinistries(member);
-        setSelectedMinistries(currentMinistries.length > 0 ? currentMinistries : []);
-        setRole(member.role || "Member");
-        setPassword(""); 
-    };
-
-    const totalMembers = allMembers.length;
-    const activeMembers = allMembers.filter(m => m.status === "Active" || !m.status).length;
-    
-    const newThisMonth = allMembers.filter(m => {
-        const dateKey = m.createdAt || m.date; 
-        if (!dateKey) return false;
-        const joinDate = new Date(dateKey);
-        const now = new Date();
-        return joinDate.getMonth() === now.getMonth() && joinDate.getFullYear() === now.getFullYear();
-    }).length;
-
-    const filteredMembers = (allMembers || []).filter(m => {
-        const fName = m.firstName || "";
-        const lName = m.lastName || "";
-        const mEmail = m.email || "";
-        const fullName = `${fName} ${lName}`.toLowerCase();
-        const ministries = normalizeMemberMinistries(m);
-        
-        const matchesSearch = fullName.includes(searchQuery.toLowerCase()) || 
-        mEmail.toLowerCase().includes(searchQuery.toLowerCase());
-        
-        const matchesMinistry = filterMinistry === "All Ministries" || ministries.includes(filterMinistry);
-        return matchesSearch && matchesMinistry;
+  const startEdit = member => {
+    setExpandedId(member._id);
+    setEditingId(member._id);
+    setForm({
+      firstName: member.firstName || '', lastName: member.lastName || '', email: member.email || '', password: '',
+      address: member.address || '', phone: member.phone || '', birthdate: normalizeDate(member.birthdate),
+      gender: member.gender || '', role: member.role || 'Member', ministries: ministriesFor(member)
     });
+  };
 
-  return (
-    <div className="member-directory-container">
-        <div className="directory-header">
-            <h2 style={{ color: '#1a1a1a' }}>System User Management</h2>
-            <p style={{ color: '#666' }}>Register members and assign administrative roles</p>
-        </div>
+  const saveMember = async event => {
+    event.preventDefault();
+    const member = members.find(item => item._id === editingId);
+    if (!member) return;
+    try {
+      await api.updateMember(editingId, { ...member, ...form, ministry: form.ministries[0] || 'None', ...(form.password ? { password: form.password } : {}) });
+      setEditingId(null);
+      setExpandedId(null);
+      await fetchMembers();
+    } catch (error) { alert(error?.response?.data?.error || 'Could not update this member.'); }
+  };
 
-        <div className="search-filter-container" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-            <input 
-                type="text" 
-                className="search-input" 
-                placeholder="Search users..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
-            />
-            <select 
-                className="filter-select" 
-                value={filterMinistry} 
-                onChange={(e) => setFilterMinistry(e.target.value)}
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
-            >
-                <option value="All Ministries">All Ministries</option>
-                {MINISTRY_OPTIONS.map((min) => (
-                    <option key={min} value={min}>{min}</option>
-                ))}
-            </select>
-        </div>
+  const createMember = async event => {
+    event.preventDefault();
+    if (form.password.length < 7) return alert('Password must be at least 7 characters long.');
+    try {
+      const response = await api.createMember({ ...form, ministry: form.ministries[0] || 'None' });
+      setShowCreate(false);
+      setForm(emptyForm);
+      alert(response.data?.confirmationSent === false ? 'Account created, but the confirmation email could not be sent.' : 'Account created. A confirmation code was sent to the user.');
+      await fetchMembers();
+    } catch (error) { alert(error?.response?.data?.error || 'Could not create this account.'); }
+  };
 
-        <div className="stats-container" style={{ display: 'flex', gap: '20px', marginBottom: '25px' }}>
-            <div className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #eee' }}>
-                <span className="stat-label" style={{ color: '#888', fontSize: '0.85rem', display: 'block' }}>Total Accounts</span>
-                <span className="stat-value" style={{ color: '#1a1a1a', fontSize: '1.8rem', fontWeight: 'bold' }}>{totalMembers}</span>
-            </div>
-            <div className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #eee' }}>
-                <span className="stat-label" style={{ color: '#888', fontSize: '0.85rem', display: 'block' }}>Active Users</span>
-                <span className="stat-value" style={{ color: '#28a745', fontSize: '1.8rem', fontWeight: 'bold' }}>{activeMembers}</span>
-            </div>
-            <div className="stat-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', flex: 1, boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #eee' }}>
-                <span className="stat-label" style={{ color: '#888', fontSize: '0.85rem', display: 'block' }}>Registrations (Month)</span>
-                <span className="stat-value" style={{ color: '#007bff', fontSize: '1.8rem', fontWeight: 'bold' }}>{newThisMonth}</span>
-            </div>
-        </div>
+  const toggleStatus = async member => {
+    try { await api.updateMember(member._id, { status: member.status === 'Active' ? 'Inactive' : 'Active' }); await fetchMembers(); }
+    catch (error) { alert('Could not update account status.'); }
+  };
 
-        <div className="quick-add-bar" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', background: '#fff', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #eee' }}>
-            <input name="firstName" autoComplete="off" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First Name" />
-            <input name="lastName" autoComplete="off" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last Name" />
-            <input name="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-            <input 
-                type="password" 
-                name="password"
-                autoComplete="new-password"
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder={isEditing ? "New Password (Optional)" : "Password"} 
-            />
-            <select value={role} onChange={(e) => setRole(e.target.value)} style={{ fontWeight: 'bold', color: '#2563eb' }}>
-                <option value="Member">Member</option>
-                <option value="Admin">Admin</option>
-                <option value="Staff">Staff</option>
-                <option value="Ministry Leader">Ministry Leader</option>
-            </select>
+  const archiveMember = async member => {
+    if (member.status === 'Inactive' || !window.confirm('Archive this account?')) return;
+    try { await api.updateMember(member._id, { status: 'Inactive' }); await fetchMembers(); }
+    catch (error) { alert('Archive process failed.'); }
+  };
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '220px' }}>
-              <label style={{ margin: 0, fontSize: '12px', color: '#475569' }}>Assigned Ministries</label>
-              <select
-                multiple
-                size={5}
-                value={selectedMinistries}
-                onChange={(e) => setSelectedMinistries(Array.from(e.target.selectedOptions, option => option.value))}
-                style={{ minWidth: '220px', borderRadius: '8px', border: '1px solid #ddd', padding: '8px', background: 'white', color: '#111' }}
-              >
-                {MINISTRY_OPTIONS.filter(min => min !== "None").map((min) => (
-                  <option key={min} value={min}>{min}</option>
-                ))}
-              </select>
-            </div>
-            
-            <button className="add-btn-primary" onClick={handleAction}>
-                {isEditing ? "Update Account" : "Create Account"}
-            </button>
-            {isEditing && <button className="cancel-btn" onClick={resetForm}>Cancel</button>}
-        </div>
+  const activeCount = members.filter(member => member.status === 'Active' || !member.status).length;
+  const newThisMonth = members.filter(member => {
+    const date = new Date(member.createdAt || member.date);
+    const now = new Date();
+    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+  }).length;
 
-        <div className="table-container">
-            <table className="member-table">
-                <thead>
-                    <tr>
-                        <th>USER/ADDRESS</th>
-                        <th>ROLE</th>
-                        <th>MINISTRY</th>
-                        <th>STATUS</th>
-                        <th>ACTIONS</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {loading ? (
-                        <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>Synchronizing with Database...</td></tr>
-                    ) : filteredMembers.map((m) => (
-                        <tr key={m._id}>
-                            <td>
-                                <div className="user-cell">
-                                    <div className="avatar" style={{ backgroundColor: m.role === 'Admin' ? '#ef4444' : '#3b82f6' }}>
-                                        {(m.firstName || "U").charAt(0)}
-                                    </div>
-                                    <div><strong>{m.firstName} {m.lastName}</strong><br/><small>{m.address}</small></div>
-                                </div>
-                            </td>
-                            <td>
-                                <span style={{ 
-                                    padding: '4px 8px', 
-                                    borderRadius: '4px', 
-                                    fontSize: '11px', 
-                                    fontWeight: 'bold',
-                                    backgroundColor: m.role === 'Admin' ? '#fef2f2' : '#f0f9ff',
-                                    color: m.role === 'Admin' ? '#991b1b' : '#075985'
-                                }}>
-                                    {m.role || 'Member'}
-                                </span>
-                            </td>
-                            <td>
-                                <span className="ministry-tag">
-                                  {normalizeMemberMinistries(m).length > 0 ? normalizeMemberMinistries(m).join(', ') : 'None'}
-                                </span>
-                            </td>
-                            <td>
-                                <button 
-                                    className={`status-pill ${m.status?.toLowerCase() || 'inactive'}`}
-                                    onClick={() => toggleStatus(m)}
-                                >
-                                    {m.status || "Inactive"}
-                                </button>
-                            </td>
-                            <td>
-                                <button className="action-icon edit" onClick={() => startEdit(m)} title="Edit Member">✏️</button>
-                                <button 
-                                    className="action-icon delete" 
-                                    onClick={() => archiveMember(m._id, m)}
-                                    title="Archive Member (Set Inactive)"
-                                    style={{ filter: m.status === 'Inactive' ? 'grayscale(100%) opacity(50%)' : 'none' }}
-                                >
-                                    📦
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+  const renderForm = isCreate => <form className="member-edit-panel" onSubmit={isCreate ? createMember : saveMember}>
+    <div className="member-edit-grid">
+      <label>First name<input required={isCreate} value={form.firstName} onChange={event => setField('firstName', event.target.value)} /></label>
+      <label>Last name<input required={isCreate} value={form.lastName} onChange={event => setField('lastName', event.target.value)} /></label>
+      <label>Email<input required={isCreate} type="email" value={form.email} onChange={event => setField('email', event.target.value)} /></label>
+      {isCreate && <label>Password<input required minLength={7} type="password" value={form.password} onChange={event => setField('password', event.target.value)} /></label>}
+      <label>Phone<input value={form.phone} onChange={event => setField('phone', event.target.value)} /></label>
+      <label>Birthdate<input type="date" value={form.birthdate} onChange={event => setField('birthdate', event.target.value)} /></label>
+      <label>Gender<select value={form.gender} onChange={event => setField('gender', event.target.value)}><option value="">Not specified</option><option>Male</option><option>Female</option><option>Prefer not to say</option></select></label>
+      <label>Role<select value={form.role} onChange={event => setField('role', event.target.value)}><option>Member</option><option>Admin</option><option>Staff</option><option>Ministry Leader</option></select></label>
+      <label className="member-wide-field">Address<input value={form.address} onChange={event => setField('address', event.target.value)} /></label>
     </div>
-  );
-}
+    <label className="member-ministry-field">Assigned ministries<select multiple size={4} value={form.ministries} onChange={event => setField('ministries', Array.from(event.target.selectedOptions, option => option.value))}>{MINISTRY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select></label>
+    <div className="member-card-actions"><button type="button" className="cancel-btn" onClick={() => { setShowCreate(false); setEditingId(null); }}>Cancel</button><button className="add-btn-primary" type="submit">{isCreate ? 'Create and Email Confirmation' : 'Save Profile Changes'}</button></div>
+  </form>;
+
+  return <div className="member-directory-container">
+    <div className="directory-header"><div><h2 style={{ color: '#1a1a1a', marginBottom: 4 }}>System User Management</h2><p style={{ color: '#666', margin: 0 }}>Register members and assign administrative roles</p></div><button className="add-btn-primary" onClick={() => { setForm(emptyForm); setShowCreate(true); }}>+ Create Account</button></div>
+    <div className="search-filter-container" style={{ display: 'flex', gap: 10, marginBottom: 20 }}><input className="search-input" placeholder="Search users..." value={query} onChange={event => setQuery(event.target.value)} /><select className="filter-select" value={ministryFilter} onChange={event => setMinistryFilter(event.target.value)}><option>All Ministries</option>{MINISTRY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select></div>
+    <div className="stats-container" style={{ display: 'flex', gap: 20, marginBottom: 25 }}><div className="stat-card"><span>Total Accounts</span><strong>{members.length}</strong></div><div className="stat-card"><span>Active Users</span><strong style={{ color: '#28a745' }}>{activeCount}</strong></div><div className="stat-card"><span>Registrations (Month)</span><strong style={{ color: '#007bff' }}>{newThisMonth}</strong></div></div>
+    <div className="member-card-grid">{loading ? <div className="member-empty-state">Synchronizing with Database...</div> : visibleMembers.length === 0 ? <div className="member-empty-state">No members match the current filters.</div> : visibleMembers.map(member => {
+      const expanded = expandedId === member._id;
+      return <article className={`member-card ${expanded ? 'expanded' : ''}`} key={member._id}>
+        <button className="member-card-summary" onClick={() => setExpandedId(expanded ? null : member._id)}><div className="user-cell"><div className="avatar" style={{ backgroundColor: member.role === 'Admin' ? '#ef4444' : '#3b82f6' }}>{(member.firstName || 'U').charAt(0)}</div><div><strong>{member.firstName} {member.lastName}</strong><small>{member.email}</small></div></div><span className="member-role-badge">{member.role || 'Member'}</span><span className={`status-pill ${(member.status || 'Inactive').toLowerCase()}`}>{member.status || 'Inactive'}</span><span className="card-chevron">{expanded ? '−' : '+'}</span></button>
+        {expanded && (editingId === member._id ? renderForm(false) : <div className="member-card-details"><div className="member-detail-grid"><span><b>Phone</b>{member.phone || 'Not provided'}</span><span><b>Birthdate</b>{member.birthdate ? new Date(member.birthdate).toLocaleDateString() : 'Not provided'}</span><span><b>Address</b>{member.address || 'Not provided'}</span><span><b>Ministries</b>{ministriesFor(member).join(', ') || 'None'}</span></div><div className="member-card-actions"><button className="add-btn-primary" onClick={() => startEdit(member)}>Edit Profile</button><button className="status-pill active" onClick={() => toggleStatus(member)}>Set {member.status === 'Active' ? 'Inactive' : 'Active'}</button><button className="action-icon delete" onClick={() => archiveMember(member)} title="Archive member">📦</button></div></div>)}
+      </article>;
+    })}</div>
+    {pageCount > 1 && <div className="member-pagination"><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page} of {pageCount}</span><button disabled={page === pageCount} onClick={() => setPage(page + 1)}>Next</button></div>}
+    {showCreate && <div className="member-modal-overlay" onClick={() => setShowCreate(false)}><div className="member-modal" onClick={event => event.stopPropagation()}><div className="member-modal-header"><div><h3>Create Account</h3><p>The user will receive a confirmation code by email.</p></div><button type="button" onClick={() => setShowCreate(false)}>×</button></div>{renderForm(true)}</div></div>}
+  </div>;
+};
 
 export default MemberForm;

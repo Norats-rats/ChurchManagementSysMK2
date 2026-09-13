@@ -1154,6 +1154,45 @@ body, .App {
     flex: 1;
     min-width: 120px;
 }
+
+.member-card-grid { display: grid; gap: 14px; }
+.member-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04); overflow: hidden; }
+.member-card.expanded { border-color: #93c5fd; box-shadow: 0 8px 24px rgba(37, 99, 235, 0.1); }
+.member-card-summary { width: 100%; display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto; align-items: center; gap: 16px; padding: 18px 20px; border: 0; background: transparent; color: #0f172a; text-align: left; cursor: pointer; }
+.member-card-summary .user-cell { min-width: 0; }
+.member-card-summary .user-cell small { display: block; color: #64748b; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-role-badge { padding: 5px 10px; border-radius: 6px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 700; }
+.card-chevron { color: #2563eb; font-size: 22px; font-weight: 700; width: 24px; text-align: center; }
+.member-card-details, .member-edit-panel { padding: 20px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+.member-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; color: #334155; font-size: 14px; }
+.member-detail-grid span { display: flex; flex-direction: column; gap: 5px; }
+.member-detail-grid b { color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.member-card-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.member-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.member-edit-grid label, .member-ministry-field { display: flex; flex-direction: column; gap: 6px; color: #475569; font-size: 12px; font-weight: 700; }
+.member-edit-grid input, .member-edit-grid select, .member-ministry-field select { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; font: inherit; font-weight: 400; }
+.member-wide-field, .member-ministry-field { grid-column: 1 / -1; }
+.member-ministry-field { margin-top: 14px; }
+.member-ministry-field select { min-height: 96px; }
+.member-empty-state { padding: 35px; border: 1px dashed #cbd5e1; border-radius: 14px; color: #64748b; text-align: center; background: #fff; }
+.member-pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin: 24px 0 8px; color: #475569; font-size: 14px; }
+.member-pagination button { padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #1e40af; cursor: pointer; }
+.member-pagination button:disabled { cursor: not-allowed; opacity: .45; }
+.member-modal-overlay { position: fixed; inset: 0; z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 23, 42, .5); }
+.member-modal { width: min(720px, 100%); max-height: min(820px, 92vh); overflow-y: auto; border-radius: 20px; background: #fff; box-shadow: 0 25px 70px rgba(15, 23, 42, .25); }
+.member-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px 24px 0; }
+.member-modal-header h3 { margin: 0; color: #0f172a; }
+.member-modal-header p { margin: 6px 0 0; color: #64748b; font-size: 13px; }
+.member-modal-header > button { border: 0; background: transparent; color: #64748b; font-size: 25px; cursor: pointer; }
+
+@media (max-width: 700px) {
+  .member-card-summary { grid-template-columns: 1fr auto auto; gap: 10px; padding: 14px; }
+  .member-role-badge { display: none; }
+  .member-detail-grid, .member-edit-grid { grid-template-columns: 1fr; }
+  .member-wide-field, .member-ministry-field { grid-column: auto; }
+  .member-card-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .member-modal-overlay { padding: 10px; }
+}
 .event-container {
   padding: 20px;
   animation: fadeIn 0.3s ease-in-out;

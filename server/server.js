@@ -668,6 +668,8 @@ app.get('/api/members/:id', async (req, res) => {
 app.post('/api/members', async (req, res) => {
   try {
     const data = { ...req.body };
+    if (!data.birthdate) delete data.birthdate;
+    if (!data.gender) delete data.gender;
     if (data.gender === 'Other' || data.gender === 'Non-binary') {
       data.gender = 'Prefer not to say';
     }
@@ -679,17 +681,24 @@ app.post('/api/members', async (req, res) => {
     if (!data.ministry) {
       data.ministry = data.ministries[0] || 'None';
     }
+    data.otp = Math.floor(100000 + Math.random() * 900000).toString();
+    data.isVerified = false;
+    data.status = 'Inactive';
     const newMember = new Member(data);
     await newMember.save();
+    const emailResult = await sendOTPEmail(data.email, data.otp, data.firstName);
     const out = newMember.toObject();
     delete out.password; // never return password hash
-    res.status(201).json(out);
+    delete out.otp;
+    res.status(201).json({ ...out, confirmationSent: emailResult.success });
   } catch (err) { res.status(400).json({ error: "Failed to create record" }); }
 });
 
 app.put('/api/members/:id', async (req, res) => {
   try {
     const data = { ...req.body };
+    if (!data.birthdate) delete data.birthdate;
+    if (!data.gender) delete data.gender;
     if (data.gender === 'Other' || data.gender === 'Non-binary') {
       data.gender = 'Prefer not to say';
     }
@@ -718,6 +727,8 @@ app.put('/api/members/:id', async (req, res) => {
 app.patch('/api/members/:id', async (req, res) => {
   try {
     const data = { ...req.body };
+    if (!data.birthdate) delete data.birthdate;
+    if (!data.gender) delete data.gender;
     if (data.gender === 'Other' || data.gender === 'Non-binary') {
       data.gender = 'Prefer not to say';
     }
