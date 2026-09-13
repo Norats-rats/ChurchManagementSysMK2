@@ -1018,7 +1018,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
             </>
           )}
 
-          {currentTab === 'ebible' && <EBible />}
+          {currentTab === 'ebible' && <EBible userId={user._id} />}
           {currentTab === 'profile' && <Profile userId={user._id} currentUserId={user._id} />}
           {currentTab === 'members' && hasPermission(role, 'members') && <MemberForm />}
           {currentTab === 'events' && hasPermission(role, 'events') && <EventTab role={role} userId={user._id} />}

@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-const EBible = () => {
+const DEFAULT_READER_PREFERENCES = {
+  fontSize: 18,
+  textAlign: 'left',
+  textColor: '#1e293b'
+};
+
+const EBible = ({ userId }) => {
   const [view, setView] = useState('toc'); 
   const [selectedBook, setSelectedBook] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
@@ -9,6 +15,16 @@ const EBible = () => {
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [readerMenuOpen, setReaderMenuOpen] = useState(false);
+  const preferenceKey = `ebiblePreferences:${userId || 'guest'}`;
+  const [readerPreferences, setReaderPreferences] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`ebiblePreferences:${userId || 'guest'}`);
+      return saved ? { ...DEFAULT_READER_PREFERENCES, ...JSON.parse(saved) } : DEFAULT_READER_PREFERENCES;
+    } catch {
+      return DEFAULT_READER_PREFERENCES;
+    }
+  });
 
   const bookData = {
     "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34,
@@ -48,6 +64,14 @@ const EBible = () => {
     '1 John', '2 John', '3 John', 'Jude', 'Revelation'
   ];
 
+  useEffect(() => {
+    localStorage.setItem(preferenceKey, JSON.stringify(readerPreferences));
+  }, [preferenceKey, readerPreferences]);
+
+  const updateReaderPreference = (field, value) => {
+    setReaderPreferences(previous => ({ ...previous, [field]: value }));
+  };
+
   const fetchScripture = async (book, chapter) => {
     setLoading(true);
     setError(null);
@@ -78,6 +102,20 @@ const EBible = () => {
     handleChapterSelect(Number(selectedChapter) + 1);
   };
 
+  const handleReaderBookChange = (book) => {
+    setSelectedBook(book);
+    setSelectedChapter('');
+    setContent(null);
+    setView('toc');
+    setReaderMenuOpen(false);
+  };
+
+  const handleReaderChapterChange = (chapter) => {
+    if (!chapter || !selectedBook) return;
+    handleChapterSelect(Number(chapter));
+    setReaderMenuOpen(false);
+  };
+
   const resetToTOC = () => {
     setView('toc');
     setSelectedBook('');
@@ -86,9 +124,9 @@ const EBible = () => {
   };
 
   const styles = {
-    container: { padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'serif' },
+    container: { padding: '20px', maxWidth: '1120px', margin: '0 auto', fontFamily: 'serif' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px', marginTop: '20px' },
-    bookBtn: { padding: '15px', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', background: '#fff', textAlign: 'center' },
+    bookBtn: { minHeight: '58px', padding: '12px 8px', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', background: '#fff', color: '#1e293b', textAlign: 'center', fontFamily: 'inherit', fontSize: '14px', fontWeight: '700', lineHeight: '1.25' },
     chapterBtn: { padding: '10px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' },
     header: { borderBottom: '2px solid #053476', paddingBottom: '10px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
     verse: { marginBottom: '15px', lineHeight: '1.6', fontSize: '18px' },
@@ -101,12 +139,33 @@ const EBible = () => {
     <div style={styles.container}>
       <header style={styles.header}>
         <h2 style={{ color: 'var(--color-primary)', margin: 0 }}>📖 eBible</h2>
-        {view === 'reading' && (
-          <button onClick={resetToTOC} style={{ padding: '8px 16px', cursor: 'pointer' }}>Back to Books</button>
-        )}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {view === 'reading' && <button onClick={resetToTOC} style={{ padding: '8px 16px', cursor: 'pointer' }}>Back to Books</button>}
+          <button type="button" className="ebible-reader-menu-button" onClick={() => setReaderMenuOpen(previous => !previous)} aria-expanded={readerMenuOpen}>
+            {readerMenuOpen ? 'Close Reader Menu' : 'Reader Menu'}
+          </button>
+        </div>
       </header>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      {readerMenuOpen && <>
+        <button type="button" className="ebible-reader-drawer-backdrop" onClick={() => setReaderMenuOpen(false)} aria-label="Close reader menu" />
+        <aside className="ebible-reader-drawer" aria-label="Reader menu">
+          <div className="ebible-drawer-header"><h3>Reader Menu</h3><button type="button" onClick={() => setReaderMenuOpen(false)} aria-label="Close reader menu">×</button></div>
+          <div className="ebible-drawer-section">
+            <label>Book<select value={selectedBook} onChange={event => handleReaderBookChange(event.target.value)}><option value="">Select a book</option>{[...oldTestament, ...newTestament].map(book => <option key={book}>{book}</option>)}</select></label>
+            <label>Chapter<select value={selectedChapter} disabled={!selectedBook} onChange={event => handleReaderChapterChange(event.target.value)}><option value="">Select a chapter</option>{selectedBook && [...Array(bookData[selectedBook]).keys()].map(number => <option key={number + 1} value={number + 1}>Chapter {number + 1}</option>)}</select></label>
+          </div>
+          <div className="ebible-drawer-section">
+            <h4>Reader Settings</h4>
+            <label>Text size<input type="range" min="14" max="30" step="1" value={readerPreferences.fontSize} onChange={event => updateReaderPreference('fontSize', Number(event.target.value))} /></label>
+            <label>Alignment<select value={readerPreferences.textAlign} onChange={event => updateReaderPreference('textAlign', event.target.value)}><option value="left">Left</option><option value="center">Center</option><option value="justify">Justified</option></select></label>
+            <label>Text color<select value={readerPreferences.textColor} onChange={event => updateReaderPreference('textColor', event.target.value)}><option value="#1e293b">Dark</option><option value="#334155">Slate</option><option value="#1d4ed8">Blue</option><option value="#166534">Green</option></select></label>
+            <button type="button" className="ebible-drawer-reset" onClick={() => setReaderPreferences(DEFAULT_READER_PREFERENCES)}>Reset preferences</button>
+          </div>
+        </aside>
+      </>}
       
       {view === 'toc' && (
         <div>
@@ -123,7 +182,7 @@ const EBible = () => {
               <div className="ebible-book-spread">
                 <section className="ebible-testament-panel">
                   <h4>Old Testament</h4>
-                  <div style={styles.grid}>
+                  <div className="ebible-book-grid" style={styles.grid}>
                     {oldTestament.map((book) => (
                       <button type="button" key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
                         {book}
@@ -133,7 +192,7 @@ const EBible = () => {
                 </section>
                 <section className="ebible-testament-panel">
                   <h4>New Testament</h4>
-                  <div style={styles.grid}>
+                  <div className="ebible-book-grid" style={styles.grid}>
                     {newTestament.map((book) => (
                       <button type="button" key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
                         {book}
@@ -166,9 +225,9 @@ const EBible = () => {
         <div className="ebible-reading-shell">
           <h3 style={{ textAlign: 'center', fontSize: '24px' }}>{content.reference}</h3>
           <p style={{ textAlign: 'center', fontSize: '14px', color: '#475569', marginTop: '6px' }}>Translation: {versionLabel}</p>
-          <div className="ebible-verse-scroll" style={{ marginTop: '30px' }}>
+          <div className="ebible-verse-scroll" style={{ marginTop: '18px' }}>
             {content.verses.map((v) => (
-              <p key={v.verse} style={styles.verse}>
+              <p key={v.verse} style={{ ...styles.verse, fontSize: `${readerPreferences.fontSize}px`, textAlign: readerPreferences.textAlign, color: readerPreferences.textColor }}>
                 <span style={styles.verseNum}>{v.verse}</span>
                 {v.text}
               </p>

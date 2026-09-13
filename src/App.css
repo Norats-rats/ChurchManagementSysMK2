@@ -23,15 +23,30 @@
 .ebible-book-spread { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
 .ebible-testament-panel { min-width: 0; padding: 20px; border: 1px solid #dbe3ee; border-radius: 14px; background: #f8fafc; }
 .ebible-testament-panel h4 { margin: 0; padding-bottom: 12px; border-bottom: 1px solid #dbe3ee; color: #1e3a8a; }
-.ebible-testament-panel .bookBtn { width: 100%; color: #1e293b; font: inherit; }
+.ebible-testament-panel .bookBtn { width: 100%; color: #1e293b !important; font: inherit; }
+.ebible-testament-panel > .ebible-book-grid { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
 .ebible-reading-shell { padding: 20px; border: 1px solid #dbe3ee; border-radius: 16px; background: #fff; box-shadow: 0 8px 22px rgba(15, 23, 42, .06); }
 .ebible-verse-scroll { max-height: min(62vh, 680px); overflow-y: auto; padding: 8px 22px 8px 8px; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; scrollbar-gutter: stable; }
 .ebible-reading-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+.ebible-reader-menu-button { min-height: 36px; padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #1e3a8a; cursor: pointer; font-weight: 700; }
+.ebible-reader-drawer-backdrop { position: fixed; inset: 0; z-index: 1190; border: 0; background: rgba(15, 23, 42, .18); cursor: default; }
+.ebible-reader-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 1200; width: min(330px, calc(100vw - 24px)); overflow-y: auto; padding: 22px; background: #fff; border-left: 1px solid #dbe3ee; box-shadow: -12px 0 32px rgba(15, 23, 42, .16); color: #1e293b; }
+.ebible-drawer-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+.ebible-drawer-header h3 { margin: 0; color: #1e3a8a; }
+.ebible-drawer-header button { border: 0; background: transparent; color: #64748b; font-size: 26px; cursor: pointer; }
+.ebible-drawer-section { display: grid; gap: 14px; padding: 20px 0; border-bottom: 1px solid #e2e8f0; }
+.ebible-drawer-section h4 { margin: 0; color: #475569; }
+.ebible-drawer-section label { display: flex; flex-direction: column; gap: 7px; color: #475569; font-size: 12px; font-weight: 700; }
+.ebible-drawer-section select { min-height: 38px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #1e293b; font: inherit; }
+.ebible-drawer-section input[type="range"] { width: 100%; accent-color: var(--color-primary); }
+.ebible-drawer-reset { min-height: 36px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; color: #334155; cursor: pointer; font-weight: 700; }
 
 @media (max-width: 700px) {
   .ebible-book-spread { grid-template-columns: 1fr; gap: 16px; }
   .ebible-testament-panel { padding: 14px; }
+  .ebible-testament-panel > .ebible-book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .ebible-verse-scroll { max-height: 58vh; padding-right: 12px; }
+  .ebible-reader-menu-button { padding: 7px 10px; font-size: 12px; }
 }
 
 @media (max-width: 768px) {
