@@ -117,7 +117,11 @@ export const api = {
       'x-user-role': role
     }
   }),
-  markNotificationRead: (notificationId) => apiClient.patch(`/api/notifications/${notificationId}/read`),
+  markNotificationRead: (notificationId, userId) => apiClient.patch(`/api/notifications/${notificationId}/read`, null, {
+    headers: {
+      'x-user-id': userId
+    }
+  }),
   clearNotifications: (userId) => apiClient.patch(`/api/notifications/clear`, null, {
     headers: {
       'x-user-id': userId

@@ -185,11 +185,13 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const handleAcknowledgeNotification = async (notification) => {
     if (!notification?.notificationId) return;
     try {
-      await api.markNotificationRead(notification.notificationId);
+      await api.markNotificationRead(notification.notificationId, user?._id);
       setNotifications(prev => prev.filter(item => item.notificationId !== notification.notificationId));
       setExpandedNotificationId(null);
+      showFeedback('Notification acknowledged.');
     } catch (err) {
       console.error('Failed to acknowledge notification', err);
+      showFeedback('Unable to acknowledge this notification.');
     }
   };
 
@@ -209,8 +211,10 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       setNotifications([]);
       setNotificationsOpen(false);
       setExpandedNotificationId(null);
+      showFeedback('Notifications cleared successfully.');
     } catch (err) {
       console.error('Failed to clear notifications', err);
+      showFeedback('Unable to clear notifications.');
     }
   };
 
@@ -986,7 +990,8 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                 )}
 
                 <div className="dashboard-spotlight-grid">
-                  <div className="bulletin-card" style={bulletinCardStyle}>
+                  <div className="dashboard-bulletin-column">
+                  <div className={`bulletin-card ${historyOpen ? 'bulletin-history-open' : ''}`} style={bulletinCardStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                       <h2 style={{ color: '#1e3a8a', margin: 0 }}>Community Bulletin</h2>
                       <button className="post-btn" onClick={toggleAnnouncementHistory} style={historyBtnStyle}>
@@ -1018,6 +1023,17 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                         <cite style={{ fontSize: '13px', color: '#6b7280' }}>— {dailyVerse.reference}</cite>
                       </div>
                   </div>
+                  <div className="services-card" style={{ marginTop: '20px', padding: '24px', background: '#f8fafc', borderRadius: '20px' }}>
+                    <h4 style={{ margin: '0 0 12px 0', color: '#1e3a8a' }}>Service Times</h4>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '8px' }}>
+                      <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Sunday Morning Worship — 9:00 AM</li>
+                      <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Sunday Evening Service — 5:00 PM</li>
+                      <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Midweek Service (Wednesday) — 7:00 PM</li>
+                      <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Youth Fellowship (Friday) — 6:30 PM</li>
+                      <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Daily Morning Prayer — 6:00 AM</li>
+                    </ul>
+                  </div>
+                  </div>
 
                   <div className="dashboard-activity-column">
                     <div className="bulletin-card bulletin-card-accent" style={{ ...bulletinCardStyle, background: '#1e293b', color: '#fff' }}>
@@ -1044,16 +1060,6 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                 </div>
               </div>
 
-              <div className="services-card" style={{ marginTop: '30px', padding: '30px', background: '#f8fafc', borderRadius: '20px' }}>
-                <h4 style={{ margin: '0 0 12px 0', color: '#1e3a8a' }}>Service Times</h4>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '8px' }}>
-                  <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Sunday Morning Worship — 9:00 AM</li>
-                  <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Sunday Evening Service — 5:00 PM</li>
-                  <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Midweek Service (Wednesday) — 7:00 PM</li>
-                  <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Youth Fellowship (Friday) — 6:30 PM</li>
-                  <li style={{ padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e6eef8' }}>Daily Morning Prayer — 6:00 AM</li>
-                </ul>
-              </div>
             </>
           )}
 
