@@ -154,7 +154,7 @@ const EBible = ({ userId }) => {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h2 className="ebible-title" style={{ margin: 0 }}>📖 eBible</h2>
+        <h2 className="ebible-title" style={{ margin: 0 }}>eBible</h2>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {view === 'reading' && <button onClick={resetToTOC} style={{ padding: '8px 16px', cursor: 'pointer' }}>Back to Books</button>}
           <button type="button" className="ebible-reader-menu-button" onClick={() => setReaderMenuOpen(previous => !previous)} aria-expanded={readerMenuOpen}>
