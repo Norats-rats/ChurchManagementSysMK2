@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
+import { useFeedbackModal } from './feedbackmodal';
 
-const Profile = ({ userId, currentUserId, compact = false }) => {
+const Profile = ({ userId, currentUserId }) => {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [genderSaving, setGenderSaving] = useState(false);
   const [error, setError] = useState(null);
+  const { showFeedback, FeedbackModal } = useFeedbackModal();
 
   useEffect(() => {
     if (!userId) return setLoading(false);
@@ -47,12 +49,14 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
     const allowedTypes = ['image/png', 'image/jpeg'];
     if (!allowedTypes.includes(f.type)) {
       setError('Please choose a PNG or JPG image.');
+      showFeedback('Please choose a PNG or JPG image.');
       return;
     }
 
     const maxSize = 10 * 1024 * 1024;
     if (f.size > maxSize) {
       setError('Image size must be 10MB or smaller.');
+      showFeedback('Image size must be 10MB or smaller.');
       return;
     }
 
@@ -79,9 +83,11 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
       const id = member._id || member.id;
       await api.updateMember(id, { gender: member.gender });
       setError(null);
+      showFeedback('Gender updated successfully.');
     } catch (err) {
       console.error('Set gender error', err);
       setError('Failed to set gender');
+      showFeedback('Failed to set gender.');
     } finally {
       setGenderSaving(false);
     }
@@ -94,10 +100,12 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
       const id = member._id || member.id;
       await api.updateMember(id, member);
       setError(null);
+      showFeedback('Profile saved successfully.');
     } catch (err) {
       console.error('Save profile error', err);
       const message = err?.response?.data?.error || err?.message || 'Failed to save profile';
       setError(message);
+      showFeedback(message);
     } finally {
       setSaving(false);
     }
@@ -209,6 +217,7 @@ const Profile = ({ userId, currentUserId, compact = false }) => {
         </div>
       </div>
       </section>
+      <FeedbackModal />
     </div>
   );
 };

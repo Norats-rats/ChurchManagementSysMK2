@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import churchLogo from '../../assets/churchlogo.jpg';
 import Advising from '../../components/shared/advisinglist';
+import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import Profile from '../../components/shared/profile';
 import {
   canManageAttendance,
@@ -62,6 +63,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
   const [sidebarExpanded, setSidebarExpanded] = useState(() => localStorage.getItem('sidebarExpanded') !== 'false');
   const notificationsRef = useRef(null);
+  const { showFeedback, FeedbackModal } = useFeedbackModal();
 
   const toggleSidebar = () => {
     setSidebarExpanded(prev => {
@@ -337,9 +339,9 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       setAnnouncement(newAnnouncement);
       setNewAnnouncement("");
       if (historyOpen) fetchAnnouncementHistory();
-      alert("Bulletin Updated for all members!");
+      showFeedback("Bulletin Updated for all members!");
     } catch (err) {
-      alert("Error syncing announcement to database.");
+      showFeedback("Error syncing announcement to database.");
     }
   };
 
@@ -350,7 +352,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       setAnnouncementHistory(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Failed to fetch bulletin history:', err);
-      alert('Unable to load bulletin history.');
+      showFeedback('Unable to load bulletin history.');
     } finally {
       setHistoryLoading(false);
     }
@@ -1029,6 +1031,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           {currentTab === 'inventory' && canViewInventory(role) && <InventoryForm user={user} role={role} />}
         </div>
       </div>
+      <FeedbackModal />
     </div>
   );
 };

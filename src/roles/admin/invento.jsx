@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
+import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 
 const CATEGORY_MAP = [
     { key: 'mic', label: 'Mic', prefix: 'mc' },
@@ -41,6 +42,7 @@ const InventoryForm = ({ user, role }) => {
     const [showArchived, setShowArchived] = useState(false);
     const [archivedCount, setArchivedCount] = useState(0);
     const [confirmModal, setConfirmModal] = useState({ visible: false, mode: '', id: null });
+    const { showFeedback, FeedbackModal } = useFeedbackModal();
 
     useEffect(() => {
         fetchInventory(showArchived);
@@ -101,7 +103,7 @@ const InventoryForm = ({ user, role }) => {
 
     const handleAction = async () => {
         if (!item || !quantity) {
-            return alert("Please fill in Item Name and Quantity");
+            return showFeedback("Please fill in Item Name and Quantity");
         }
 
         const currentUserName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'System';
@@ -128,8 +130,9 @@ const InventoryForm = ({ user, role }) => {
             resetForm();
             fetchInventory(showArchived);
             fetchArchivedCount();
+            showFeedback(isEditing ? 'Inventory item updated successfully.' : 'Inventory item created successfully.');
         } catch (err) {
-            alert("Could not save to database.");
+            showFeedback("Could not save to database.");
         }
     };
 
@@ -168,9 +171,10 @@ const InventoryForm = ({ user, role }) => {
             await api.archiveInventory(id);
             fetchInventory(showArchived);
             fetchArchivedCount();
+            showFeedback('Inventory item archived successfully.');
         } catch (err) {
             console.error(err);
-            alert("Failed to archive item.");
+            showFeedback("Failed to archive item.");
         }
     };
 
@@ -179,9 +183,10 @@ const InventoryForm = ({ user, role }) => {
             await api.unarchiveInventory(id);
             fetchInventory(showArchived);
             fetchArchivedCount();
+            showFeedback('Inventory item restored successfully.');
         } catch (err) {
             console.error(err);
-            alert("Failed to unarchive item.");
+            showFeedback("Failed to unarchive item.");
         }
     };
 
@@ -449,6 +454,7 @@ const InventoryForm = ({ user, role }) => {
                     </div>
                 </div>
             )}
+            <FeedbackModal />
         </div>
     );
 };

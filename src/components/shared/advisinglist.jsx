@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
 import { canManageAdvising, canSubmitAdvising } from '../../permissions';
+import { useFeedbackModal } from './feedbackmodal';
 
 const Advising = ({ user, role }) => {
   const [requests, setRequests] = useState([]);
@@ -15,6 +16,7 @@ const Advising = ({ user, role }) => {
   const [scheduleForm, setScheduleForm] = useState({ date: '', time: '', location: '' });
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
+  const { showFeedback, askConfirmation, FeedbackModal } = useFeedbackModal();
 
   const loggedInId = user?._id || user?.id;
   const isLeader = role === 'Ministry Leader';
@@ -75,6 +77,7 @@ const Advising = ({ user, role }) => {
       });
       resetForm();
       await fetchRequests();
+      showFeedback('Advising request submitted successfully.');
     } catch (err) {
       console.error('Error submitting advising request:', err);
       setError('Unable to submit your request right now.');
@@ -94,7 +97,7 @@ const Advising = ({ user, role }) => {
 
   const handleAccept = async (request) => {
     if (!scheduleForm.date || !scheduleForm.time || !scheduleForm.location.trim()) {
-      alert('Please choose a date, time, and location before accepting.');
+      showFeedback('Please choose a date, time, and location before accepting.');
       return;
     }
 
@@ -109,29 +112,29 @@ const Advising = ({ user, role }) => {
       }, role);
       setAcceptingId(null);
       await fetchRequests();
+      showFeedback('Advising request accepted and scheduled.');
     } catch (err) {
       console.error('Error accepting advising request:', err);
-      alert('Unable to accept the request at this time.');
+      showFeedback('Unable to accept the request at this time.');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleIgnore = async (request) => {
-    if (!window.confirm('Ignore this request? It may be archived if all leaders ignore it.')) {
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      await api.ignoreAdvising(request._id, { leaderId: loggedInId }, role);
-      await fetchRequests();
-    } catch (err) {
-      console.error('Error ignoring advising request:', err);
-      alert('Unable to ignore the request right now.');
-    } finally {
-      setActionLoading(false);
-    }
+    askConfirmation('Are you sure you want to ignore this request? It may be archived if all leaders ignore it.', async () => {
+      setActionLoading(true);
+      try {
+        await api.ignoreAdvising(request._id, { leaderId: loggedInId }, role);
+        await fetchRequests();
+        showFeedback('Advising request ignored.');
+      } catch (err) {
+        console.error('Error ignoring advising request:', err);
+        showFeedback('Unable to ignore the request right now.');
+      } finally {
+        setActionLoading(false);
+      }
+    });
   };
 
   const styles = {
@@ -318,6 +321,7 @@ const Advising = ({ user, role }) => {
           })
         )}
       </div>
+      <FeedbackModal />
     </div>
   );
 };

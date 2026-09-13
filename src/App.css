@@ -11,6 +11,15 @@
   width: 100%;
 }
 
+.feedback-modal-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 23, 42, .55); }
+.feedback-modal { width: min(420px, 100%); padding: 26px; border-radius: 16px; background: #fff; box-shadow: 0 20px 60px rgba(15, 23, 42, .25); text-align: center; color: #0f172a; }
+.feedback-modal p { margin: 0 0 22px; line-height: 1.5; }
+.feedback-modal-actions { display: flex; justify-content: center; gap: 12px; }
+.feedback-button { min-width: 104px; min-height: 38px; padding: 9px 16px; border-radius: 8px; border: 0; font-weight: 700; cursor: pointer; }
+.feedback-button.primary { background: var(--color-primary); color: #fff; }
+.feedback-button.secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.feedback-okay { display: block; margin: 0 auto; }
+
 @media (max-width: 768px) {
   .main-container {
     padding: 15px;

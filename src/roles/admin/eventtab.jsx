@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
+import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import { canManageEvents } from '../../permissions';
 
 const EventTab = ({ role, userId }) => {
@@ -38,6 +39,7 @@ const EventTab = ({ role, userId }) => {
   });
 
   const canManage = canManageEvents(role);
+  const { showFeedback, askConfirmation, FeedbackModal } = useFeedbackModal();
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -130,7 +132,7 @@ const EventTab = ({ role, userId }) => {
 
   const handleAIRecommendation = async () => {
     if (!formData.reservationName) {
-      alert('Please enter a Booking/Reservation Name first!');
+      showFeedback('Please enter a Booking/Reservation Name first!');
       return;
     }
 
@@ -186,24 +188,24 @@ const EventTab = ({ role, userId }) => {
 
     const selectedDateObj = new Date(formData.date + 'T00:00:00');
     if (selectedDateObj < today && !editingId) {
-      alert('Cannot schedule new events for past dates.');
+      showFeedback('Cannot schedule new events for past dates.');
       return;
     }
 
     if (formData.timeEnd <= formData.timeStart) {
-      alert('The event end time must be later than the start time.');
+      showFeedback('The event end time must be later than the start time.');
       return;
     }
 
     const trimmedReservation = formData.reservationName.trim();
     const trimmedTitle = formData.titleSelection.trim();
     if (!trimmedReservation) {
-      alert('Please enter a booking/reservation name.');
+      showFeedback('Please enter a booking/reservation name.');
       return;
     }
 
     if (formData.leadPeople.length < 2 || formData.leadPeople.length > 3) {
-      alert('Please select between 2 and 3 ministry leaders for this event.');
+      showFeedback('Please select between 2 and 3 ministry leaders for this event.');
       return;
     }
 
@@ -222,7 +224,7 @@ const EventTab = ({ role, userId }) => {
     });
 
     if (locationConflict) {
-      alert(`The ${formData.room} is already booked on ${formData.date} during that time range.`);
+      showFeedback(`The ${formData.room} is already booked on ${formData.date} during that time range.`);
       return;
     }
 
@@ -237,7 +239,7 @@ const EventTab = ({ role, userId }) => {
     );
 
     if (duplicateEvent) {
-      alert(`This exact event is already scheduled for ${formData.date}. Please choose a different time, room, or event title.`);
+      showFeedback(`This exact event is already scheduled for ${formData.date}. Please choose a different time, room, or event title.`);
       return;
     }
 
@@ -274,30 +276,38 @@ const EventTab = ({ role, userId }) => {
         status: 'active'
       });
       fetchEvents();
+      showFeedback(editingId ? 'Event updated successfully.' : 'Event created successfully.');
     } catch (err) {
       const message = err.response?.data?.message || err.response?.data?.error || 'Error saving event';
-      alert(message);
+      showFeedback(message);
     }
   };
 
-  const handleToggleAttendance = async (eventId) => {
-    try {
-      await api.toggleEventAttendance(eventId, userId);
-      fetchEvents();
-    } catch (err) {
-      console.error("Attendance toggle failed", err);
-    }
+  const handleToggleAttendance = (eventId, isAttending) => {
+    const action = isAttending ? 'cancel your attendance for' : 'register for';
+    askConfirmation(`Are you sure you want to ${action} this event?`, async () => {
+      try {
+        await api.toggleEventAttendance(eventId, userId);
+        await fetchEvents();
+        showFeedback(isAttending ? 'Your event attendance was canceled.' : 'You are registered for this event.');
+      } catch (err) {
+        console.error("Attendance toggle failed", err);
+        showFeedback(isAttending ? 'Unable to cancel event attendance.' : 'Unable to register for this event.');
+      }
+    });
   };
 
   const archiveEvent = async (id) => {
-    if (!window.confirm("Archive this event? It will no longer be editable.")) return;
-    try {
-      await api.archiveEvent(id); 
-      fetchEvents();
-    } catch (err) {
-      console.error(err);
-      alert("Error archiving event");
-    }
+    askConfirmation('Are you sure you want to archive this event? It will no longer be editable.', async () => {
+      try {
+        await api.archiveEvent(id);
+        fetchEvents();
+        showFeedback('Event archived successfully.');
+      } catch (err) {
+        console.error(err);
+        showFeedback('Error archiving event');
+      }
+    });
   };
 
   const styles = {
@@ -507,7 +517,7 @@ const EventTab = ({ role, userId }) => {
                                   const selected = prev.leadPeople || [];
                                   if (e.target.checked) {
                                     if (selected.length >= 3) {
-                                      alert('You can select up to 3 ministry leaders for an event.');
+                                      showFeedback('You can select up to 3 ministry leaders for an event.');
                                       return prev;
                                     }
                                     return { ...prev, leadPeople: [...selected, fullName] };
@@ -604,7 +614,7 @@ const EventTab = ({ role, userId }) => {
                           <button style={{ border: 'none', background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} onClick={() => archiveEvent(event._id)}>Archive</button>
                         </>
                       ) : (
-                        <button style={styles.attendBtn(isAttending)} onClick={() => handleToggleAttendance(event._id)}>
+                        <button style={styles.attendBtn(isAttending)} onClick={() => handleToggleAttendance(event._id, isAttending)}>
                           {isAttending ? '✕ Cancel' : '✓ Attend'}
                         </button>
                       )
@@ -616,6 +626,7 @@ const EventTab = ({ role, userId }) => {
           </div>
         )}
       </div>
+      <FeedbackModal />
     </div>
   );
 };

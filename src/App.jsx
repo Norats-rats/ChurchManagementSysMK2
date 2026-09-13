@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import api from './api';
 import './App.css';
 import churchLogo from './assets/churchlogo.jpg';
+import { useFeedbackModal } from './components/shared/feedbackmodal';
 import Signup from './components/shared/signup';
 import { normalizeRole } from './permissions';
 import Dashboard from './roles/admin/dashboard';
@@ -13,6 +14,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordError, setNewPasswordError] = useState('');
   const [step, setStep] = useState(1); 
+  const { showFeedback, FeedbackModal } = useFeedbackModal();
   const handleRequestReset = async (e) => {
     e.preventDefault();
     try {
@@ -21,7 +23,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
         setStep(2);
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Error sending reset code");
+      showFeedback(err.response?.data?.message || "Error sending reset code");
     }
   };
 
@@ -35,11 +37,10 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
     try {
       const response = await api.resetPassword({ email, otp, newPassword });
       if (response.data.success) {
-        alert("Password reset successful!");
-        onGoToLogin();
+        showFeedback("Password reset successful!", onGoToLogin);
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Invalid code or error");
+      showFeedback(err.response?.data?.message || "Invalid code or error");
     }
   };
 
@@ -103,6 +104,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
         >
           Back to Login
         </button>
+        <FeedbackModal />
       </div>
     </div>
   );
@@ -114,6 +116,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [remember, setRemember] = useState(false);
+  const { showFeedback, FeedbackModal } = useFeedbackModal();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -129,7 +132,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
         onLoginSuccess(data.role, data.user, remember);
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Connection error");
+      showFeedback(err.response?.data?.message || "Connection error");
     }
   };
 
@@ -142,6 +145,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
         <h1>Free Believers in Christ</h1>
         <h2>Fellowship Inc.</h2>
         <p className="subtitle">CHURCH MANAGEMENT SYSTEM</p>
+        <FeedbackModal />
       </div>
 
       <div className="login-card">
@@ -227,6 +231,7 @@ export default function App() {
   const [userData, setUserData] = useState(null);
   const [theme, setTheme] = useState('light');
   const [authChecked, setAuthChecked] = useState(false);
+  const { showFeedback, FeedbackModal } = useFeedbackModal();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -244,7 +249,7 @@ export default function App() {
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
             status: 'Present'
           });
-          alert(`Check-in confirmed for: ${eventTitle}`);
+          showFeedback(`Check-in confirmed for: ${eventTitle}`);
           window.history.replaceState({}, document.title, window.location.pathname);
           window.dispatchEvent(new Event('attendanceUpdated'));
         } catch (err) {
@@ -351,6 +356,7 @@ export default function App() {
         <Route path="/members" element={dashboardElement} />
         <Route path="*" element={<Navigate to={userData ? '/home' : '/login'} replace />} />
       </Routes>
+      <FeedbackModal />
     </div>
   );
 }

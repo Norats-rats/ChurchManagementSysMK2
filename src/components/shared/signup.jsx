@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import api from '../../api';
 import churchLogo from '../../assets/churchlogo.jpg';
+import { useFeedbackModal } from './feedbackmodal';
 
 const Signup = ({ onGoToLogin }) => {
   const [step, setStep] = useState('register');
@@ -13,6 +14,7 @@ const Signup = ({ onGoToLogin }) => {
   });
   const [otp, setOtp] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const { showFeedback, FeedbackModal } = useFeedbackModal();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -39,7 +41,7 @@ const Signup = ({ onGoToLogin }) => {
         setStep('otp');
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Signup failed");
+      showFeedback(err.response?.data?.error || "Signup failed");
     }
   };
 
@@ -52,11 +54,10 @@ const response = await api.verifyOtp({
     });
 
       if (response.data.success) {
-        alert("Account Verified!");
-        onGoToLogin();
+        showFeedback("Account Verified!", onGoToLogin);
       }
     } catch (err) {
-      alert("Invalid OTP code");
+      showFeedback("Invalid OTP code");
     }
   };
 
@@ -66,6 +67,7 @@ const response = await api.verifyOtp({
         <div className="header-section">
           <h1>Verify Your Email</h1>
           <p className="subtitle">Enter the code sent to {formData.email}</p>
+          <FeedbackModal />
         </div>
         <div className="login-card">
           <form onSubmit={handleVerify}>

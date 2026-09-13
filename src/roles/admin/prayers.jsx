@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import api from '../../api';
+import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import { canManagePrayers } from '../../permissions';
 
 const PrayerRequests = ({ user, role }) => {
@@ -16,6 +17,7 @@ const PrayerRequests = ({ user, role }) => {
   const [filterYear, setFilterYear] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All'); 
   const [sortBy, setSortBy] = useState('newest'); 
+  const { showFeedback, FeedbackModal } = useFeedbackModal();
 
   const categories = ["Health", "Career", "Financial", "Family", "Testimony", "Ministry", "Relationships", "Travel", "Academics", "Spiritual Growth", "Other"];
   
@@ -54,7 +56,7 @@ const PrayerRequests = ({ user, role }) => {
     e.preventDefault();
     if (submitting) return;
     if (!newRequestText.trim() || selectedCategories.length === 0) {
-      return alert("Please provide a request and at least one category.");
+      return showFeedback("Please provide a request and at least one category.");
     }
 
     const userInitial = user?.firstName && user?.lastName 
@@ -80,6 +82,7 @@ const PrayerRequests = ({ user, role }) => {
         setNewRequestText("");
         setSelectedCategories([]);
         setShowModal(false);
+        showFeedback('Prayer request submitted successfully.');
       }
     } catch (err) {
       console.error("Error submitting prayer:", err);
@@ -97,8 +100,9 @@ const PrayerRequests = ({ user, role }) => {
             item._id === id ? { ...item, status: "Answered" } : item
           )
         );
+        showFeedback('Prayer request marked as prayed.');
       } else {
-        alert("Failed to update status on server.");
+        showFeedback("Failed to update status on server.");
       }
     } catch (err) {
       console.error("Error marking as prayed:", err);
@@ -385,6 +389,7 @@ const PrayerRequests = ({ user, role }) => {
           </tbody>
         </table>
       )}
+      <FeedbackModal />
     </div>
   );
 };

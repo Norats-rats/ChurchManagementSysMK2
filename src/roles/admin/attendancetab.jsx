@@ -2,6 +2,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { api } from '../../api';
+import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import { canManageAttendance } from '../../permissions';
 
 const AttendanceTab = ({ role, userId, user }) => {
@@ -28,6 +29,7 @@ const AttendanceTab = ({ role, userId, user }) => {
   });
 
   const canManage = canManageAttendance(role);
+  const { showFeedback, FeedbackModal } = useFeedbackModal();
   const todayStr = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
@@ -132,9 +134,10 @@ const AttendanceTab = ({ role, userId, user }) => {
       setShowCreateEventModal(false);
       setNewEventData(prev => ({ ...prev, titleSelection: 'Worship Service', reservationName: 'New Session', room: 'Main Sanctuary', time: '08:00 AM' }));
       await fetchInitialData();
+      showFeedback('Event QR screen created successfully.');
     } catch (err) {
       console.error('Error creating event:', err);
-      alert('Unable to create event QR screen.');
+      showFeedback('Unable to create event QR screen.');
     } finally {
       setCreatingEvent(false);
     }
@@ -335,6 +338,7 @@ const AttendanceTab = ({ role, userId, user }) => {
           )}
         </div>
       </div>
+      <FeedbackModal />
     </div>
   );
 };

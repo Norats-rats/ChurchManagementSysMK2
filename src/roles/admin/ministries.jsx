@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import { canManageMinistries } from '../../permissions';
 
 const API_BASE_RAW = import.meta.env.VITE_API_URL;
@@ -17,6 +18,7 @@ const Ministries = ({ role, user }) => {
   const [editingId, setEditingId] = useState(null);
   const [editLeaderData, setEditLeaderData] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState('');
+  const { showFeedback, askConfirmation, FeedbackModal } = useFeedbackModal();
 
   const [formData, setFormData] = useState({ 
     name: '', 
@@ -95,9 +97,10 @@ const Ministries = ({ role, user }) => {
         setShowCreateForm(false);
         setFormData({ name: '', leader: '', color: '#2563eb' });
         fetchInitialData();
+        showFeedback('Ministry created successfully.');
       }
-    } catch (err) { 
-      alert("Network error. Check your server connection."); 
+    } catch (err) {
+      showFeedback("Network error. Check your server connection.");
     }
   };
 
@@ -108,27 +111,28 @@ const Ministries = ({ role, user }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leader: editLeaderData }) 
       });
-      if (res.ok) { 
+      if (res.ok) {
         setEditingId(null); 
         fetchInitialData(); 
+        showFeedback('Ministry leader updated successfully.');
       }
-    } catch (err) { alert("Leader update failed"); }
+    } catch (err) { showFeedback("Leader update failed"); }
   };
 
   const handleToggleStatus = async (ministry) => {
     const nextStatus = ministry.status === 'Archived' ? 'Active' : 'Archived';
     const actionText = nextStatus === 'Archived' ? 'archive' : 'restore';
     
-    if (window.confirm(`Are you sure you want to ${actionText} this ministry?`)) {
+    askConfirmation(`Are you sure you want to ${actionText} this ministry?`, async () => {
       try {
         const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: nextStatus })
         });
-        if (res.ok) fetchInitialData();
-      } catch (err) { alert("Failed to modify ministry status"); }
-    }
+        if (res.ok) { await fetchInitialData(); showFeedback(`Ministry ${actionText === 'archive' ? 'archived' : 'restored'} successfully.`); }
+      } catch (err) { showFeedback("Failed to modify ministry status"); }
+    });
   };
 
   const handleAddMember = async (memberId, ministryName) => {
@@ -147,13 +151,14 @@ const Ministries = ({ role, user }) => {
       if (res.ok) {
         setSelectedMemberId('');
         fetchInitialData();
+        showFeedback('Member added to ministry successfully.');
       }
-    } catch (err) { alert("Failed to add member"); }
+    } catch (err) { showFeedback("Failed to add member"); }
   };
 
   const handleRemoveMember = async (memberId, ministryName) => {
-    if (!window.confirm("Remove this member from the ministry?")) return;
-    try {
+    askConfirmation("Are you sure you want to remove this member from the ministry?", async () => {
+      try {
       const member = allMembers.find(m => m._id === memberId);
       const currentMinistries = normalizeMemberMinistries(member);
       const nextMinistries = currentMinistries.filter(name => name !== ministryName);
@@ -162,8 +167,9 @@ const Ministries = ({ role, user }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ministries: nextMinistries, ministry: nextMinistries[0] || 'None' })
       });
-      if (res.ok) fetchInitialData();
-    } catch (err) { alert("Failed to remove member"); }
+      if (res.ok) { await fetchInitialData(); showFeedback('Member removed from ministry successfully.'); }
+      } catch (err) { showFeedback("Failed to remove member"); }
+    });
   };
 
   const handleAnnouncementChange = (ministryId, value) => {
@@ -174,7 +180,7 @@ const Ministries = ({ role, user }) => {
     try {
       const text = (announcementDraft[ministry._id] ?? ministry.announcementText ?? '').trim();
       if (!text) {
-        alert('Please enter an announcement.');
+        showFeedback('Please enter an announcement.');
         return;
       }
       const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}/announcement`, {
@@ -188,10 +194,10 @@ const Ministries = ({ role, user }) => {
       });
       if (!res.ok) throw new Error('Announcement save failed');
       await fetchInitialData();
-      alert('Announcement sent to this ministry.');
+      showFeedback('Announcement sent to this ministry.');
     } catch (err) {
       console.error(err);
-      alert('Failed to post ministry announcement.');
+      showFeedback('Failed to post ministry announcement.');
     }
   };
 
@@ -217,10 +223,10 @@ const Ministries = ({ role, user }) => {
         throw new Error(data?.error || 'Join request failed');
       }
       await fetchInitialData();
-      alert('Join request submitted. Ministry leaders will review it.');
+      showFeedback('Join request submitted. Ministry leaders will review it.');
     } catch (err) {
       console.error(err);
-      alert(err.message || 'Unable to apply to join ministry.');
+      showFeedback(err.message || 'Unable to apply to join ministry.');
     } finally {
       setRequestInProgress(false);
     }
@@ -237,9 +243,10 @@ const Ministries = ({ role, user }) => {
       });
       if (!res.ok) throw new Error('Request update failed');
       await fetchInitialData();
+      showFeedback('Join request updated successfully.');
     } catch (err) {
       console.error(err);
-      alert('Unable to update ministry join request.');
+      showFeedback('Unable to update ministry join request.');
     }
   };
 
@@ -560,6 +567,7 @@ const Ministries = ({ role, user }) => {
           );
         })}
       </div>
+      <FeedbackModal />
     </div>
   );
 };

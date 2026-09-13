@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import api from '../../api';
+import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import { canManageFinances } from '../../permissions';
 
 const Finances = ({ role, userId, user }) => {
@@ -21,6 +22,7 @@ const Finances = ({ role, userId, user }) => {
   const [newAmount, setNewAmount] = useState("");
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
   const [newType, setNewType] = useState('Income');
+  const { showFeedback, FeedbackModal } = useFeedbackModal();
 
   useEffect(() => {
     fetchFinances();
@@ -64,10 +66,11 @@ const Finances = ({ role, userId, user }) => {
         setNewDesc("");
         setNewAmount("");
         fetchFinances();
+        showFeedback('Transaction recorded successfully.');
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to record income.");
+      showFeedback("Failed to record transaction.");
     }
   };
 
@@ -331,6 +334,7 @@ const Finances = ({ role, userId, user }) => {
           </table>
         </div>
       )}
+      <FeedbackModal />
     </div>
   );
 };
