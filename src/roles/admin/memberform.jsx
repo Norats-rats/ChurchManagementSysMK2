@@ -51,10 +51,7 @@ const MemberForm = () => {
     return age >= 0 ? age : null;
   };
 
-  const roleOptions = useMemo(() => Array.from(new Set([
-    'Member', 'Staff', 'Ministry Leader', 'Admin',
-    ...members.map(member => member.role).filter(Boolean)
-  ])), [members]);
+  const roleOptions = ['Member', 'Staff', 'Ministry Leader', 'Admin'];
 
   const filteredMembers = useMemo(() => {
     const result = members.filter(member => {
