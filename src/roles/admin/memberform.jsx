@@ -23,6 +23,7 @@ const MemberForm = () => {
   const [form, setForm] = useState(emptyForm);
   const [showCreate, setShowCreate] = useState(false);
   const [resultMessage, setResultMessage] = useState('');
+  const [confirmationAction, setConfirmationAction] = useState(null);
 
   const fetchMembers = async () => {
     try {
@@ -92,6 +93,7 @@ const MemberForm = () => {
   const setField = (field, value) => setForm(previous => ({ ...previous, [field]: value }));
   const normalizeDate = value => value ? new Date(value).toISOString().split('T')[0] : '';
   const showResult = message => setResultMessage(message);
+  const askForConfirmation = (message, action) => setConfirmationAction({ message, action });
 
   const startEdit = member => {
     setExpandedId(member._id);
@@ -103,8 +105,7 @@ const MemberForm = () => {
     });
   };
 
-  const saveMember = async event => {
-    event.preventDefault();
+  const saveMember = async () => {
     const member = members.find(item => item._id === editingId);
     if (!member) return;
     try {
@@ -116,8 +117,7 @@ const MemberForm = () => {
     } catch (error) { showResult(error?.response?.data?.error || 'Could not update this member.'); }
   };
 
-  const createMember = async event => {
-    event.preventDefault();
+  const createMember = async () => {
     if (form.password.length < 7) return showResult('Password must be at least 7 characters long.');
     try {
       const response = await api.createMember({ ...form, ministry: form.ministries[0] || 'None' });
@@ -130,14 +130,33 @@ const MemberForm = () => {
 
   const toggleStatus = async member => {
     const nextStatus = member.status === 'Active' ? 'Inactive' : 'Active';
-    try { await api.updateMember(member._id, { status: nextStatus }); await fetchMembers(); showResult(`User set to ${nextStatus}.`); }
-    catch { showResult('Could not update account status.'); }
+    askForConfirmation(`Are you sure you want to set this user ${nextStatus.toLowerCase()}?`, async () => {
+      try { await api.updateMember(member._id, { status: nextStatus }); await fetchMembers(); showResult(`User set to ${nextStatus}.`); }
+      catch { showResult('Could not update account status.'); }
+    });
   };
 
   const archiveMember = async member => {
     if (member.status === 'Inactive') return showResult('This account is already inactive.');
-    try { await api.updateMember(member._id, { status: 'Inactive' }); await fetchMembers(); showResult('Account archived successfully.'); }
-    catch { showResult('Archive process failed.'); }
+    askForConfirmation('Are you sure you want to archive this account?', async () => {
+      try { await api.updateMember(member._id, { status: 'Inactive' }); await fetchMembers(); showResult('Account archived successfully.'); }
+      catch { showResult('Archive process failed.'); }
+    });
+  };
+
+  const confirmAction = async () => {
+    const action = confirmationAction?.action;
+    setConfirmationAction(null);
+    if (action) await action();
+  };
+
+  const handleFormSubmit = (event, isCreate) => {
+    event.preventDefault();
+    if (isCreate && form.password.length < 7) return showResult('Password must be at least 7 characters long.');
+    askForConfirmation(
+      isCreate ? 'Are you sure you want to create this account?' : 'Are you sure you want to save these profile changes?',
+      isCreate ? createMember : saveMember
+    );
   };
 
   const activeCount = members.filter(member => member.status === 'Active' || !member.status).length;
@@ -147,7 +166,7 @@ const MemberForm = () => {
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
   }).length;
 
-  const renderForm = isCreate => <form className="member-edit-panel" onSubmit={isCreate ? createMember : saveMember}>
+  const renderForm = isCreate => <form className="member-edit-panel" onSubmit={event => handleFormSubmit(event, isCreate)}>
     <div className="member-edit-grid">
       <label>First name<input required value={form.firstName} onChange={event => setField('firstName', event.target.value)} /></label>
       <label>Last name<input required value={form.lastName} onChange={event => setField('lastName', event.target.value)} /></label>
@@ -182,6 +201,7 @@ const MemberForm = () => {
     {pageCount > 1 && <div className="member-pagination"><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page} of {pageCount}</span><button disabled={page === pageCount} onClick={() => setPage(page + 1)}>Next</button></div>}
     {showCreate && <div className="member-modal-overlay" onClick={() => setShowCreate(false)}><div className="member-modal" onClick={event => event.stopPropagation()}><div className="member-modal-header"><div><h3>Create Account</h3><p>The user will receive a confirmation code by email.</p></div><button type="button" onClick={() => setShowCreate(false)}>×</button></div>{renderForm(true)}</div></div>}
     {showEdit && <div className="member-modal-overlay" onClick={() => { setShowEdit(false); setEditingId(null); }}><div className="member-modal" onClick={event => event.stopPropagation()}><div className="member-modal-header"><div><h3>Edit Profile</h3><p>Update the member's account and personal information.</p></div><button type="button" onClick={() => { setShowEdit(false); setEditingId(null); }}>×</button></div>{renderForm(false)}</div></div>}
+    {confirmationAction && <div className="member-result-overlay"><div className="member-confirm-modal"><p>{confirmationAction.message}</p><div className="member-confirm-actions"><button className="cancel-btn member-action-button" onClick={() => setConfirmationAction(null)}>No</button><button className="add-btn-primary member-action-button" onClick={confirmAction}>Yes</button></div></div></div>}
     {resultMessage && <div className="member-result-overlay"><div className="member-result-modal"><p>{resultMessage}</p><button className="add-btn-primary member-action-button" onClick={() => setResultMessage('')}>Okay</button></div></div>}
   </div>;
 };
