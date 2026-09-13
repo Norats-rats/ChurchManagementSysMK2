@@ -1175,6 +1175,8 @@ body, .App {
 .member-detail-grid span { display: flex; flex-direction: column; gap: 5px; }
 .member-detail-grid b { color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
 .member-card-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.member-action-button { min-width: 112px; min-height: 36px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; margin: 0; }
+.member-card-actions .action-icon.member-action-button { width: 112px; padding: 0; }
 .member-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .member-edit-grid label, .member-ministry-field { display: flex; flex-direction: column; gap: 6px; color: #475569; font-size: 12px; font-weight: 700; }
 .member-edit-grid input, .member-edit-grid select, .member-ministry-field select { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; font: inherit; font-weight: 400; }
@@ -1191,6 +1193,9 @@ body, .App {
 .member-modal-header h3 { margin: 0; color: #0f172a; }
 .member-modal-header p { margin: 6px 0 0; color: #64748b; font-size: 13px; }
 .member-modal-header > button { border: 0; background: transparent; color: #64748b; font-size: 25px; cursor: pointer; }
+.member-result-overlay { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 23, 42, .5); }
+.member-result-modal { width: min(360px, 100%); padding: 26px; border-radius: 16px; background: #fff; box-shadow: 0 20px 60px rgba(15, 23, 42, .25); text-align: center; color: #0f172a; }
+.member-result-modal p { margin: 0 0 22px; line-height: 1.5; }
 
 @media (max-width: 700px) {
   .member-filter-bar { grid-template-columns: 1fr; }

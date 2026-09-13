@@ -22,6 +22,7 @@ const MemberForm = () => {
   const [showEdit, setShowEdit] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [showCreate, setShowCreate] = useState(false);
+  const [resultMessage, setResultMessage] = useState('');
 
   const fetchMembers = async () => {
     try {
@@ -90,6 +91,7 @@ const MemberForm = () => {
 
   const setField = (field, value) => setForm(previous => ({ ...previous, [field]: value }));
   const normalizeDate = value => value ? new Date(value).toISOString().split('T')[0] : '';
+  const showResult = message => setResultMessage(message);
 
   const startEdit = member => {
     setExpandedId(member._id);
@@ -110,30 +112,32 @@ const MemberForm = () => {
       setEditingId(null);
       setShowEdit(false);
       await fetchMembers();
-    } catch (error) { alert(error?.response?.data?.error || 'Could not update this member.'); }
+      showResult('Profile updated successfully.');
+    } catch (error) { showResult(error?.response?.data?.error || 'Could not update this member.'); }
   };
 
   const createMember = async event => {
     event.preventDefault();
-    if (form.password.length < 7) return alert('Password must be at least 7 characters long.');
+    if (form.password.length < 7) return showResult('Password must be at least 7 characters long.');
     try {
       const response = await api.createMember({ ...form, ministry: form.ministries[0] || 'None' });
       setShowCreate(false);
       setForm(emptyForm);
-      alert(response.data?.confirmationSent === false ? 'Account created, but the confirmation email could not be sent.' : 'Account created. A confirmation code was sent to the user.');
+      showResult(response.data?.confirmationSent === false ? 'Account created, but the confirmation email could not be sent.' : 'Account created. A confirmation code was sent to the user.');
       await fetchMembers();
-    } catch (error) { alert(error?.response?.data?.error || 'Could not create this account.'); }
+    } catch (error) { showResult(error?.response?.data?.error || 'Could not create this account.'); }
   };
 
   const toggleStatus = async member => {
-    try { await api.updateMember(member._id, { status: member.status === 'Active' ? 'Inactive' : 'Active' }); await fetchMembers(); }
-    catch { alert('Could not update account status.'); }
+    const nextStatus = member.status === 'Active' ? 'Inactive' : 'Active';
+    try { await api.updateMember(member._id, { status: nextStatus }); await fetchMembers(); showResult(`User set to ${nextStatus}.`); }
+    catch { showResult('Could not update account status.'); }
   };
 
   const archiveMember = async member => {
-    if (member.status === 'Inactive' || !window.confirm('Archive this account?')) return;
-    try { await api.updateMember(member._id, { status: 'Inactive' }); await fetchMembers(); }
-    catch { alert('Archive process failed.'); }
+    if (member.status === 'Inactive') return showResult('This account is already inactive.');
+    try { await api.updateMember(member._id, { status: 'Inactive' }); await fetchMembers(); showResult('Account archived successfully.'); }
+    catch { showResult('Archive process failed.'); }
   };
 
   const activeCount = members.filter(member => member.status === 'Active' || !member.status).length;
@@ -145,10 +149,10 @@ const MemberForm = () => {
 
   const renderForm = isCreate => <form className="member-edit-panel" onSubmit={isCreate ? createMember : saveMember}>
     <div className="member-edit-grid">
-      <label>First name<input required={isCreate} value={form.firstName} onChange={event => setField('firstName', event.target.value)} /></label>
-      <label>Last name<input required={isCreate} value={form.lastName} onChange={event => setField('lastName', event.target.value)} /></label>
-      <label>Email<input required={isCreate} type="email" value={form.email} onChange={event => setField('email', event.target.value)} /></label>
-      {isCreate && <label>Password<input required minLength={7} type="password" value={form.password} onChange={event => setField('password', event.target.value)} /></label>}
+      <label>First name<input required value={form.firstName} onChange={event => setField('firstName', event.target.value)} /></label>
+      <label>Last name<input required value={form.lastName} onChange={event => setField('lastName', event.target.value)} /></label>
+      <label>Email<input required type="email" value={form.email} onChange={event => setField('email', event.target.value)} /></label>
+      <label>Password<input required={isCreate} minLength={7} type="password" placeholder={isCreate ? 'Enter a password' : 'Leave blank if there is no need to change password'} value={form.password} onChange={event => setField('password', event.target.value)} /></label>
       <label>Phone<input value={form.phone} onChange={event => setField('phone', event.target.value)} /></label>
       <label>Birthdate<input type="date" value={form.birthdate} onChange={event => setField('birthdate', event.target.value)} /></label>
       <label>Gender<select value={form.gender} onChange={event => setField('gender', event.target.value)}><option value="">Not specified</option><option>Male</option><option>Female</option><option>Prefer not to say</option></select></label>
@@ -156,7 +160,7 @@ const MemberForm = () => {
       <label className="member-wide-field">Address<input value={form.address} onChange={event => setField('address', event.target.value)} /></label>
     </div>
     <label className="member-ministry-field">Assigned ministries<select multiple size={4} value={form.ministries} onChange={event => setField('ministries', Array.from(event.target.selectedOptions, option => option.value))}>{MINISTRY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select></label>
-    <div className="member-card-actions"><button type="button" className="cancel-btn" onClick={() => { setShowCreate(false); setShowEdit(false); setEditingId(null); }}>Cancel</button><button className="add-btn-primary" type="submit">{isCreate ? 'Create and Email Confirmation' : 'Save Profile Changes'}</button></div>
+    <div className="member-card-actions"><button type="button" className="cancel-btn member-action-button" onClick={() => { setShowCreate(false); setShowEdit(false); setEditingId(null); }}>Cancel</button><button className="add-btn-primary member-action-button" type="submit">{isCreate ? 'Create and Email Confirmation' : 'Save Profile Changes'}</button></div>
   </form>;
 
   return <div className="member-directory-container">
@@ -172,12 +176,13 @@ const MemberForm = () => {
       const expanded = expandedId === member._id;
       return <article className={`member-card ${expanded ? 'expanded' : ''}`} key={member._id}>
         <button className="member-card-summary" onClick={() => setExpandedId(expanded ? null : member._id)}><div className="member-card-identity"><div className="avatar" style={{ backgroundColor: member.role === 'Admin' ? '#ef4444' : '#3b82f6' }}>{(member.firstName || 'U').charAt(0)}</div><strong>{member.firstName} {member.lastName}</strong><small>{member.email}</small></div><div className="member-card-meta"><span className="member-role-badge">{member.role || 'Member'}</span><span className="member-card-ministry">{ministriesFor(member)[0] || 'No ministry assigned'}</span><span className={`status-pill ${(member.status || 'Inactive').toLowerCase()}`}>{member.status || 'Inactive'}</span></div><span className="card-chevron">{expanded ? '−' : '+'}</span></button>
-        {expanded && <div className="member-card-details"><div className="member-detail-grid"><span><b>Phone</b>{member.phone || 'Not provided'}</span><span><b>Birthdate</b>{member.birthdate ? new Date(member.birthdate).toLocaleDateString() : 'Not provided'}</span><span><b>Address</b>{member.address || 'Not provided'}</span><span><b>Ministries</b>{ministriesFor(member).join(', ') || 'None'}</span></div><div className="member-card-actions"><button className="add-btn-primary" onClick={() => { startEdit(member); setShowEdit(true); }}>Edit Profile</button><button className="status-pill active" onClick={() => toggleStatus(member)}>Set {member.status === 'Active' ? 'Inactive' : 'Active'}</button><button className="action-icon delete" onClick={() => archiveMember(member)} title="Archive member">📦</button></div></div>}
+        {expanded && <div className="member-card-details"><div className="member-detail-grid"><span><b>Phone</b>{member.phone || 'Not provided'}</span><span><b>Birthdate</b>{member.birthdate ? new Date(member.birthdate).toLocaleDateString() : 'Not provided'}</span><span><b>Address</b>{member.address || 'Not provided'}</span><span><b>Ministries</b>{ministriesFor(member).join(', ') || 'None'}</span></div><div className="member-card-actions"><button className="add-btn-primary member-action-button" onClick={() => { startEdit(member); setShowEdit(true); }}>Edit Profile</button><button className="status-pill active member-action-button" onClick={() => toggleStatus(member)}>Set {member.status === 'Active' ? 'Inactive' : 'Active'}</button><button className="action-icon delete member-action-button" onClick={() => archiveMember(member)} title="Archive member">📦</button></div></div>}
       </article>;
     })}</div>
     {pageCount > 1 && <div className="member-pagination"><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page} of {pageCount}</span><button disabled={page === pageCount} onClick={() => setPage(page + 1)}>Next</button></div>}
     {showCreate && <div className="member-modal-overlay" onClick={() => setShowCreate(false)}><div className="member-modal" onClick={event => event.stopPropagation()}><div className="member-modal-header"><div><h3>Create Account</h3><p>The user will receive a confirmation code by email.</p></div><button type="button" onClick={() => setShowCreate(false)}>×</button></div>{renderForm(true)}</div></div>}
     {showEdit && <div className="member-modal-overlay" onClick={() => { setShowEdit(false); setEditingId(null); }}><div className="member-modal" onClick={event => event.stopPropagation()}><div className="member-modal-header"><div><h3>Edit Profile</h3><p>Update the member's account and personal information.</p></div><button type="button" onClick={() => { setShowEdit(false); setEditingId(null); }}>×</button></div>{renderForm(false)}</div></div>}
+    {resultMessage && <div className="member-result-overlay"><div className="member-result-modal"><p>{resultMessage}</p><button className="add-btn-primary member-action-button" onClick={() => setResultMessage('')}>Okay</button></div></div>}
   </div>;
 };
 
