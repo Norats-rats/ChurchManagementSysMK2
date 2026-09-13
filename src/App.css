@@ -1170,7 +1170,7 @@ body, .App {
 .member-role-badge { padding: 5px 10px; border-radius: 6px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 700; }
 .card-chevron { align-self: flex-end; color: #2563eb; font-size: 22px; font-weight: 700; width: 24px; text-align: center; }
 .member-card-details, .member-edit-panel { padding: 20px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
-.member-card.expanded { aspect-ratio: auto; grid-column: 1 / -1; }
+.member-card.expanded { aspect-ratio: auto; grid-column: span 2; width: min(100%, 520px); }
 .member-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; color: #334155; font-size: 14px; }
 .member-detail-grid span { display: flex; flex-direction: column; gap: 5px; }
 .member-detail-grid b { color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
@@ -1195,6 +1195,7 @@ body, .App {
 @media (max-width: 700px) {
   .member-filter-bar { grid-template-columns: 1fr; }
   .member-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .member-card.expanded { grid-column: 1 / -1; width: 100%; }
   .member-card-summary { gap: 10px; padding: 14px; }
   .member-card-identity .avatar { width: 44px; height: 44px; font-size: 18px; }
   .member-card-identity strong { font-size: 14px; }
