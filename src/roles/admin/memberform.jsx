@@ -14,6 +14,8 @@ const MemberForm = () => {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [ministryFilter, setMinistryFilter] = useState('All Ministries');
+  const [roleFilter, setRoleFilter] = useState('All Roles');
+  const [sortBy, setSortBy] = useState('name-asc');
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -36,18 +38,57 @@ const MemberForm = () => {
   const ministriesFor = member => Array.isArray(member?.ministries) && member.ministries.length
     ? member.ministries : member?.ministry ? [member.ministry] : [];
 
-  const filteredMembers = useMemo(() => members.filter(member => {
-    const name = `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase();
-    const matchesQuery = `${name} ${member.email || ''}`.includes(query.toLowerCase());
-    const matchesMinistry = ministryFilter === 'All Ministries' || ministriesFor(member).includes(ministryFilter);
-    return matchesQuery && matchesMinistry;
-  }), [members, query, ministryFilter]);
+  const getAge = member => {
+    if (!member.birthdate) return null;
+    const birthdate = new Date(member.birthdate);
+    if (Number.isNaN(birthdate.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birthdate.getFullYear();
+    const birthdayNotReached = today.getMonth() < birthdate.getMonth() ||
+      (today.getMonth() === birthdate.getMonth() && today.getDate() < birthdate.getDate());
+    if (birthdayNotReached) age -= 1;
+    return age >= 0 ? age : null;
+  };
+
+  const roleOptions = useMemo(() => Array.from(new Set([
+    'Member', 'Staff', 'Ministry Leader', 'Admin',
+    ...members.map(member => member.role).filter(Boolean)
+  ])), [members]);
+
+  const filteredMembers = useMemo(() => {
+    const result = members.filter(member => {
+      const name = `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase();
+      const matchesQuery = `${name} ${member.email || ''}`.includes(query.toLowerCase());
+      const matchesMinistry = ministryFilter === 'All Ministries' || ministriesFor(member).includes(ministryFilter);
+      const matchesRole = roleFilter === 'All Roles' || (member.role || 'Member') === roleFilter;
+      return matchesQuery && matchesMinistry && matchesRole;
+    });
+
+    return result.sort((first, second) => {
+      const firstName = `${first.firstName || ''} ${first.lastName || ''}`.trim().toLowerCase();
+      const secondName = `${second.firstName || ''} ${second.lastName || ''}`.trim().toLowerCase();
+      const firstAge = getAge(first);
+      const secondAge = getAge(second);
+      if (sortBy === 'name-desc') return secondName.localeCompare(firstName);
+      if (sortBy === 'age-asc') {
+        if (firstAge === null) return 1;
+        if (secondAge === null) return -1;
+        return firstAge - secondAge;
+      }
+      if (sortBy === 'age-desc') {
+        if (firstAge === null) return 1;
+        if (secondAge === null) return -1;
+        return secondAge - firstAge;
+      }
+      return firstName.localeCompare(secondName);
+    });
+  }, [members, query, ministryFilter, roleFilter, sortBy]);
 
   const pageSize = 20;
   const pageCount = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
   const visibleMembers = filteredMembers.slice((page - 1) * pageSize, page * pageSize);
 
-  useEffect(() => { setPage(1); }, [query, ministryFilter]);
+  useEffect(() => { setPage(1); }, [query, ministryFilter, roleFilter, sortBy]);
 
   const setField = (field, value) => setForm(previous => ({ ...previous, [field]: value }));
   const normalizeDate = value => value ? new Date(value).toISOString().split('T')[0] : '';
@@ -88,13 +129,13 @@ const MemberForm = () => {
 
   const toggleStatus = async member => {
     try { await api.updateMember(member._id, { status: member.status === 'Active' ? 'Inactive' : 'Active' }); await fetchMembers(); }
-    catch (error) { alert('Could not update account status.'); }
+    catch { alert('Could not update account status.'); }
   };
 
   const archiveMember = async member => {
     if (member.status === 'Inactive' || !window.confirm('Archive this account?')) return;
     try { await api.updateMember(member._id, { status: 'Inactive' }); await fetchMembers(); }
-    catch (error) { alert('Archive process failed.'); }
+    catch { alert('Archive process failed.'); }
   };
 
   const activeCount = members.filter(member => member.status === 'Active' || !member.status).length;
@@ -122,12 +163,17 @@ const MemberForm = () => {
 
   return <div className="member-directory-container">
     <div className="directory-header"><div><h2 style={{ color: '#1a1a1a', marginBottom: 4 }}>System User Management</h2><p style={{ color: '#666', margin: 0 }}>Register members and assign administrative roles</p></div><button className="add-btn-primary" onClick={() => { setForm(emptyForm); setShowCreate(true); }}>+ Create Account</button></div>
-    <div className="search-filter-container" style={{ display: 'flex', gap: 10, marginBottom: 20 }}><input className="search-input" placeholder="Search users..." value={query} onChange={event => setQuery(event.target.value)} /><select className="filter-select" value={ministryFilter} onChange={event => setMinistryFilter(event.target.value)}><option>All Ministries</option>{MINISTRY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select></div>
+    <div className="search-filter-container member-filter-bar" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+      <input className="search-input" placeholder="Search users..." value={query} onChange={event => setQuery(event.target.value)} />
+      <select className="filter-select" value={roleFilter} onChange={event => setRoleFilter(event.target.value)}><option>All Roles</option>{roleOptions.map(option => <option key={option}>{option}</option>)}</select>
+      <select className="filter-select" value={ministryFilter} onChange={event => setMinistryFilter(event.target.value)}><option>All Ministries</option>{MINISTRY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select>
+      <select className="filter-select" value={sortBy} onChange={event => setSortBy(event.target.value)}><option value="name-asc">Name: A-Z</option><option value="name-desc">Name: Z-A</option><option value="age-asc">Age: Youngest first</option><option value="age-desc">Age: Oldest first</option></select>
+    </div>
     <div className="stats-container" style={{ display: 'flex', gap: 20, marginBottom: 25 }}><div className="stat-card"><span>Total Accounts</span><strong>{members.length}</strong></div><div className="stat-card"><span>Active Users</span><strong style={{ color: '#28a745' }}>{activeCount}</strong></div><div className="stat-card"><span>Registrations (Month)</span><strong style={{ color: '#007bff' }}>{newThisMonth}</strong></div></div>
     <div className="member-card-grid">{loading ? <div className="member-empty-state">Synchronizing with Database...</div> : visibleMembers.length === 0 ? <div className="member-empty-state">No members match the current filters.</div> : visibleMembers.map(member => {
       const expanded = expandedId === member._id;
       return <article className={`member-card ${expanded ? 'expanded' : ''}`} key={member._id}>
-        <button className="member-card-summary" onClick={() => setExpandedId(expanded ? null : member._id)}><div className="user-cell"><div className="avatar" style={{ backgroundColor: member.role === 'Admin' ? '#ef4444' : '#3b82f6' }}>{(member.firstName || 'U').charAt(0)}</div><div><strong>{member.firstName} {member.lastName}</strong><small>{member.email}</small></div></div><span className="member-role-badge">{member.role || 'Member'}</span><span className={`status-pill ${(member.status || 'Inactive').toLowerCase()}`}>{member.status || 'Inactive'}</span><span className="card-chevron">{expanded ? '−' : '+'}</span></button>
+        <button className="member-card-summary" onClick={() => setExpandedId(expanded ? null : member._id)}><div className="member-card-identity"><div className="avatar" style={{ backgroundColor: member.role === 'Admin' ? '#ef4444' : '#3b82f6' }}>{(member.firstName || 'U').charAt(0)}</div><strong>{member.firstName} {member.lastName}</strong><small>{member.email}</small></div><div className="member-card-meta"><span className="member-role-badge">{member.role || 'Member'}</span><span className="member-card-ministry">{ministriesFor(member)[0] || 'No ministry assigned'}</span><span className={`status-pill ${(member.status || 'Inactive').toLowerCase()}`}>{member.status || 'Inactive'}</span></div><span className="card-chevron">{expanded ? '−' : '+'}</span></button>
         {expanded && (editingId === member._id ? renderForm(false) : <div className="member-card-details"><div className="member-detail-grid"><span><b>Phone</b>{member.phone || 'Not provided'}</span><span><b>Birthdate</b>{member.birthdate ? new Date(member.birthdate).toLocaleDateString() : 'Not provided'}</span><span><b>Address</b>{member.address || 'Not provided'}</span><span><b>Ministries</b>{ministriesFor(member).join(', ') || 'None'}</span></div><div className="member-card-actions"><button className="add-btn-primary" onClick={() => startEdit(member)}>Edit Profile</button><button className="status-pill active" onClick={() => toggleStatus(member)}>Set {member.status === 'Active' ? 'Inactive' : 'Active'}</button><button className="action-icon delete" onClick={() => archiveMember(member)} title="Archive member">📦</button></div></div>)}
       </article>;
     })}</div>
