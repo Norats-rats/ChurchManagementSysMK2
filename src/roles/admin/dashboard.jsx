@@ -82,7 +82,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   };
 
   const navigationConfig = [
-    { id: 'dashboard', label: role === 'Member' ? 'Home' : 'Dashboard', permission: 'dashboard' },
+    { id: 'dashboard', label: ['Member', 'Staff'].includes(role) ? 'Home' : 'Dashboard', permission: 'dashboard' },
     { id: 'ebible', label: 'Bible', permission: 'bible' },
     { id: 'members', label: 'Members', permission: 'members' },
     { id: 'events', label: 'Events', permission: 'events' },
