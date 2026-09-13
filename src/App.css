@@ -281,6 +281,35 @@
   width: 100%;
 }
 
+.dashboard-spotlight-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: 20px; align-items: stretch; }
+.dashboard-activity-column { display: grid; gap: 14px; align-content: start; }
+.dashboard-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.dashboard-chart-card { min-width: 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #334155; box-shadow: 0 2px 6px rgba(15, 23, 42, .04); }
+.dashboard-chart-card > span { display: block; margin-bottom: 8px; color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.dashboard-chart-card > strong { display: block; margin-bottom: 10px; color: #0f172a; font-size: 25px; }
+.dashboard-chart-wide { grid-column: 1 / -1; }
+.dashboard-progress { height: 8px; overflow: hidden; border-radius: 999px; background: #dbeafe; }
+.dashboard-progress i, .dashboard-bar-row i { display: block; height: 100%; border-radius: inherit; background: #2563eb; }
+.dashboard-progress.inventory { background: #dcfce7; }
+.dashboard-progress.inventory i { background: #16a34a; }
+.dashboard-bar-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) 24px; gap: 8px; align-items: center; margin-top: 8px; }
+.dashboard-bar-row small { overflow: hidden; color: #475569; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-bar-row > div { height: 8px; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
+.dashboard-bar-row i { background: #0ea5e9; }
+.dashboard-bar-row b { color: #0f172a; font-size: 12px; text-align: right; }
+.dashboard-user-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+.dashboard-user-row span { overflow: hidden; color: #334155; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-user-row small, .dashboard-muted { color: #64748b; }
+
+@media (max-width: 900px) {
+  .dashboard-spotlight-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .dashboard-chart-grid { grid-template-columns: 1fr; }
+  .dashboard-chart-wide { grid-column: auto; }
+}
+
 @media (max-width: 768px) {
   .responsive-grid-2-1 {
     grid-template-columns: 1fr;

@@ -50,6 +50,12 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
   const currentTab = routeToTab[normalizedPath] || 'dashboard';
   const [stats, setStats] = useState({ memberCount: 0, attendanceCount: 0, eventCount: 0, ministryCount: 0 });
+  const [dashboardMetrics, setDashboardMetrics] = useState({
+    attendanceRate: 0,
+    inventoryUsage: 0,
+    recentUsers: [],
+    attendanceByCategory: []
+  });
   const [nextEvent, setNextEvent] = useState(null);
   const [announcement, setAnnouncement] = useState("Loading church updates...");
   const [newAnnouncement, setNewAnnouncement] = useState("");
@@ -296,12 +302,13 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
   const fetchBulletinData = async () => {
     try {
-      const [membersRes, eventsRes, attendanceRes, announceRes, ministriesRes] = await Promise.all([
+      const [membersRes, eventsRes, attendanceRes, announceRes, ministriesRes, inventoryRes] = await Promise.all([
         api.getMembers(), 
         api.getEvents(), 
         api.getAttendance(),
         api.getAnnouncement().catch(() => ({ data: { text: "Welcome to our Fellowship!" } })),
-        api.getMinistries().catch(() => ({ data: [] }))
+        api.getMinistries().catch(() => ({ data: [] })),
+        api.getInventory().catch(() => ({ data: [] }))
       ]);
 
       const allEvents = eventsRes.data || [];
@@ -316,12 +323,36 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
         .sort((a, b) => new Date(a.date) - new Date(b.date));
         
       const activeMinistries = Array.isArray(ministriesRes.data) ? ministriesRes.data.filter(m => m.status !== 'Archived').length : 0;
+      const members = Array.isArray(membersRes.data) ? membersRes.data : [];
+      const attendance = Array.isArray(attendanceRes.data) ? attendanceRes.data : [];
+      const inventory = Array.isArray(inventoryRes.data) ? inventoryRes.data : [];
+      const inventoryTotal = inventory.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      const inventoryAssigned = inventory.filter(item => item.assignedTo).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      const attendanceByCategory = {};
+      attendance.forEach(record => {
+        const event = allEvents.find(item => String(item._id) === String(record.eventId));
+        const category = event?.category || event?.titleSelection || event?.type || 'Other';
+        attendanceByCategory[category] = (attendanceByCategory[category] || 0) + 1;
+      });
+      const recentUsers = [...members]
+        .sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0))
+        .slice(0, 5)
+        .map(member => ({
+          name: `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.email || 'Member',
+          role: member.role || 'Member'
+        }));
 
       setStats({
-        memberCount: Array.isArray(membersRes.data) ? membersRes.data.length : 0,
-        attendanceCount: Array.isArray(attendanceRes.data) ? attendanceRes.data.length : 0,
+        memberCount: members.length,
+        attendanceCount: attendance.length,
         eventCount: allEvents.length,
         ministryCount: activeMinistries
+      });
+      setDashboardMetrics({
+        attendanceRate: members.length ? Math.min(100, Math.round((new Set(attendance.map(item => item.userId).filter(Boolean)).size / members.length) * 100)) : 0,
+        inventoryUsage: inventoryTotal ? Math.round((inventoryAssigned / inventoryTotal) * 100) : 0,
+        recentUsers,
+        attendanceByCategory: Object.entries(attendanceByCategory).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
       });
       
       setNextEvent(futureEvents[0] || null);
@@ -954,7 +985,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                   </>
                 )}
 
-                <div className="responsive-grid-2-1">
+                <div className="dashboard-spotlight-grid">
                   <div className="bulletin-card" style={bulletinCardStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                       <h2 style={{ color: '#1e3a8a', margin: 0 }}>Community Bulletin</h2>
@@ -988,19 +1019,27 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                       </div>
                   </div>
 
-                  <div className="bulletin-card bulletin-card-accent" style={{ ...bulletinCardStyle, background: '#1e293b', color: '#fff' }}>
-                    <h4 style={{ margin: '0 0 15px 0', color: '#94a3b8' }}>Next Gathering</h4>
-                    {nextEvent ? (
-                      <>
-                        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#38bdf8' }}>{nextEvent.title}</div>
-                        <div style={{ margin: '10px 0', fontSize: '14px' }}>
-                          📅 {new Date(nextEvent.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#94a3b8' }}>📍 {nextEvent.location || 'Church Main Hall'}</div>
-                      </>
-                    ) : (
-                      <p style={{ color: '#64748b' }}>Stay tuned for upcoming events!</p>
-                    )}
+                  <div className="dashboard-activity-column">
+                    <div className="bulletin-card bulletin-card-accent" style={{ ...bulletinCardStyle, background: '#1e293b', color: '#fff' }}>
+                      <h4 style={{ margin: '0 0 15px 0', color: '#94a3b8' }}>Next Gathering</h4>
+                      {nextEvent ? (
+                        <>
+                          <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#38bdf8' }}>{nextEvent.title}</div>
+                          <div style={{ margin: '10px 0', fontSize: '14px' }}>
+                            📅 {new Date(nextEvent.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                          </div>
+                          <div style={{ fontSize: '13px', color: '#94a3b8' }}>📍 {nextEvent.location || 'Church Main Hall'}</div>
+                        </>
+                      ) : (
+                        <p style={{ color: '#64748b' }}>Stay tuned for upcoming events!</p>
+                      )}
+                    </div>
+                    <div className="dashboard-chart-grid">
+                      <div className="dashboard-chart-card"><span>Attendance Rate</span><strong>{dashboardMetrics.attendanceRate}%</strong><div className="dashboard-progress"><i style={{ width: `${dashboardMetrics.attendanceRate}%` }} /></div></div>
+                      <div className="dashboard-chart-card"><span>Inventory Usage</span><strong>{dashboardMetrics.inventoryUsage}%</strong><div className="dashboard-progress inventory"><i style={{ width: `${dashboardMetrics.inventoryUsage}%` }} /></div></div>
+                      <div className="dashboard-chart-card dashboard-chart-wide"><span>Attendance by Event Category</span>{dashboardMetrics.attendanceByCategory.length ? dashboardMetrics.attendanceByCategory.slice(0, 4).map(item => <div className="dashboard-bar-row" key={item.name}><small>{item.name}</small><div><i style={{ width: `${Math.max(8, Math.round((item.value / dashboardMetrics.attendanceByCategory[0].value) * 100))}%` }} /></div><b>{item.value}</b></div>) : <small className="dashboard-muted">No attendance data yet.</small>}</div>
+                      <div className="dashboard-chart-card dashboard-chart-wide"><span>Recent User Activity</span>{dashboardMetrics.recentUsers.length ? dashboardMetrics.recentUsers.map(item => <div className="dashboard-user-row" key={`${item.name}-${item.role}`}><span>{item.name}</span><small>{item.role}</small></div>) : <small className="dashboard-muted">No recent user activity.</small>}</div>
+                    </div>
                   </div>
                 </div>
               </div>
