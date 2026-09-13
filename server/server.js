@@ -40,7 +40,11 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+    const normalizedOrigin = origin?.replace(/\/$/, '');
+    const isEcclSyncOrigin = normalizedOrigin === 'https://ecclsync.org'
+      || normalizedOrigin === 'https://www.ecclsync.org'
+      || normalizedOrigin?.endsWith('.ecclsync.org');
+    if (!origin || allowedOrigins.includes(normalizedOrigin) || isEcclSyncOrigin) {
       return callback(null, true);
     }
     return callback(new Error(`CORS origin not allowed: ${origin}`));
@@ -1297,6 +1301,9 @@ app.patch('/api/notifications/:notificationId/read', async (req, res) => {
     if (!loggedInUserId) {
       return res.status(401).json({ error: 'Unauthorized: Missing user headers.' });
     }
+    if (!mongoose.Types.ObjectId.isValid(loggedInUserId) || !mongoose.Types.ObjectId.isValid(req.params.notificationId)) {
+      return res.status(400).json({ error: 'Invalid user or notification ID.' });
+    }
 
     const updatedMember = await Member.findOneAndUpdate(
       { _id: loggedInUserId, 'notifications._id': req.params.notificationId },
@@ -1322,6 +1329,9 @@ app.patch('/api/notifications/clear', async (req, res) => {
     if (!loggedInUserId) {
       return res.status(401).json({ error: 'Unauthorized: Missing user headers.' });
     }
+    if (!mongoose.Types.ObjectId.isValid(loggedInUserId)) {
+      return res.status(400).json({ error: 'Invalid user ID.' });
+    }
 
     const updatedMember = await Member.findByIdAndUpdate(
       loggedInUserId,
@@ -1329,7 +1339,10 @@ app.patch('/api/notifications/clear', async (req, res) => {
       { new: true, arrayFilters: [{ 'elem.status': { $ne: 'Read' } }], select: 'notifications' }
     ).select('notifications');
 
-    res.json({ success: true, notifications: updatedMember?.notifications || [] });
+    if (!updatedMember) {
+      return res.status(404).json({ error: 'Member not found.' });
+    }
+    res.json({ success: true, notifications: updatedMember.notifications || [] });
   } catch (err) {
     console.error('Failed to clear notifications:', err);
     res.status(500).json({ error: 'Failed to clear notifications.' });
