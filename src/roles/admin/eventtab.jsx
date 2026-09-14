@@ -116,17 +116,35 @@ const EventTab = ({ role, userId }) => {
 
   const hasEventsOnDate = (day) => {
     if (!day) return false;
-    const checkDate = new Date(currentYear, currentMonth, day).toDateString();
-    return events.some(e => new Date(e.date).toDateString() === checkDate && e.status !== 'archived');
+    const checkDate = new Date(currentYear, currentMonth, day);
+    checkDate.setHours(0, 0, 0, 0);
+    return events.some(event => {
+      if (event.status === 'archived') return false;
+      const eventDate = new Date(`${event.date}T00:00:00`);
+      const overnight = event.timeStart && event.timeEnd && event.timeEnd < event.timeStart;
+      const nextDate = new Date(eventDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+      return eventDate.getTime() === checkDate.getTime() ||
+        (overnight && nextDate.getTime() === checkDate.getTime());
+    });
   };
 
   const getEventsForSelectedDate = () => {
     if (!selectedDate) return [];
     return events.filter(event => {
       const eDate = new Date(event.date);
-      return eDate.getFullYear() === selectedDate.getFullYear() &&
-             eDate.getMonth() === selectedDate.getMonth() &&
-             eDate.getDate() === selectedDate.getDate();
+      const sameStartDate = eDate.getFullYear() === selectedDate.getFullYear() &&
+        eDate.getMonth() === selectedDate.getMonth() &&
+        eDate.getDate() === selectedDate.getDate();
+      if (sameStartDate) return true;
+
+      const overnight = event.timeStart && event.timeEnd && event.timeEnd < event.timeStart;
+      const nextDate = new Date(eDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+      return overnight &&
+        nextDate.getFullYear() === selectedDate.getFullYear() &&
+        nextDate.getMonth() === selectedDate.getMonth() &&
+        nextDate.getDate() === selectedDate.getDate();
     }).sort((a, b) => new Date(`${a.date} ${a.time}`) - new Date(`${b.date} ${b.time}`));
   };
 
@@ -192,8 +210,8 @@ const EventTab = ({ role, userId }) => {
       return;
     }
 
-    if (formData.timeEnd <= formData.timeStart) {
-      showFeedback('The event end time must be later than the start time.');
+    if (formData.timeEnd === formData.timeStart) {
+      showFeedback('The event start and end times must be different.');
       return;
     }
 
@@ -209,18 +227,40 @@ const EventTab = ({ role, userId }) => {
       return;
     }
 
-    const timeRangesOverlap = (startA, endA, startB, endB) =>
-      startA < endB && startB < endA;
+    const timeRangesOverlap = (firstRange, secondRange) => {
+      const toMinutes = (value) => {
+        const [hours, minutes] = value.split(':').map(Number);
+        return hours * 60 + minutes;
+      };
+      const startOne = toMinutes(firstRange.start) + (firstRange.dayOffset * 24 * 60);
+      const endOne = toMinutes(firstRange.end) + (firstRange.dayOffset * 24 * 60) + (firstRange.end < firstRange.start ? 24 * 60 : 0);
+      const startTwo = toMinutes(secondRange.start) + (secondRange.dayOffset * 24 * 60);
+      const endTwo = toMinutes(secondRange.end) + (secondRange.dayOffset * 24 * 60) + (secondRange.end < secondRange.start ? 24 * 60 : 0);
+      return startOne < endTwo && startTwo < endOne;
+    };
+
+    const dateDifferenceInDays = (firstDate, secondDate) => {
+      const first = new Date(`${firstDate}T00:00:00`);
+      const second = new Date(`${secondDate}T00:00:00`);
+      return Math.round((first - second) / (24 * 60 * 60 * 1000));
+    };
 
     const locationConflict = events.some(event => {
       const eventStart = event.timeStart || '';
       const eventEnd = event.timeEnd || '';
+      const dayOffset = dateDifferenceInDays(formData.date, event.date);
+      const relevantDay = dayOffset === 0 ||
+        (dayOffset === 1 && eventStart && eventEnd && eventEnd < eventStart) ||
+        (dayOffset === -1 && formData.timeEnd < formData.timeStart);
       return event._id !== editingId &&
         event.status !== 'archived' &&
-        event.date === formData.date &&
+        relevantDay &&
         event.room?.trim().toLowerCase() === formData.room.trim().toLowerCase() &&
         eventStart && eventEnd &&
-        timeRangesOverlap(formData.timeStart, formData.timeEnd, eventStart, eventEnd);
+        timeRangesOverlap(
+          { start: formData.timeStart, end: formData.timeEnd, dayOffset },
+          { start: eventStart, end: eventEnd, dayOffset: 0 }
+        );
     });
 
     if (locationConflict) {

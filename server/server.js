@@ -992,13 +992,26 @@ const toMinutes = (value) => {
   return hour * 60 + minute;
 };
 
-const timesOverlap = (startA, endA, startB, endB) => {
-  const start1 = toMinutes(startA);
-  const end1 = toMinutes(endA);
-  const start2 = toMinutes(startB);
-  const end2 = toMinutes(endB);
-  if (end1 <= start1 || end2 <= start2) return false;
-  return start1 < end2 && start2 < end1;
+const dateDifferenceInDays = (firstDate, secondDate) => {
+  const first = Date.parse(`${firstDate}T00:00:00Z`);
+  const second = Date.parse(`${secondDate}T00:00:00Z`);
+  return Math.round((first - second) / (24 * 60 * 60 * 1000));
+};
+
+const eventRangesOverlap = (newEvent, existingEvent) => {
+  const dayOffset = dateDifferenceInDays(newEvent.date, existingEvent.date);
+  if (![0, 1, -1].includes(dayOffset)) return false;
+
+  const toAbsoluteRange = (event, offset) => {
+    const start = toMinutes(event.timeStart) + (offset * 24 * 60);
+    const rawEnd = toMinutes(event.timeEnd);
+    const end = rawEnd + (offset * 24 * 60) + (rawEnd < toMinutes(event.timeStart) ? 24 * 60 : 0);
+    return { start, end };
+  };
+
+  const newRange = toAbsoluteRange(newEvent, dayOffset);
+  const existingRange = toAbsoluteRange(existingEvent, 0);
+  return newRange.start < existingRange.end && existingRange.start < newRange.end;
 };
 
 app.post('/api/events', async (req, res) => {
@@ -1007,19 +1020,19 @@ app.post('/api/events', async (req, res) => {
     const normalizedReservation = (reservationName || '').trim();
     const normalizedTitle = (titleSelection || '').trim();
 
-    if (date && room && timeStart && timeEnd && toMinutes(timeEnd) <= toMinutes(timeStart)) {
+    if (date && room && timeStart && timeEnd && toMinutes(timeEnd) === toMinutes(timeStart)) {
       return res.status(400).json({
         error: 'Invalid Schedule',
-        message: 'The event end time must be later than the start time.'
+        message: 'The event start and end times must be different.'
       });
     }
 
     if (date && room && timeStart && timeEnd) {
-      const existingEvents = await Event.find({ date, room });
+      const existingEvents = await Event.find({ room, status: { $ne: 'archived' } });
       const clash = existingEvents.find((event) => {
         if (event._id && req.body._id && event._id.toString() === req.body._id.toString()) return false;
         if (!event.timeStart || !event.timeEnd) return event.time === req.body.time;
-        return timesOverlap(timeStart, timeEnd, event.timeStart, event.timeEnd);
+        return eventRangesOverlap({ date, timeStart, timeEnd }, event);
       });
 
       if (clash) {
@@ -1086,18 +1099,18 @@ app.put('/api/events/:id', async (req, res) => {
     const normalizedReservation = (reservationName || '').trim();
     const normalizedTitle = (titleSelection || '').trim();
 
-    if (date && room && timeStart && timeEnd && toMinutes(timeEnd) <= toMinutes(timeStart)) {
+    if (date && room && timeStart && timeEnd && toMinutes(timeEnd) === toMinutes(timeStart)) {
       return res.status(400).json({
         error: 'Invalid Schedule',
-        message: 'The event end time must be later than the start time.'
+        message: 'The event start and end times must be different.'
       });
     }
 
     if (date && room && timeStart && timeEnd) {
-      const existingEvents = await Event.find({ date, room, _id: { $ne: req.params.id } });
+      const existingEvents = await Event.find({ room, status: { $ne: 'archived' }, _id: { $ne: req.params.id } });
       const clash = existingEvents.find((event) => {
         if (!event.timeStart || !event.timeEnd) return event.time === req.body.time;
-        return timesOverlap(timeStart, timeEnd, event.timeStart, event.timeEnd);
+        return eventRangesOverlap({ date, timeStart, timeEnd }, event);
       });
 
       if (clash) {
