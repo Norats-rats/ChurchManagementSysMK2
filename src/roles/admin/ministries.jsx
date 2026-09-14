@@ -3,7 +3,12 @@ import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import { canManageMinistries } from '../../permissions';
 
 const API_BASE_RAW = import.meta.env.VITE_API_URL;
-const API_BASE = API_BASE_RAW?.endsWith('/') ? API_BASE_RAW.slice(0, -1) : API_BASE_RAW;
+const API_BASE_WITH_PROTOCOL = API_BASE_RAW && /^https?:\/\//i.test(API_BASE_RAW)
+  ? API_BASE_RAW
+  : API_BASE_RAW
+    ? `https://${API_BASE_RAW}`
+    : API_BASE_RAW;
+const API_BASE = API_BASE_WITH_PROTOCOL?.endsWith('/') ? API_BASE_WITH_PROTOCOL.slice(0, -1) : API_BASE_WITH_PROTOCOL;
 
 const Ministries = ({ role, user }) => {
   const [ministryList, setMinistryList] = useState([]);

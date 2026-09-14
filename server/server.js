@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const axios = require('axios');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const puter = require("@heyputer/puter.js");
@@ -141,6 +142,7 @@ const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
 mongoose.connect(mongoURI)
   .then(async () => {
     console.log("✅ MongoDB Connected");
+    await Member.updateMany({ otp: { $exists: true } }, { $unset: { otp: '' } });
     const locationCount = await Location.countDocuments();
     if (locationCount === 0) {
       await Location.insertMany(defaultEventLocations.map(name => ({ name })));
@@ -168,7 +170,9 @@ const Member = mongoose.model('members', new mongoose.Schema({
     status: { type: String, enum: ['Unread', 'Read'], default: 'Unread' },
     createdAt: { type: Date, default: Date.now }
   }],
-  otp: { type: String },
+  otp: { type: String, select: false },
+  otpHash: { type: String, select: false },
+  otpExpiresAt: { type: Date, select: false },
   isVerified: { type: Boolean, default: false },
   status: { type: String, default: 'Inactive' }, 
   date: { type: Date, default: Date.now }
@@ -356,18 +360,23 @@ app.get('/', (req, res) => {
 app.post('/register', async (req, res) => {
   try {
     const { firstName, lastName, email, password, gender } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
     if (!password || password.length < 7) {
       return res.status(400).json({ error: 'Password must be at least 7 characters long.' });
     }
+    if (!normalizedEmail) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const generatedOtp = crypto.randomInt(100000, 1000000).toString();
     const newMember = new Member({ 
       firstName, 
       lastName, 
-      email, 
+      email: normalizedEmail,
       password: hashedPassword,
       gender: gender || null,
-      otp: generatedOtp,
+      otpHash: await bcrypt.hash(generatedOtp, 10),
+      otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
       status: 'Inactive' 
     });
 
@@ -376,24 +385,29 @@ app.post('/register', async (req, res) => {
 
     res.status(201).json({ message: "Verification code sent!" });
   } catch (err) {
-    console.error("Detailed Register Error:", err);
-    res.status(400).json({ error: err.message });
+    console.error("Registration failed:", err.message);
+    res.status(400).json({ error: 'Unable to complete registration.' });
   }
 });
 
 app.post('/verify-otp', async (req, res) => {
   const { email, otp } = req.body;
   try {
-    const user = await Member.findOne({ email: email.trim(), otp: otp.trim() });
-    if (!user) {
+    const user = await Member.findOne({ email: String(email || '').trim().toLowerCase() }).select('+otpHash +otpExpiresAt');
+    const isValidOtp = user?.otpHash
+      && user.otpExpiresAt?.getTime() > Date.now()
+      && await bcrypt.compare(String(otp || '').trim(), user.otpHash);
+    if (!isValidOtp) {
       return res.status(400).json({ success: false, message: "Invalid OTP code" });
     }
     user.isVerified = true;
     user.status = 'Active';
+    user.otpHash = undefined;
+    user.otpExpiresAt = undefined;
     await user.save();
     res.json({ success: true, message: "Account verified successfully" });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Unable to verify account.' });
   }
 });
 
@@ -403,7 +417,7 @@ app.post('/login', async (req, res) => {
     if (!password || password.length < 7) {
       return res.status(400).json({ success: false, message: 'Password must be at least 7 characters long.' });
     }
-    const user = await Member.findOne({ email });
+    const user = await Member.findOne({ email: String(email || '').trim().toLowerCase() });
     if (!user) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
@@ -417,26 +431,32 @@ if (user.status === 'Deactivated' || user.status === 'Inactive' || !user.isVerif
     message: "Your account is inactive, deactivated, or not yet verified." 
   });
 }
-    res.json({ success: true, role: user.role, user });
+    const safeUser = user.toObject();
+    delete safeUser.password;
+    delete safeUser.otp;
+    delete safeUser.otpHash;
+    delete safeUser.otpExpiresAt;
+    res.json({ success: true, role: user.role, user: safeUser });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Unable to sign in.' });
   }
 });
 
 app.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
   try {
-    const user = await Member.findOne({ email });
-    if (!user) return res.status(404).json({ message: "Email not found" });
+    const user = await Member.findOne({ email: String(email || '').trim().toLowerCase() });
+    if (!user) return res.json({ success: true });
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    user.otp = otp;
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    user.otpHash = await bcrypt.hash(otp, 10);
+    user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    await sendOTPEmail(email, otp, user.firstName, true);
+    await sendOTPEmail(user.email, otp, user.firstName, true);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Unable to process password reset.' });
   }
 });
 
@@ -446,15 +466,19 @@ app.post('/reset-password', async (req, res) => {
     if (!newPassword || newPassword.length < 7) {
       return res.status(400).json({ message: 'Password must be at least 7 characters long.' });
     }
-    const user = await Member.findOne({ email, otp });
-    if (!user) return res.status(400).json({ message: "Invalid or expired code" });
+    const user = await Member.findOne({ email: String(email || '').trim().toLowerCase() }).select('+otpHash +otpExpiresAt');
+    const isValidOtp = user?.otpHash
+      && user.otpExpiresAt?.getTime() > Date.now()
+      && await bcrypt.compare(String(otp || '').trim(), user.otpHash);
+    if (!isValidOtp) return res.status(400).json({ message: "Invalid or expired code" });
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedNewPassword;
-    user.otp = null;
+    user.otpHash = undefined;
+    user.otpExpiresAt = undefined;
     await user.save();
     res.json({ success: true, message: "Password updated successfully" });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Unable to reset password.' });
   }
 });
 
@@ -720,14 +744,14 @@ app.delete('/api/ministries/:id', async (req, res) => {
 // --- MEMBER ROUTES ---
 app.get('/api/members', async (req, res) => {
   try {
-    const members = await Member.find().sort({ date: -1 }).select('-password');
+    const members = await Member.find().sort({ date: -1 }).select('-password -otp -otpHash -otpExpiresAt');
     res.json(members);
   } catch (err) { res.status(500).json({ error: "Failed to fetch members" }); }
 });
 
 app.get('/api/members/:id', async (req, res) => {
   try {
-    const m = await Member.findById(req.params.id).select('-password');
+    const m = await Member.findById(req.params.id).select('-password -otp -otpHash -otpExpiresAt');
     if (!m) return res.status(404).json({ error: 'Member not found' });
     res.json(m);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -736,6 +760,9 @@ app.get('/api/members/:id', async (req, res) => {
 app.post('/api/members', async (req, res) => {
   try {
     const data = { ...req.body };
+    delete data.otp;
+    delete data.otpHash;
+    delete data.otpExpiresAt;
     if (!data.birthdate) delete data.birthdate;
     if (!data.gender) delete data.gender;
     if (data.gender === 'Other' || data.gender === 'Non-binary') {
@@ -749,15 +776,19 @@ app.post('/api/members', async (req, res) => {
     if (!data.ministry) {
       data.ministry = data.ministries[0] || 'None';
     }
-    data.otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const generatedOtp = crypto.randomInt(100000, 1000000).toString();
+    data.otpHash = await bcrypt.hash(generatedOtp, 10);
+    data.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     data.isVerified = false;
     data.status = 'Inactive';
     const newMember = new Member(data);
     await newMember.save();
-    const emailResult = await sendOTPEmail(data.email, data.otp, data.firstName);
+    const emailResult = await sendOTPEmail(data.email, generatedOtp, data.firstName);
     const out = newMember.toObject();
     delete out.password; // never return password hash
     delete out.otp;
+    delete out.otpHash;
+    delete out.otpExpiresAt;
     res.status(201).json({ ...out, confirmationSent: emailResult.success });
   } catch (err) { res.status(400).json({ error: "Failed to create record" }); }
 });
@@ -765,6 +796,9 @@ app.post('/api/members', async (req, res) => {
 app.put('/api/members/:id', async (req, res) => {
   try {
     const data = { ...req.body };
+    delete data.otp;
+    delete data.otpHash;
+    delete data.otpExpiresAt;
     if (!data.birthdate) delete data.birthdate;
     if (!data.gender) delete data.gender;
     if (data.gender === 'Other' || data.gender === 'Non-binary') {
@@ -785,7 +819,7 @@ app.put('/api/members/:id', async (req, res) => {
         data.ministry = data.ministries[0] || 'None';
       }
     }
-    const updated = await Member.findByIdAndUpdate(req.params.id, data, { new: true }).select('-password');
+    const updated = await Member.findByIdAndUpdate(req.params.id, data, { new: true }).select('-password -otp -otpHash -otpExpiresAt');
     const out = updated ? updated.toObject() : null;
     if (out && out.password) delete out.password;
     res.json(out);
@@ -795,6 +829,9 @@ app.put('/api/members/:id', async (req, res) => {
 app.patch('/api/members/:id', async (req, res) => {
   try {
     const data = { ...req.body };
+    delete data.otp;
+    delete data.otpHash;
+    delete data.otpExpiresAt;
     const userRole = req.headers['x-user-role'];
     const userName = (req.headers['x-user-name'] || '').trim().toLowerCase();
     const existingMember = await Member.findById(req.params.id);
@@ -840,7 +877,7 @@ app.patch('/api/members/:id', async (req, res) => {
         data.ministry = data.ministries[0] || 'None';
       }
     }
-    const updated = await Member.findByIdAndUpdate(req.params.id, data, { new: true }).select('-password');
+    const updated = await Member.findByIdAndUpdate(req.params.id, data, { new: true }).select('-password -otp -otpHash -otpExpiresAt');
     const out = updated ? updated.toObject() : null;
     if (out && out.password) delete out.password;
     res.json(out);
