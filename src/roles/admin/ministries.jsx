@@ -153,7 +153,11 @@ const Ministries = ({ role, user }) => {
         : [...currentMinistries, ministryName];
       const res = await fetch(`${API_BASE}/api/members/${memberId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': role,
+          'x-user-name': userName
+        },
         body: JSON.stringify({ ministries: nextMinistries, ministry: nextMinistries[0] || 'None' })
       });
       if (res.ok) {
@@ -172,7 +176,11 @@ const Ministries = ({ role, user }) => {
       const nextMinistries = currentMinistries.filter(name => name !== ministryName);
       const res = await fetch(`${API_BASE}/api/members/${memberId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': role,
+          'x-user-name': userName
+        },
         body: JSON.stringify({ ministries: nextMinistries, ministry: nextMinistries[0] || 'None' })
       });
       if (res.ok) { await fetchInitialData(); showFeedback('Member removed from ministry successfully.'); }
@@ -246,7 +254,8 @@ const Ministries = ({ role, user }) => {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-role': role
+          'x-user-role': role,
+          'x-user-name': userName
         }
       });
       if (!res.ok) throw new Error('Request update failed');
@@ -405,7 +414,7 @@ const Ministries = ({ role, user }) => {
                         <li key={member._id} style={{ marginBottom: '6px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span><strong>{member.firstName} {member.lastName}</strong></span>
-                            {canManage && (
+                            {canEditMinistry && (
                               <button 
                                 onClick={() => handleRemoveMember(member._id, m.name)} 
                                 style={removeMemberLink}
@@ -420,7 +429,7 @@ const Ministries = ({ role, user }) => {
                     </ul>
                   )}
 
-                  {canManage && (
+                  {canEditMinistry && (
                     <div style={{ display: 'flex', gap: '6px', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', marginTop: '4px' }}>
                         <select 
                         style={{ ...selectStyle, padding: '6px', fontSize: '12px', flex: 1 }}

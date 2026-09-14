@@ -657,11 +657,15 @@ app.post('/api/ministries/:id/join-request', async (req, res) => {
 app.patch('/api/ministries/:id/join-request/:requestId/approve', async (req, res) => {
   try {
     const userRole = req.headers['x-user-role'];
+    const userName = (req.headers['x-user-name'] || '').trim();
     if (!['Admin', 'Ministry Leader'].includes(userRole)) {
       return res.status(403).json({ error: 'Forbidden: only ministry leaders and admin can approve requests.' });
     }
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
+    if (userRole !== 'Admin' && (!userName || ministry.leader?.trim().toLowerCase() !== userName.toLowerCase())) {
+      return res.status(403).json({ error: 'Forbidden: only the assigned ministry leader or admin can approve requests.' });
+    }
     const request = ministry.joinRequests.id(req.params.requestId);
     if (!request) return res.status(404).json({ error: 'Request not found' });
     request.status = 'Approved';
@@ -688,11 +692,15 @@ app.patch('/api/ministries/:id/join-request/:requestId/approve', async (req, res
 app.patch('/api/ministries/:id/join-request/:requestId/reject', async (req, res) => {
   try {
     const userRole = req.headers['x-user-role'];
+    const userName = (req.headers['x-user-name'] || '').trim();
     if (!['Admin', 'Ministry Leader'].includes(userRole)) {
       return res.status(403).json({ error: 'Forbidden: only ministry leaders and admin can reject requests.' });
     }
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
+    if (userRole !== 'Admin' && (!userName || ministry.leader?.trim().toLowerCase() !== userName.toLowerCase())) {
+      return res.status(403).json({ error: 'Forbidden: only the assigned ministry leader or admin can reject requests.' });
+    }
     const request = ministry.joinRequests.id(req.params.requestId);
     if (!request) return res.status(404).json({ error: 'Request not found' });
     request.status = 'Rejected';
@@ -787,6 +795,31 @@ app.put('/api/members/:id', async (req, res) => {
 app.patch('/api/members/:id', async (req, res) => {
   try {
     const data = { ...req.body };
+    const userRole = req.headers['x-user-role'];
+    const userName = (req.headers['x-user-name'] || '').trim().toLowerCase();
+    const existingMember = await Member.findById(req.params.id);
+    if (!existingMember) return res.status(404).json({ error: 'Member not found' });
+
+    if (userRole === 'Ministry Leader' && ('ministries' in data || 'ministry' in data)) {
+      const currentMinistries = Array.isArray(existingMember.ministries)
+        ? existingMember.ministries.filter(Boolean)
+        : existingMember.ministry ? [existingMember.ministry] : [];
+      const requestedMinistries = Array.isArray(data.ministries)
+        ? data.ministries.filter(Boolean)
+        : data.ministry ? [data.ministry] : [];
+      const changedMinistries = [...new Set([...currentMinistries, ...requestedMinistries])]
+        .filter(name => !currentMinistries.includes(name) || !requestedMinistries.includes(name));
+
+      for (const ministryName of changedMinistries) {
+        const ministry = await Ministry.findOne({
+          name: new RegExp(`^${ministryName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+        });
+        if (!ministry || ministry.leader?.trim().toLowerCase() !== userName) {
+          return res.status(403).json({ error: 'Forbidden: you can only manage members of your own ministry.' });
+        }
+      }
+    }
+
     if (!data.birthdate) delete data.birthdate;
     if (!data.gender) delete data.gender;
     if (data.gender === 'Other' || data.gender === 'Non-binary') {
