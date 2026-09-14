@@ -595,6 +595,15 @@ app.get('/api/ministries', async (req, res) => {
 
 app.patch('/api/ministries/:id', async (req, res) => {
   try {
+    const userRole = req.headers['x-user-role'];
+    const userName = (req.headers['x-user-name'] || '').trim();
+    const ministry = await Ministry.findById(req.params.id);
+    if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
+    if (userRole !== 'Admin' && (userRole !== 'Ministry Leader'
+      || !userName
+      || ministry.leader?.trim().toLowerCase() !== userName.toLowerCase())) {
+      return res.status(403).json({ error: 'Forbidden: only the assigned ministry leader or admin can update this ministry.' });
+    }
     const updated = await Ministry.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true });
     res.json(updated);
   } catch (err) { res.status(400).json({ error: err.message }); }

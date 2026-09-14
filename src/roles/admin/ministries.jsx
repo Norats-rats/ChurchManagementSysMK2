@@ -108,7 +108,11 @@ const Ministries = ({ role, user }) => {
     try {
       const res = await fetch(`${API_BASE}/api/ministries/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': role,
+          'x-user-name': userName
+        },
         body: JSON.stringify({ leader: editLeaderData }) 
       });
       if (res.ok) {
@@ -127,7 +131,11 @@ const Ministries = ({ role, user }) => {
       try {
         const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-role': role,
+            'x-user-name': userName
+          },
           body: JSON.stringify({ status: nextStatus })
         });
         if (res.ok) { await fetchInitialData(); showFeedback(`Ministry ${actionText === 'archive' ? 'archived' : 'restored'} successfully.`); }
@@ -324,6 +332,7 @@ const Ministries = ({ role, user }) => {
           const isMyMinistryLeader = role === 'Ministry Leader' && userFullName && m.leader?.trim().toLowerCase() === userFullName;
           const pendingRequests = Array.isArray(m.joinRequests) ? m.joinRequests.filter(req => req.status === 'Pending') : [];
           const userExistingRequest = Array.isArray(m.joinRequests) ? m.joinRequests.find(req => req.userId === user?._id) : null;
+          const canEditMinistry = role === 'Admin' || isMyMinistryLeader;
           const isExpanded = expandedId === m._id;
 
           return (
@@ -518,7 +527,7 @@ const Ministries = ({ role, user }) => {
                 </div>
               )}
 
-              {canManage && (
+              {canEditMinistry && (
                 <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
                   {editingId === m._id ? (
                     <button 
