@@ -509,6 +509,17 @@ const getChatMember = async (req) => {
   return Member.findOne({ _id: userId, status: 'Active', isVerified: true }).select('firstName lastName email role profilePicture');
 };
 
+async function getChatMember(req) {
+  const userId = req.headers['x-user-id'] || req.headers['x-member-id']; 
+  if (!userId) return null;
+
+  const member = await Member.findById(userId);
+  if (!member || member.status !== 'Active' || !member.isVerified) {
+    return null;
+  }
+  return member;
+}
+
 const ensurePublicConversation = async () => ChatConversation.findOneAndUpdate(
   { type: 'public' },
   { $setOnInsert: { type: 'public', title: 'Church Community', createdBy: 'system', participants: [] } },

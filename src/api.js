@@ -62,9 +62,19 @@ export const api = {
   getChatMessages: (conversationId, userId) => apiClient.get(`/api/chat/conversations/${conversationId}/messages`, {
     headers: { 'x-user-id': userId }
   }),
+  
   sendChatMessage: (conversationId, messageData, userId) => apiClient.post(`/api/chat/conversations/${conversationId}/messages`, messageData, {
     headers: { 'x-user-id': userId }
   }),
+  addChatMembers: (conversationId, memberIds, userId) => 
+    apiClient.post(`/api/chat/conversations/${conversationId}/members`,
+  { memberIds },
+  {
+    headers: {
+      'x-user-id': userId
+    }
+  }
+),
   addChatMembers: (conversationId, memberIds, userId) => 
   apiClient.post(`/api/chat/conversations/${conversationId}/members`, { memberIds }, {
     headers: { 'x-user-id': userId }
