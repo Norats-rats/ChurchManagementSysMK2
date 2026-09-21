@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../api';
 import '../../App.css';
 
 const getFullName = (member) => `${member?.firstName || ''} ${member?.lastName || ''}`.trim() || member?.email || 'Member';
+const getInitials = (name) => name?.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase() || 'M';
 
 const Chat = ({ user }) => {
   const [conversations, setConversations] = useState([]);
@@ -10,17 +11,27 @@ const Chat = ({ user }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
+  const [imageDraft, setImageDraft] = useState('');
+  const [imageName, setImageName] = useState('');
   const [newType, setNewType] = useState('group');
   const [newTitle, setNewTitle] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const lastSentAtRef = useRef(0);
 
   const selectedConversation = conversations.find(item => String(item._id) === String(selectedId));
   const otherMembers = useMemo(() => members.filter(member => String(member._id) !== String(user?._id)), [members, user?._id]);
+  const filteredMembers = useMemo(() => {
+    const query = memberSearch.trim().toLowerCase();
+    if (!query) return otherMembers;
+    return otherMembers.filter(member => `${getFullName(member)} ${member.email || ''}`.toLowerCase().includes(query));
+  }, [memberSearch, otherMembers]);
 
-  const loadConversations = async (keepSelection = true) => {
+  const loadConversations = useCallback(async (keepSelection = true) => {
     try {
       const response = await api.getChatConversations(user._id);
       const items = Array.isArray(response.data) ? response.data : [];
@@ -34,10 +45,11 @@ const Chat = ({ user }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedId, user._id]);
 
-  const loadMessages = async (conversationId = selectedId) => {
+  const loadMessages = useCallback(async (conversationId = selectedId) => {
     if (!conversationId) return;
+    if (Date.now() - lastSentAtRef.current < 1200) return;
     setMessagesLoading(true);
     try {
       const response = await api.getChatMessages(conversationId, user._id);
@@ -48,7 +60,7 @@ const Chat = ({ user }) => {
     } finally {
       setMessagesLoading(false);
     }
-  };
+  }, [selectedId, user._id]);
 
   useEffect(() => {
     let active = true;
@@ -68,9 +80,13 @@ const Chat = ({ user }) => {
   useEffect(() => {
     loadMessages();
     if (!selectedId) return undefined;
-    const timer = setInterval(() => loadMessages(selectedId), 10000);
-    return () => clearInterval(timer);
-  }, [selectedId]);
+    const messageTimer = setInterval(() => loadMessages(selectedId), 5000);
+    const conversationTimer = setInterval(() => loadConversations(), 15000);
+    return () => {
+      clearInterval(messageTimer);
+      clearInterval(conversationTimer);
+    };
+  }, [loadConversations, loadMessages, selectedId]);
 
   const createConversation = async (event) => {
     event.preventDefault();
@@ -84,6 +100,7 @@ const Chat = ({ user }) => {
         participantIds
       }, user._id);
       setNewTitle('');
+      setMemberSearch('');
       setSelectedMembers([]);
       await loadConversations(false);
       setSelectedId(response.data._id);
@@ -95,15 +112,47 @@ const Chat = ({ user }) => {
 
   const sendMessage = async (event) => {
     event.preventDefault();
-    if (!draft.trim() || !selectedId) return;
+    const text = draft.trim();
+    if ((!text && !imageDraft) || !selectedId || sending) return;
+    setSending(true);
     try {
-      await api.sendChatMessage(selectedId, { text: draft.trim() }, user._id);
+      const response = await api.sendChatMessage(selectedId, { text, imageData: imageDraft }, user._id);
+      lastSentAtRef.current = Date.now();
       setDraft('');
-      await loadMessages(selectedId);
+      setImageDraft('');
+      setImageName('');
+      if (response.data?._id) {
+        setMessages(current => current.some(message => String(message._id) === String(response.data._id))
+          ? current
+          : [...current, response.data]);
+      }
       await loadConversations();
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to send message.');
+    } finally {
+      setSending(false);
     }
+  };
+
+  const handleImageSelected = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) {
+      setError('Please choose a PNG, JPG, GIF, or WebP image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Images must be 5MB or smaller.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageDraft(String(reader.result || ''));
+      setImageName(file.name);
+      setError('');
+    };
+    reader.readAsDataURL(file);
   };
 
   const toggleMember = (member) => {
@@ -153,13 +202,15 @@ const Chat = ({ user }) => {
               <button type="button" className={newType === 'direct' ? 'active' : ''} onClick={() => setNewType('direct')}>Private</button>
             </div>
             {newType === 'group' && <input value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Group name" maxLength="80" />}
+            <input className="chat-member-search" value={memberSearch} onChange={event => setMemberSearch(event.target.value)} placeholder="Search members by name or email" aria-label="Search members" />
             <div className="chat-member-picker">
-              {otherMembers.map(member => (
+              {filteredMembers.length ? filteredMembers.map(member => (
                 <label key={member._id}>
                   <input type={newType === 'direct' ? 'radio' : 'checkbox'} name="chat-member" checked={selectedMembers.some(item => item._id === member._id)} onChange={() => newType === 'direct' ? setSelectedMembers([member]) : toggleMember(member)} />
+                  {member.profilePicture ? <img className="chat-member-avatar" src={member.profilePicture} alt="" /> : <span className="chat-member-avatar chat-member-avatar-fallback">{getInitials(getFullName(member))}</span>}
                   <span>{getFullName(member)}</span>
                 </label>
-              ))}
+              )) : <span className="chat-muted">No members match this search.</span>}
             </div>
             <button className="chat-primary-button" type="submit">Create {newType === 'group' ? 'group' : 'private chat'}</button>
           </form>
@@ -172,10 +223,10 @@ const Chat = ({ user }) => {
               <div className="chat-messages" aria-live="polite">
                 {messagesLoading && !messages.length ? <p className="chat-muted">Loading messages...</p> : messages.length ? messages.map(message => {
                   const mine = String(message.senderId) === String(user._id);
-                  return <article className={`chat-message ${mine ? 'mine' : ''}`} key={message._id}><div className="chat-avatar">{message.senderName?.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}</div><div><div className="chat-message-meta"><strong>{mine ? 'You' : message.senderName}</strong><time>{new Date(message.createdAt).toLocaleString()}</time></div><p>{message.text}</p></div></article>;
+                  return <article className={`chat-message ${mine ? 'mine' : ''}`} key={message._id}><div className="chat-avatar">{message.senderProfilePicture ? <img src={message.senderProfilePicture} alt="" /> : getInitials(message.senderName)}</div><div><div className="chat-message-meta"><strong>{mine ? 'You' : message.senderName}</strong><time>{new Date(message.createdAt).toLocaleString()}</time></div>{message.text && <p>{message.text}</p>}{message.imageData && <img className="chat-message-image" src={message.imageData} alt={`Image sent by ${message.senderName}`} />}</div></article>;
                 }) : <div className="chat-empty"><strong>Make the first connection.</strong><p>Start the conversation with a thoughtful message.</p></div>}
               </div>
-              <form className="chat-composer" onSubmit={sendMessage}><textarea value={draft} onChange={event => setDraft(event.target.value)} placeholder="Write a message..." maxLength="2000" rows="2" /><button className="chat-primary-button" type="submit" disabled={!draft.trim()}>Send</button></form>
+              <form className="chat-composer" onSubmit={sendMessage}><label className="chat-image-button" title="Attach an image"><span aria-hidden="true">▧</span><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleImageSelected} /></label><div className="chat-composer-fields">{imageName && <div className="chat-image-preview"><img src={imageDraft} alt="Selected attachment" /><span>{imageName}</span><button type="button" onClick={() => { setImageDraft(''); setImageName(''); }}>Remove</button></div>}<textarea value={draft} onChange={event => setDraft(event.target.value)} placeholder="Write a message..." maxLength="2000" rows="2" /></div><button className="chat-primary-button" type="submit" disabled={(!draft.trim() && !imageDraft) || sending}>{sending ? 'Sending...' : 'Send'}</button></form>
             </>
           ) : <div className="chat-empty"><strong>Choose a conversation</strong><p>The public forum is available to every active member.</p></div>}
         </main>

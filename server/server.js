@@ -189,7 +189,9 @@ const ChatMessage = mongoose.model('chatmessages', new mongoose.Schema({
   conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'chatconversations', required: true },
   senderId: { type: String, required: true },
   senderName: { type: String, required: true, trim: true },
-  text: { type: String, required: true, trim: true, maxlength: 2000 }
+  senderProfilePicture: { type: String, default: '' },
+  text: { type: String, default: '', trim: true, maxlength: 2000 },
+  imageData: { type: String, default: '' }
 }, { timestamps: true }));
 
 const Event = mongoose.model('events', new mongoose.Schema({
@@ -500,7 +502,7 @@ app.post('/reset-password', async (req, res) => {
 const getChatMember = async (req) => {
   const userId = req.headers['x-user-id'];
   if (!userId || !mongoose.isValidObjectId(userId)) return null;
-  return Member.findOne({ _id: userId, status: 'Active', isVerified: true }).select('firstName lastName email role');
+  return Member.findOne({ _id: userId, status: 'Active', isVerified: true }).select('firstName lastName email role profilePicture');
 };
 
 const ensurePublicConversation = async () => ChatConversation.findOneAndUpdate(
@@ -516,7 +518,7 @@ app.get('/api/chat/conversations', async (req, res) => {
     await ensurePublicConversation();
     const conversations = await ChatConversation.find({
       $or: [{ type: 'public' }, { participants: member._id }]
-    }).populate('participants', 'firstName lastName email').sort({ updatedAt: -1 });
+    }).populate('participants', 'firstName lastName email profilePicture').sort({ updatedAt: -1 });
     res.json(conversations);
   } catch (err) {
     console.error('Failed to fetch chat conversations:', err);
@@ -578,13 +580,19 @@ app.post('/api/chat/conversations/:id/messages', async (req, res) => {
       $or: [{ type: 'public' }, { participants: member._id }]
     });
     const text = String(req.body.text || '').trim();
+    const imageData = String(req.body.imageData || '');
+    const validImage = /^data:image\/(png|jpe?g|gif|webp);base64,[a-zA-Z0-9+/=]+$/.test(imageData);
     if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
-    if (!text || text.length > 2000) return res.status(400).json({ message: 'Message must contain 1 to 2000 characters.' });
+    if (!text && !imageData) return res.status(400).json({ message: 'Add a message or image before sending.' });
+    if (text.length > 2000) return res.status(400).json({ message: 'Message must contain 1 to 2000 characters.' });
+    if (imageData && (!validImage || imageData.length > 7 * 1024 * 1024)) return res.status(400).json({ message: 'Images must be PNG, JPG, GIF, or WebP files under 5MB.' });
     const message = await ChatMessage.create({
       conversationId: conversation._id,
       senderId: String(member._id),
       senderName: `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.email,
-      text
+      senderProfilePicture: member.profilePicture || '',
+      text,
+      imageData: validImage ? imageData : ''
     });
     conversation.updatedAt = new Date();
     await conversation.save();
