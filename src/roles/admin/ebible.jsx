@@ -218,6 +218,15 @@ const EBible = ({ userId }) => {
     });
   };
 
+  const deleteHighlight = (book, chapter, verse) => {
+    const verseKey = `${book}:${chapter}:${verse}`;
+    setHighlights(prev => {
+      const copy = { ...prev };
+      delete copy[verseKey];
+      return copy;
+    });
+  };
+
   const handleSaveNote = () => {
     if (!selectedBook || !selectedChapter) return;
     const chapterKey = `${selectedBook}:${selectedChapter}`;
@@ -225,6 +234,18 @@ const EBible = ({ userId }) => {
       ...prev,
       [chapterKey]: currentNoteText.trim()
     }));
+  };
+
+  const deleteNote = (book, chapter) => {
+    const chapterKey = `${book}:${chapter}`;
+    setChapterNotes(prev => {
+      const copy = { ...prev };
+      delete copy[chapterKey];
+      return copy;
+    });
+    if (selectedBook === book && String(selectedChapter) === String(chapter)) {
+      setCurrentNoteText('');
+    }
   };
 
   const getNotesForBook = (bookName) => {
@@ -267,7 +288,8 @@ const EBible = ({ userId }) => {
     verse: { marginBottom: '15px', lineHeight: '1.6', fontSize: '18px', padding: '6px', borderRadius: '4px', cursor: 'pointer' },
     verseNum: { fontWeight: 'bold', marginRight: '8px', color: '#64748b', fontSize: '14px' },
     noteSection: { marginTop: '30px', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' },
-    dashboardBox: { marginTop: '30px', padding: '20px', border: '1px solid #cbd5e1', borderRadius: '10px', background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }
+    dashboardBox: { marginTop: '30px', padding: '20px', border: '1px solid #cbd5e1', borderRadius: '10px', background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+    deleteBtn: { background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', padding: '2px 6px', borderRadius: '4px' }
   };
 
   if (loading) return <div style={styles.container}>Loading Word...</div>;
@@ -367,7 +389,16 @@ const EBible = ({ userId }) => {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
                         {allSavedNotes.map(({ book, chapter, note }) => (
                           <div key={`${book}:${chapter}`} style={{ padding: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-                            <strong>{book} {chapter}:</strong>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <strong>{book} {chapter}</strong>
+                              <button
+                                style={styles.deleteBtn}
+                                onClick={() => deleteNote(book, chapter)}
+                                title="Delete note"
+                              >
+                                Delete
+                              </button>
+                            </div>
                             <p style={{ margin: '4px 0 8px 0', fontSize: '14px', color: '#334155' }}>{note}</p>
                             <button
                               style={{ fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}
@@ -393,12 +424,21 @@ const EBible = ({ userId }) => {
                               <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: color, border: '1px solid #cbd5e1', display: 'inline-block' }} />
                               <strong style={{ fontSize: '14px' }}>{book} {chapter}:{verse}</strong>
                             </div>
-                            <button
-                              style={{ fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}
-                              onClick={() => handleChapterSelect(book, chapter)}
-                            >
-                              Go to Chapter →
-                            </button>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                              <button
+                                style={{ fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}
+                                onClick={() => handleChapterSelect(book, chapter)}
+                              >
+                                Go to Chapter →
+                              </button>
+                              <button
+                                style={styles.deleteBtn}
+                                onClick={() => deleteHighlight(book, chapter, verse)}
+                                title="Remove highlight"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -430,14 +470,24 @@ const EBible = ({ userId }) => {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {getNotesForBook(selectedBook).map(({ chapter, note }) => (
-                      <div key={chapter} style={{ padding: '8px 12px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
-                        <strong>Chapter {chapter}:</strong> {note}
-                        <button 
-                          style={{ marginLeft: '12px', fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-                          onClick={() => handleChapterSelect(selectedBook, chapter)}
-                        >
-                          Go to Chapter
-                        </button>
+                      <div key={chapter} style={{ padding: '8px 12px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <strong>Chapter {chapter}:</strong> {note}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button 
+                            style={{ fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                            onClick={() => handleChapterSelect(selectedBook, chapter)}
+                          >
+                            Go to Chapter
+                          </button>
+                          <button
+                            style={styles.deleteBtn}
+                            onClick={() => deleteNote(selectedBook, chapter)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -506,12 +556,22 @@ const EBible = ({ userId }) => {
               placeholder="Write your personal study notes or reflections for this chapter..."
               style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontFamily: 'sans-serif', fontSize: '14px', boxSizing: 'border-box' }}
             />
-            <button
-              onClick={handleSaveNote}
-              style={{ marginTop: '8px', padding: '8px 16px', background: '#053476', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-            >
-              Save Note
-            </button>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button
+                onClick={handleSaveNote}
+                style={{ padding: '8px 16px', background: '#053476', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Save Note
+              </button>
+              {chapterNotes[`${selectedBook}:${selectedChapter}`] && (
+                <button
+                  onClick={() => deleteNote(selectedBook, selectedChapter)}
+                  style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Delete Note
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="ebible-reading-actions" style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
