@@ -17,6 +17,7 @@ const MemberForm = () => {
   const [roleFilter, setRoleFilter] = useState('All Roles');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [sortBy, setSortBy] = useState('name-asc');
+  const [viewMode, setViewMode] = useState('grid'); 
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -185,23 +186,157 @@ const MemberForm = () => {
     <div className="member-card-actions"><button type="button" className="cancel-btn member-action-button" onClick={() => { setShowCreate(false); setShowEdit(false); setEditingId(null); }}>Cancel</button><button className="add-btn-primary member-action-button" type="submit">{isCreate ? 'Create and Email Confirmation' : 'Save Profile Changes'}</button></div>
   </form>;
 
+  const renderMemberContent = () => {
+    if (loading) return <div className="member-empty-state">Synchronizing with Database...</div>;
+    if (visibleMembers.length === 0) return <div className="member-empty-state">No members match the current filters.</div>;
+
+    if (viewMode === 'table') {
+      return (
+        <div className="member-table-wrapper" style={{ overflowX: 'auto', background: '#fff', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #e9ecef' }}>
+                <th style={{ padding: '12px 16px' }}>Name</th>
+                <th style={{ padding: '12px 16px' }}>Email</th>
+                <th style={{ padding: '12px 16px' }}>Role</th>
+                <th style={{ padding: '12px 16px' }}>Ministry</th>
+                <th style={{ padding: '12px 16px' }}>Status</th>
+                <th style={{ padding: '12px 16px' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleMembers.map(member => (
+                <tr key={member._id} style={{ borderBottom: '1px solid #e9ecef' }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 'bold' }}>{member.firstName} {member.lastName}</td>
+                  <td style={{ padding: '12px 16px', color: '#666' }}>{member.email}</td>
+                  <td style={{ padding: '12px 16px' }}><span className="member-role-badge">{member.role || 'Member'}</span></td>
+                  <td style={{ padding: '12px 16px' }}>{ministriesFor(member)[0] || 'None'}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span className={`status-pill ${(member.status || 'Inactive').toLowerCase()}`}>{member.status || 'Inactive'}</span>
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button className="add-btn-primary member-action-button" onClick={() => { startEdit(member); setShowEdit(true); }}>Edit</button>
+                      <button className="status-pill active member-action-button" onClick={() => toggleStatus(member)}>Set {member.status === 'Active' ? 'Inactive' : 'Active'}</button>
+                      <button className="action-icon delete member-action-button" onClick={() => archiveMember(member)} title="Archive member">📦</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    return (
+      <div className={viewMode === 'list' ? 'member-card-list' : 'member-card-grid'} style={viewMode === 'list' ? { display: 'flex', flexDirection: 'column', gap: 12 } : {}}>
+        {visibleMembers.map(member => {
+          const expanded = expandedId === member._id;
+          return (
+            <article className={`member-card ${expanded ? 'expanded' : ''}`} key={member._id}>
+              <button className="member-card-summary" onClick={() => setExpandedId(expanded ? null : member._id)}>
+                <div className="member-card-identity">
+                  <div className="avatar" style={{ backgroundColor: member.role === 'Admin' ? '#ef4444' : '#3b82f6' }}>
+                    {(member.firstName || 'U').charAt(0)}
+                  </div>
+                  <strong>{member.firstName} {member.lastName}</strong>
+                  <small>{member.email}</small>
+                </div>
+                <div className="member-card-meta">
+                  <span className="member-role-badge">{member.role || 'Member'}</span>
+                  <span className="member-card-ministry">{ministriesFor(member)[0] || 'No ministry assigned'}</span>
+                  <span className={`status-pill ${(member.status || 'Inactive').toLowerCase()}`}>{member.status || 'Inactive'}</span>
+                </div>
+                <span className="card-chevron">{expanded ? '−' : '+'}</span>
+              </button>
+              {expanded && (
+                <div className="member-card-details">
+                  <div className="member-detail-grid">
+                    <span><b>Phone</b>{member.phone || 'Not provided'}</span>
+                    <span><b>Birthdate</b>{member.birthdate ? new Date(member.birthdate).toLocaleDateString() : 'Not provided'}</span>
+                    <span><b>Address</b>{member.address || 'Not provided'}</span>
+                    <span><b>Ministries</b>{ministriesFor(member).join(', ') || 'None'}</span>
+                  </div>
+                  <div className="member-card-actions">
+                    <button className="add-btn-primary member-action-button" onClick={() => { startEdit(member); setShowEdit(true); }}>Edit Profile</button>
+                    <button className="status-pill active member-action-button" onClick={() => toggleStatus(member)}>Set {member.status === 'Active' ? 'Inactive' : 'Active'}</button>
+                    <button className="action-icon delete member-action-button" onClick={() => archiveMember(member)} title="Archive member">📦</button>
+                  </div>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    );
+  };
+
   return <div className="member-directory-container">
     <div className="directory-header"><div><h2 style={{ color: '#1a1a1a', marginBottom: 4 }}>System User Management</h2><p style={{ color: '#666', margin: 0 }}>Register members and assign administrative roles</p></div><button className="add-btn-primary" onClick={() => { setForm(emptyForm); setShowCreate(true); }}>+ Create Account</button></div>
-    <div className="search-filter-container member-filter-bar" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+    <div className="search-filter-container member-filter-bar" style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
       <input className="search-input" placeholder="Search users..." value={query} onChange={event => setQuery(event.target.value)} />
       <select className="filter-select" value={roleFilter} onChange={event => setRoleFilter(event.target.value)}><option>All Roles</option>{roleOptions.map(option => <option key={option}>{option}</option>)}</select>
       <select className="filter-select" value={ministryFilter} onChange={event => setMinistryFilter(event.target.value)}><option>All Ministries</option>{MINISTRY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select>
       <select className="filter-select" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option>All Statuses</option><option>Active</option><option>Inactive</option><option>Archived</option></select>
       <select className="filter-select" value={sortBy} onChange={event => setSortBy(event.target.value)}><option value="name-asc">Name: A-Z</option><option value="name-desc">Name: Z-A</option><option value="age-asc">Age: Youngest first</option><option value="age-desc">Age: Oldest first</option></select>
+      
+      <div className="view-toggle-group" style={{ display: 'flex', background: '#333', borderRadius: 6, padding: 3, gap: 2 }}>
+        <button
+          type="button"
+          title="Grid View"
+          onClick={() => setViewMode('grid')}
+          style={{
+            background: viewMode === 'grid' ? '#555' : 'transparent',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 4,
+            padding: '6px 12px',
+            cursor: 'pointer',
+            fontSize: '14px'
+          }}
+        >
+          ⊞ Grid
+        </button>
+        <button
+          type="button"
+          title="List View"
+          onClick={() => setViewMode('list')}
+          style={{
+            background: viewMode === 'list' ? '#555' : 'transparent',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 4,
+            padding: '6px 12px',
+            cursor: 'pointer',
+            fontSize: '14px'
+          }}
+        >
+          ☰ List
+        </button>
+        <button
+          type="button"
+          title="Table View"
+          onClick={() => setViewMode('table')}
+          style={{
+            background: viewMode === 'table' ? '#555' : 'transparent',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 4,
+            padding: '6px 12px',
+            cursor: 'pointer',
+            fontSize: '14px'
+          }}
+        >
+          ▦ Table
+        </button>
+      </div>
     </div>
+    
     <div className="stats-container" style={{ display: 'flex', gap: 20, marginBottom: 25 }}><div className="stat-card"><span>Total Accounts</span><strong>{members.length}</strong></div><div className="stat-card"><span>Active Users</span><strong style={{ color: '#28a745' }}>{activeCount}</strong></div><div className="stat-card"><span>Registrations (Month)</span><strong style={{ color: '#007bff' }}>{newThisMonth}</strong></div></div>
-    <div className="member-card-grid">{loading ? <div className="member-empty-state">Synchronizing with Database...</div> : visibleMembers.length === 0 ? <div className="member-empty-state">No members match the current filters.</div> : visibleMembers.map(member => {
-      const expanded = expandedId === member._id;
-      return <article className={`member-card ${expanded ? 'expanded' : ''}`} key={member._id}>
-        <button className="member-card-summary" onClick={() => setExpandedId(expanded ? null : member._id)}><div className="member-card-identity"><div className="avatar" style={{ backgroundColor: member.role === 'Admin' ? '#ef4444' : '#3b82f6' }}>{(member.firstName || 'U').charAt(0)}</div><strong>{member.firstName} {member.lastName}</strong><small>{member.email}</small></div><div className="member-card-meta"><span className="member-role-badge">{member.role || 'Member'}</span><span className="member-card-ministry">{ministriesFor(member)[0] || 'No ministry assigned'}</span><span className={`status-pill ${(member.status || 'Inactive').toLowerCase()}`}>{member.status || 'Inactive'}</span></div><span className="card-chevron">{expanded ? '−' : '+'}</span></button>
-        {expanded && <div className="member-card-details"><div className="member-detail-grid"><span><b>Phone</b>{member.phone || 'Not provided'}</span><span><b>Birthdate</b>{member.birthdate ? new Date(member.birthdate).toLocaleDateString() : 'Not provided'}</span><span><b>Address</b>{member.address || 'Not provided'}</span><span><b>Ministries</b>{ministriesFor(member).join(', ') || 'None'}</span></div><div className="member-card-actions"><button className="add-btn-primary member-action-button" onClick={() => { startEdit(member); setShowEdit(true); }}>Edit Profile</button><button className="status-pill active member-action-button" onClick={() => toggleStatus(member)}>Set {member.status === 'Active' ? 'Inactive' : 'Active'}</button><button className="action-icon delete member-action-button" onClick={() => archiveMember(member)} title="Archive member">📦</button></div></div>}
-      </article>;
-    })}</div>
+    
+    {renderMemberContent()}
+
     {pageCount > 1 && <div className="member-pagination"><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page} of {pageCount}</span><button disabled={page === pageCount} onClick={() => setPage(page + 1)}>Next</button></div>}
     {showCreate && <div className="member-modal-overlay" onClick={() => setShowCreate(false)}><div className="member-modal" onClick={event => event.stopPropagation()}><div className="member-modal-header"><div><h3>Create Account</h3><p>The user will receive a confirmation code by email.</p></div><button type="button" onClick={() => setShowCreate(false)}>×</button></div>{renderForm(true)}</div></div>}
     {showEdit && <div className="member-modal-overlay" onClick={() => { setShowEdit(false); setEditingId(null); }}><div className="member-modal" onClick={event => event.stopPropagation()}><div className="member-modal-header"><div><h3>Edit Profile</h3><p>Update the member's account and personal information.</p></div><button type="button" onClick={() => { setShowEdit(false); setEditingId(null); }}>×</button></div>{renderForm(false)}</div></div>}
