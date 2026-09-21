@@ -170,15 +170,23 @@ const MemberForm = () => {
   const showResult = message => setResultMessage(message);
   const askForConfirmation = (message, action) => setConfirmationAction({ message, action });
 
-  const startEdit = member => {
-    setExpandedId(member._id);
-    setEditingId(member._id);
-    setForm({
-      firstName: member.firstName || '', lastName: member.lastName || '', email: member.email || '', password: '',
-      address: member.address || '', phone: member.phone || '', birthdate: normalizeDate(member.birthdate),
-      gender: member.gender || '', role: member.role || 'Member', ministries: ministriesFor(member)
-    });
-  };
+const startEdit = member => {
+  setExpandedId(member._id);
+  setEditingId(member._id);
+  setForm({
+    firstName: member.firstName || '',
+    lastName: member.lastName || '',
+    email: member.email || '',
+    password: '',
+    address: member.address || '',
+    phone: member.phone || '',
+    birthdate: normalizeDate(member.birthdate),
+    gender: member.gender || '',
+    role: member.role || 'Member',
+    ministries: ministriesFor(member)
+  });
+  setShowEdit(true);
+};
 
   const saveMember = async () => {
     const member = members.find(item => item._id === editingId);
