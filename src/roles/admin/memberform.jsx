@@ -10,7 +10,7 @@ const MINISTRY_OPTIONS = [
 const emptyForm = { firstName: '', lastName: '', email: '', password: '', address: '', phone: '', birthdate: '', gender: '', role: 'Member', ministries: ['Worship Team'] };
 
 const ActionButtons = ({ member, onEdit, onToggleStatus, onArchive }) => (
-  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
     <button
       type="button"
       onClick={() => onEdit(member)}
@@ -170,23 +170,16 @@ const MemberForm = () => {
   const showResult = message => setResultMessage(message);
   const askForConfirmation = (message, action) => setConfirmationAction({ message, action });
 
-const startEdit = member => {
-  setExpandedId(member._id);
-  setEditingId(member._id);
-  setForm({
-    firstName: member.firstName || '',
-    lastName: member.lastName || '',
-    email: member.email || '',
-    password: '',
-    address: member.address || '',
-    phone: member.phone || '',
-    birthdate: normalizeDate(member.birthdate),
-    gender: member.gender || '',
-    role: member.role || 'Member',
-    ministries: ministriesFor(member)
-  });
-  setShowEdit(true);
-};
+  const startEdit = member => {
+    setExpandedId(member._id);
+    setEditingId(member._id);
+    setForm({
+      firstName: member.firstName || '', lastName: member.lastName || '', email: member.email || '', password: '',
+      address: member.address || '', phone: member.phone || '', birthdate: normalizeDate(member.birthdate),
+      gender: member.gender || '', role: member.role || 'Member', ministries: ministriesFor(member)
+    });
+    setShowEdit(true);
+  };
 
   const saveMember = async () => {
     const member = members.find(item => item._id === editingId);
@@ -272,14 +265,14 @@ const startEdit = member => {
     if (viewMode === 'table') {
       return (
         <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px', tableLayout: 'fixed' }}>
             <thead>
               <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb', color: '#4b5563' }}>
-                <th style={{ padding: '10px 16px', fontWeight: 600 }}>Member</th>
-                <th style={{ padding: '10px 16px', fontWeight: 600 }}>Role</th>
-                <th style={{ padding: '10px 16px', fontWeight: 600 }}>Ministry</th>
-                <th style={{ padding: '10px 16px', fontWeight: 600 }}>Status</th>
-                <th style={{ padding: '10px 16px', fontWeight: 600, textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '10px 16px', fontWeight: 600, width: '28%' }}>Member</th>
+                <th style={{ padding: '10px 16px', fontWeight: 600, width: '15%' }}>Role</th>
+                <th style={{ padding: '10px 16px', fontWeight: 600, width: '27%' }}>Ministries</th>
+                <th style={{ padding: '10px 16px', fontWeight: 600, width: '12%' }}>Status</th>
+                <th style={{ padding: '10px 16px', fontWeight: 600, width: '18%', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -287,26 +280,26 @@ const startEdit = member => {
                 <tr key={member._id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                   <td style={{ padding: '10px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div className="avatar" style={{ backgroundColor: member.role === 'Admin' ? '#ef4444' : '#3b82f6', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '13px' }}>
+                      <div className="avatar" style={{ backgroundColor: member.role === 'Admin' ? '#ef4444' : '#3b82f6', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}>
                         {(member.firstName || 'U').charAt(0)}
                       </div>
-                      <div>
-                        <div style={{ fontWeight: 600, color: '#111827' }}>{member.firstName} {member.lastName}</div>
-                        <div style={{ fontSize: '12px', color: '#6b7280' }}>{member.email}</div>
+                      <div style={{ overflow: 'hidden' }}>
+                        <div style={{ fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.firstName} {member.lastName}</div>
+                        <div style={{ fontSize: '12px', color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.email}</div>
                       </div>
                     </div>
                   </td>
                   <td style={{ padding: '10px 16px' }}>
                     <span className="member-role-badge">{member.role || 'Member'}</span>
                   </td>
-                  <td style={{ padding: '10px 16px', color: '#374151' }}>{ministriesFor(member)[0] || 'None'}</td>
+                  <td style={{ padding: '10px 16px', color: '#374151' }}>
+                    {ministriesFor(member).join(', ') || 'None'}
+                  </td>
                   <td style={{ padding: '10px 16px' }}>
                     <span className={`status-pill ${(member.status || 'Inactive').toLowerCase()}`}>{member.status || 'Inactive'}</span>
                   </td>
                   <td style={{ padding: '10px 16px', textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', justifyContent: 'flex-end' }}>
-                      <ActionButtons member={member} onEdit={startEdit} onToggleStatus={toggleStatus} onArchive={archiveMember} />
-                    </div>
+                    <ActionButtons member={member} onEdit={startEdit} onToggleStatus={toggleStatus} onArchive={archiveMember} />
                   </td>
                 </tr>
               ))}
@@ -320,24 +313,32 @@ const startEdit = member => {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {visibleMembers.map(member => (
-            <div key={member._id} style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '220px' }}>
-                <div className="avatar" style={{ backgroundColor: member.role === 'Admin' ? '#ef4444' : '#3b82f6', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
+            <div key={member._id} style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '280px', flexShrink: 0 }}>
+                <div className="avatar" style={{ backgroundColor: member.role === 'Admin' ? '#ef4444' : '#3b82f6', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '14px', flexShrink: 0 }}>
                   {(member.firstName || 'U').charAt(0)}
                 </div>
-                <div>
-                  <div style={{ fontWeight: 600, color: '#111827', fontSize: '14px' }}>{member.firstName} {member.lastName}</div>
-                  <div style={{ fontSize: '12px', color: '#6b7280' }}>{member.email}</div>
+                <div style={{ overflow: 'hidden' }}>
+                  <div style={{ fontWeight: 600, color: '#111827', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.firstName} {member.lastName}</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.email}</div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, justifyContent: 'space-between' }}>
+              <div style={{ width: '130px', flexShrink: 0 }}>
                 <span className="member-role-badge">{member.role || 'Member'}</span>
-                <span style={{ fontSize: '13px', color: '#4b5563' }}>{ministriesFor(member)[0] || 'No ministry assigned'}</span>
+              </div>
+
+              <div style={{ flex: 1, fontSize: '13px', color: '#374151', minWidth: '150px' }}>
+                {ministriesFor(member).join(', ') || 'No ministry assigned'}
+              </div>
+
+              <div style={{ width: '100px', flexShrink: 0 }}>
                 <span className={`status-pill ${(member.status || 'Inactive').toLowerCase()}`}>{member.status || 'Inactive'}</span>
               </div>
 
-              <ActionButtons member={member} onEdit={startEdit} onToggleStatus={toggleStatus} onArchive={archiveMember} />
+              <div style={{ flexShrink: 0 }}>
+                <ActionButtons member={member} onEdit={startEdit} onToggleStatus={toggleStatus} onArchive={archiveMember} />
+              </div>
             </div>
           ))}
         </div>
@@ -360,7 +361,7 @@ const startEdit = member => {
                 </div>
                 <div className="member-card-meta">
                   <span className="member-role-badge">{member.role || 'Member'}</span>
-                  <span className="member-card-ministry">{ministriesFor(member)[0] || 'No ministry assigned'}</span>
+                  <span className="member-card-ministry">{ministriesFor(member).join(', ') || 'No ministry assigned'}</span>
                   <span className={`status-pill ${(member.status || 'Inactive').toLowerCase()}`}>{member.status || 'Inactive'}</span>
                 </div>
                 <span className="card-chevron">{expanded ? '−' : '+'}</span>
