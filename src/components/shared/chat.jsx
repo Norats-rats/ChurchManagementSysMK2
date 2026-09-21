@@ -222,7 +222,7 @@ const Chat = ({ user }) => {
         <main className="chat-panel">
           {selectedConversation ? (
             <>
-              <div className="chat-panel-heading"><div><span className="chat-eyebrow">{selectedConversation.type === 'public' ? 'Public forum' : selectedConversation.type === 'group' ? 'Group chat' : 'Private message'}</span><h2>{conversationLabel(selectedConversation)}</h2></div><span>{selectedConversation.participants?.length || 'Everyone'} participants</span></div>
+              <div className="chat-panel-heading"><div><span className="chat-eyebrow">{selectedConversation.type === 'public' ? 'Public forum' : selectedConversation.type === 'group' ? 'Group chat' : 'Private message'}</span><h2>{conversationLabel(selectedConversation)}</h2></div><span>{selectedConversation.participants?.length || 'All'} participants</span></div>
               <div className="chat-messages" aria-live="polite">
                 {messagesLoading && !messages.length ? <p className="chat-muted">Loading messages...</p> : messages.length ? messages.map(message => {
                   const mine = String(message.senderId) === String(user._id);
