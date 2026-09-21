@@ -178,6 +178,20 @@ const Member = mongoose.model('members', new mongoose.Schema({
   date: { type: Date, default: Date.now }
 }));
 
+const ChatConversation = mongoose.model('chatconversations', new mongoose.Schema({
+  type: { type: String, enum: ['public', 'group', 'direct'], required: true },
+  title: { type: String, required: true, trim: true, maxlength: 80 },
+  createdBy: { type: String, required: true },
+  participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'members' }]
+}, { timestamps: true }));
+
+const ChatMessage = mongoose.model('chatmessages', new mongoose.Schema({
+  conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'chatconversations', required: true },
+  senderId: { type: String, required: true },
+  senderName: { type: String, required: true, trim: true },
+  text: { type: String, required: true, trim: true, maxlength: 2000 }
+}, { timestamps: true }));
+
 const Event = mongoose.model('events', new mongoose.Schema({
   title: String,
   titleSelection: String,
@@ -479,6 +493,105 @@ app.post('/reset-password', async (req, res) => {
     res.json({ success: true, message: "Password updated successfully" });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Unable to reset password.' });
+  }
+});
+
+// --- COMMUNITY CHAT ROUTES ---
+const getChatMember = async (req) => {
+  const userId = req.headers['x-user-id'];
+  if (!userId || !mongoose.isValidObjectId(userId)) return null;
+  return Member.findOne({ _id: userId, status: 'Active', isVerified: true }).select('firstName lastName email role');
+};
+
+const ensurePublicConversation = async () => ChatConversation.findOneAndUpdate(
+  { type: 'public' },
+  { $setOnInsert: { type: 'public', title: 'Church Community', createdBy: 'system', participants: [] } },
+  { upsert: true, new: true }
+);
+
+app.get('/api/chat/conversations', async (req, res) => {
+  try {
+    const member = await getChatMember(req);
+    if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+    await ensurePublicConversation();
+    const conversations = await ChatConversation.find({
+      $or: [{ type: 'public' }, { participants: member._id }]
+    }).populate('participants', 'firstName lastName email').sort({ updatedAt: -1 });
+    res.json(conversations);
+  } catch (err) {
+    console.error('Failed to fetch chat conversations:', err);
+    res.status(500).json({ message: 'Unable to load chat conversations.' });
+  }
+});
+
+app.post('/api/chat/conversations', async (req, res) => {
+  try {
+    const member = await getChatMember(req);
+    if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+    const { type, title, participantIds = [] } = req.body;
+    if (!['group', 'direct'].includes(type)) return res.status(400).json({ message: 'Choose a group or private conversation.' });
+    const ids = [...new Set([String(member._id), ...participantIds.map(String)])].filter(mongoose.isValidObjectId);
+    const expectedParticipants = type === 'direct' ? 2 : ids.length;
+    if (ids.length !== expectedParticipants || (type === 'group' && !String(title || '').trim())) {
+      return res.status(400).json({ message: type === 'direct' ? 'Choose one member for a private conversation.' : 'A group name and at least one member are required.' });
+    }
+    const participants = await Member.find({ _id: { $in: ids }, status: 'Active', isVerified: true }).select('_id');
+    if (participants.length !== ids.length) return res.status(400).json({ message: 'One or more selected members are unavailable.' });
+    if (type === 'direct') {
+      const existing = await ChatConversation.findOne({ type, participants: { $all: ids, $size: 2 } });
+      if (existing) return res.json(existing);
+    }
+    const conversation = await ChatConversation.create({
+      type,
+      title: type === 'direct' ? 'Private conversation' : String(title).trim(),
+      createdBy: String(member._id),
+      participants: ids
+    });
+    res.status(201).json(conversation);
+  } catch (err) {
+    console.error('Failed to create chat conversation:', err);
+    res.status(400).json({ message: 'Unable to create conversation.' });
+  }
+});
+
+app.get('/api/chat/conversations/:id/messages', async (req, res) => {
+  try {
+    const member = await getChatMember(req);
+    if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+    const conversation = await ChatConversation.findOne({
+      _id: req.params.id,
+      $or: [{ type: 'public' }, { participants: member._id }]
+    });
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
+    res.json(await ChatMessage.find({ conversationId: conversation._id }).sort({ createdAt: 1 }).limit(200));
+  } catch (err) {
+    res.status(400).json({ message: 'Unable to load messages.' });
+  }
+});
+
+app.post('/api/chat/conversations/:id/messages', async (req, res) => {
+  try {
+    const member = await getChatMember(req);
+    if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+    const conversation = await ChatConversation.findOne({
+      _id: req.params.id,
+      $or: [{ type: 'public' }, { participants: member._id }]
+    });
+    const text = String(req.body.text || '').trim();
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
+    if (!text || text.length > 2000) return res.status(400).json({ message: 'Message must contain 1 to 2000 characters.' });
+    const message = await ChatMessage.create({
+      conversationId: conversation._id,
+      senderId: String(member._id),
+      senderName: `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.email,
+      text
+    });
+    conversation.updatedAt = new Date();
+    await conversation.save();
+    res.status(201).json(message);
+  } catch (err) {
+    console.error('Failed to send chat message:', err);
+    res.status(400).json({ message: 'Unable to send message.' });
   }
 });
 

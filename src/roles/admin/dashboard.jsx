@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import churchLogo from '../../assets/churchlogo.jpg';
 import Advising from '../../components/shared/advisinglist';
+import Chat from '../../components/shared/chat';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import Profile from '../../components/shared/profile';
 import {
@@ -34,6 +35,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
   const routeToTab = {
     '/home': 'dashboard',
+    '/chat': 'chat',
     '/bible': 'ebible',
     '/profile': 'profile',
     '/analytics': 'analytics',
@@ -83,6 +85,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
   const navigationConfig = [
     { id: 'dashboard', label: ['Member', 'Staff'].includes(role) ? 'Home' : 'Dashboard', permission: 'dashboard' },
+    { id: 'chat', label: 'Community Chat', permission: 'chat' },
     { id: 'ebible', label: 'Bible', permission: 'bible' },
     { id: 'members', label: 'Members', permission: 'members' },
     { id: 'events', label: 'Events', permission: 'events' },
@@ -1067,6 +1070,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
             </>
           )}
 
+          {currentTab === 'chat' && hasPermission(role, 'chat') && <Chat user={user} />}
           {currentTab === 'ebible' && <EBible userId={user._id} />}
           {currentTab === 'profile' && <Profile userId={user._id} currentUserId={user._id} />}
           {currentTab === 'members' && hasPermission(role, 'members') && <MemberForm />}

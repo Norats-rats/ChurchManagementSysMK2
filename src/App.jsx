@@ -343,6 +343,7 @@ export default function App() {
         <Route path="/signup" element={<Signup onGoToLogin={() => navigate('/login')} />} />
         <Route path="/forgot-password" element={<ForgotPasswordView onGoToLogin={() => navigate('/login')} />} />
         <Route path="/home" element={dashboardElement} />
+        <Route path="/chat" element={dashboardElement} />
         <Route path="/bible" element={dashboardElement} />
         <Route path="/profile" element={dashboardElement} />
         <Route path="/analytics" element={dashboardElement} />

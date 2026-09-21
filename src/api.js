@@ -52,6 +52,20 @@ export const api = {
   updateMember: (id, memberData) => apiClient.put(`/api/members/${id}`, memberData),
   deleteMember: (id) => apiClient.delete(`/api/members/${id}`),
 
+  // Community chat
+  getChatConversations: (userId) => apiClient.get('/api/chat/conversations', {
+    headers: { 'x-user-id': userId }
+  }),
+  createChatConversation: (conversationData, userId) => apiClient.post('/api/chat/conversations', conversationData, {
+    headers: { 'x-user-id': userId }
+  }),
+  getChatMessages: (conversationId, userId) => apiClient.get(`/api/chat/conversations/${conversationId}/messages`, {
+    headers: { 'x-user-id': userId }
+  }),
+  sendChatMessage: (conversationId, messageData, userId) => apiClient.post(`/api/chat/conversations/${conversationId}/messages`, messageData, {
+    headers: { 'x-user-id': userId }
+  }),
+
   // Events
   getEvents: () => apiClient.get('/api/events'), 
   getLocations: () => apiClient.get('/api/locations'),
