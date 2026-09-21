@@ -6,6 +6,13 @@ const DEFAULT_READER_PREFERENCES = {
   textColor: '#1e293b'
 };
 
+const HIGHLIGHT_COLORS = [
+  { id: 'yellow', hex: '#fef08a', label: 'Yellow' },
+  { id: 'green', hex: '#bbf7d0', label: 'Green' },
+  { id: 'blue', hex: '#bfdbfe', label: 'Blue' },
+  { id: 'pink', hex: '#fbcfe8', label: 'Pink' }
+];
+
 const READER_COLOR_OPTIONS = [
   { value: '#1e293b', label: 'Ink' },
   { value: '#334155', label: 'Slate' },
@@ -17,7 +24,20 @@ const READER_COLOR_OPTIONS = [
   { value: '#86198f', label: 'Readable plum' }
 ];
 
+// Replaces WEB-specific terms with traditional NIV naming conventions
+const formatWebToNivText = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/\bYahweh’s\b/g, "the LORD’s")
+    .replace(/\bYahweh's\b/g, "the LORD's")
+    .replace(/\bYahweh\b/g, "LORD")
+    .replace(/\bYah\b/g, "LORD")
+    .replace(/\bYeshua\b/gi, "Jesus");
+};
+
 const EBible = ({ userId }) => {
+  const currentUserId = userId || 'guest';
+
   const [view, setView] = useState('toc'); 
   const [selectedBook, setSelectedBook] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
@@ -27,15 +47,43 @@ const EBible = ({ userId }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [readerMenuOpen, setReaderMenuOpen] = useState(false);
-  const preferenceKey = `ebiblePreferences:${userId || 'guest'}`;
+
+  // Per-account storage keys
+  const preferenceKey = `ebiblePreferences:${currentUserId}`;
+  const notesKey = `ebibleChapterNotes:${currentUserId}`;
+  const highlightsKey = `ebibleHighlights:${currentUserId}`;
+
+  // State definitions
   const [readerPreferences, setReaderPreferences] = useState(() => {
     try {
-      const saved = localStorage.getItem(`ebiblePreferences:${userId || 'guest'}`);
+      const saved = localStorage.getItem(preferenceKey);
       return saved ? { ...DEFAULT_READER_PREFERENCES, ...JSON.parse(saved) } : DEFAULT_READER_PREFERENCES;
     } catch {
       return DEFAULT_READER_PREFERENCES;
     }
   });
+
+  const [chapterNotes, setChapterNotes] = useState(() => {
+    try {
+      const saved = localStorage.getItem(notesKey);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [highlights, setHighlights] = useState(() => {
+    try {
+      const saved = localStorage.getItem(highlightsKey);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [currentNoteText, setCurrentNoteText] = useState('');
+  const [activeHighlightColor, setActiveHighlightColor] = useState('#fef08a');
+  const [expandedTocBookNotes, setExpandedTocBookNotes] = useState(null);
 
   const bookData = {
     "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34,
@@ -54,11 +102,8 @@ const EBible = ({ userId }) => {
     "3 John": 1, "Jude": 1, "Revelation": 22
   };
 
-  const versions = [
-    { id: 'web', label: 'New International Version (NIV)' }
-  ];
-
-  const versionLabel = versions.find(v => v.id === version)?.label || 'New International Version (NIV)';
+  const versions = [{ id: 'web', label: 'New International Version (NIV Adapter)' }];
+  const versionLabel = versions.find(v => v.id === version)?.label || 'New International Version (NIV Adapter)';
 
   const oldTestament = [
     'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth',
@@ -75,9 +120,26 @@ const EBible = ({ userId }) => {
     '1 John', '2 John', '3 John', 'Jude', 'Revelation'
   ];
 
+  // Sync preferences and notes to localStorage
   useEffect(() => {
     localStorage.setItem(preferenceKey, JSON.stringify(readerPreferences));
   }, [preferenceKey, readerPreferences]);
+
+  useEffect(() => {
+    localStorage.setItem(notesKey, JSON.stringify(chapterNotes));
+  }, [notesKey, chapterNotes]);
+
+  useEffect(() => {
+    localStorage.setItem(highlightsKey, JSON.stringify(highlights));
+  }, [highlightsKey, highlights]);
+
+  // Load active note whenever book/chapter changes
+  useEffect(() => {
+    if (selectedBook && selectedChapter) {
+      const chapterKey = `${selectedBook}:${selectedChapter}`;
+      setCurrentNoteText(chapterNotes[chapterKey] || '');
+    }
+  }, [selectedBook, selectedChapter, chapterNotes]);
 
   const updateReaderPreference = (field, value) => {
     setReaderPreferences(previous => ({ ...previous, [field]: value }));
@@ -95,7 +157,14 @@ const EBible = ({ userId }) => {
       const response = await fetch(`https://bible-api.com/${book}+${chapter}?translation=${version}`);
       if (!response.ok) throw new Error("Could not find this chapter.");
       const data = await response.json();
-      setContent(data);
+
+      // Transform WEB terms to NIV standard
+      const adaptedVerses = (data.verses || []).map(v => ({
+        ...v,
+        text: formatWebToNivText(v.text)
+      }));
+
+      setContent({ ...data, verses: adaptedVerses });
       setView('reading');
     } catch (err) {
       setError(err.message);
@@ -139,14 +208,53 @@ const EBible = ({ userId }) => {
     setContent(null);
   };
 
+  // Highlighting handlers
+  const toggleHighlight = (verseNum) => {
+    if (!selectedBook || !selectedChapter) return;
+    const verseKey = `${selectedBook}:${selectedChapter}:${verseNum}`;
+
+    setHighlights(prev => {
+      const copy = { ...prev };
+      if (copy[verseKey]) {
+        delete copy[verseKey];
+      } else {
+        copy[verseKey] = activeHighlightColor;
+      }
+      return copy;
+    });
+  };
+
+  // Save note for current active chapter
+  const handleSaveNote = () => {
+    if (!selectedBook || !selectedChapter) return;
+    const chapterKey = `${selectedBook}:${selectedChapter}`;
+    setChapterNotes(prev => ({
+      ...prev,
+      [chapterKey]: currentNoteText.trim()
+    }));
+  };
+
+  // Helper to extract notes grouped by chapter for a specific book
+  const getNotesForBook = (bookName) => {
+    const results = [];
+    Object.keys(chapterNotes).forEach(key => {
+      const [b, c] = key.split(':');
+      if (b === bookName && chapterNotes[key]) {
+        results.push({ chapter: c, note: chapterNotes[key] });
+      }
+    });
+    return results.sort((a, b) => Number(a.chapter) - Number(b.chapter));
+  };
+
   const styles = {
     container: { padding: '20px', maxWidth: '1120px', margin: '0 auto', fontFamily: 'serif' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px', marginTop: '20px' },
     bookBtn: { minHeight: '58px', padding: '12px 8px', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', background: '#fff', color: '#1e293b', textAlign: 'center', fontFamily: 'inherit', fontSize: '14px', fontWeight: '700', lineHeight: '1.25' },
-    chapterBtn: { padding: '10px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' },
+    chapterBtn: { padding: '10px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' },
     header: { borderBottom: '2px solid #053476', paddingBottom: '10px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-    verse: { marginBottom: '15px', lineHeight: '1.6', fontSize: '18px' },
-    verseNum: { fontWeight: 'bold', marginRight: '8px', color: '#64748b', fontSize: '14px' }
+    verse: { marginBottom: '15px', lineHeight: '1.6', fontSize: '18px', padding: '6px', borderRadius: '4px', cursor: 'pointer' },
+    verseNum: { fontWeight: 'bold', marginRight: '8px', color: '#64748b', fontSize: '14px' },
+    noteSection: { marginTop: '30px', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }
   };
 
   if (loading) return <div style={styles.container}>Loading Word...</div>;
@@ -181,7 +289,6 @@ const EBible = ({ userId }) => {
             {!isPresetTextColor && <div className="ebible-custom-color-controls">
               <label>Hex color<input type="text" value={readerPreferences.textColor} maxLength={7} placeholder="#1e293b" onChange={event => handleCustomHexChange(event.target.value)} /></label>
               <label>Color picker<input type="color" value={/^#[0-9a-f]{6}$/i.test(readerPreferences.textColor) ? readerPreferences.textColor : '#1e293b'} onChange={event => updateReaderPreference('textColor', event.target.value)} /></label>
-              <small>Use a six-digit hex color that remains readable on a white background.</small>
             </div>}
             <button type="button" className="ebible-drawer-reset" onClick={() => setReaderPreferences(DEFAULT_READER_PREFERENCES)}>Reset preferences</button>
           </div>
@@ -204,21 +311,31 @@ const EBible = ({ userId }) => {
                 <section className="ebible-testament-panel">
                   <h4>Old Testament</h4>
                   <div className="ebible-book-grid" style={styles.grid}>
-                    {oldTestament.map((book) => (
-                      <button type="button" key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
-                        {book}
-                      </button>
-                    ))}
+                    {oldTestament.map((book) => {
+                      const bookNotes = getNotesForBook(book);
+                      return (
+                        <div key={book} style={{ display: 'flex', flexDirection: 'column' }}>
+                          <button type="button" style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
+                            {book} {bookNotes.length > 0 && `📝 (${bookNotes.length})`}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
-                <section className="ebible-testament-panel">
+                <section className="ebible-testament-panel" style={{ marginTop: '20px' }}>
                   <h4>New Testament</h4>
                   <div className="ebible-book-grid" style={styles.grid}>
-                    {newTestament.map((book) => (
-                      <button type="button" key={book} style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
-                        {book}
-                      </button>
-                    ))}
+                    {newTestament.map((book) => {
+                      const bookNotes = getNotesForBook(book);
+                      return (
+                        <div key={book} style={{ display: 'flex', flexDirection: 'column' }}>
+                          <button type="button" style={styles.bookBtn} onClick={() => handleBookSelect(book)}>
+                            {book} {bookNotes.length > 0 && `📝 (${bookNotes.length})`}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
               </div>
@@ -238,23 +355,102 @@ const EBible = ({ userId }) => {
                 ))}
                 <button onClick={() => setSelectedBook('')} style={{ ...styles.chapterBtn, background: '#64748b' }}>Back</button>
               </div>
+
+              {/* Display chapter notes for this selected book directly beneath chapter select */}
+              <div style={{ ...styles.noteSection, marginTop: '24px' }}>
+                <h4 style={{ margin: '0 0 12px 0' }}>Personal Notes for {selectedBook}</h4>
+                {getNotesForBook(selectedBook).length === 0 ? (
+                  <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>No personal notes saved for chapters in {selectedBook} yet.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {getNotesForBook(selectedBook).map(({ chapter, note }) => (
+                      <div key={chapter} style={{ padding: '8px 12px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+                        <strong>Chapter {chapter}:</strong> {note}
+                        <button 
+                          style={{ marginLeft: '12px', fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                          onClick={() => handleChapterSelect(chapter)}
+                        >
+                          Go to Chapter
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
       )}
+
       {view === 'reading' && content && (
         <div className="ebible-reading-shell">
-          <h3 style={{ textAlign: 'center', fontSize: '24px' }}>{content.reference}</h3>
+          <h3 style={{ textAlign: 'center', fontSize: '24px', margin: '0 0 4px 0' }}>{content.reference}</h3>
           <p style={{ textAlign: 'center', fontSize: '14px', color: '#475569', marginTop: '6px' }}>Translation: {versionLabel}</p>
-          <div className="ebible-verse-scroll" style={{ marginTop: '18px' }}>
-            {content.verses.map((v) => (
-              <p key={v.verse} style={{ ...styles.verse, fontSize: `${readerPreferences.fontSize}px`, textAlign: readerPreferences.textAlign, color: readerPreferences.textColor }}>
-                <span style={styles.verseNum}>{v.verse}</span>
-                {v.text}
-              </p>
+
+          {/* Highlight Color Picker Bar */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '16px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 'bold' }}>Highlight Color:</span>
+            {HIGHLIGHT_COLORS.map(c => (
+              <button
+                key={c.id}
+                onClick={() => setActiveHighlightColor(c.hex)}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  background: c.hex,
+                  border: activeHighlightColor === c.hex ? '2px solid #0f172a' : '1px solid #cbd5e1',
+                  cursor: 'pointer'
+                }}
+                title={c.label}
+              />
             ))}
+            <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '6px' }}>(Click any verse to highlight or remove highlight)</span>
           </div>
-          <div className="ebible-reading-actions">
+
+          <div className="ebible-verse-scroll" style={{ marginTop: '18px' }}>
+            {content.verses.map((v) => {
+              const highlightKey = `${selectedBook}:${selectedChapter}:${v.verse}`;
+              const highlightedBg = highlights[highlightKey];
+
+              return (
+                <p 
+                  key={v.verse} 
+                  onClick={() => toggleHighlight(v.verse)}
+                  style={{ 
+                    ...styles.verse, 
+                    fontSize: `${readerPreferences.fontSize}px`, 
+                    textAlign: readerPreferences.textAlign, 
+                    color: readerPreferences.textColor,
+                    backgroundColor: highlightedBg || 'transparent'
+                  }}
+                >
+                  <span style={styles.verseNum}>{v.verse}</span>
+                  {v.text}
+                </p>
+              );
+            })}
+          </div>
+
+          {/* Chapter Notes Editor */}
+          <div style={styles.noteSection}>
+            <h4 style={{ marginTop: 0, marginBottom: '8px' }}>Personal Note for {selectedBook} Chapter {selectedChapter}</h4>
+            <textarea
+              rows={4}
+              value={currentNoteText}
+              onChange={(e) => setCurrentNoteText(e.target.value)}
+              placeholder="Write your personal study notes or reflections for this chapter..."
+              style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontFamily: 'sans-serif', fontSize: '14px', boxSizing: 'border-box' }}
+            />
+            <button
+              onClick={handleSaveNote}
+              style={{ marginTop: '8px', padding: '8px 16px', background: '#053476', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              Save Note
+            </button>
+          </div>
+
+          <div className="ebible-reading-actions" style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
             <button type="button" onClick={handleNextChapter} disabled={selectedChapter >= bookData[selectedBook]} style={styles.chapterBtn}>
               Next Chapter {selectedChapter < bookData[selectedBook] ? `(${Number(selectedChapter) + 1})` : ''}
             </button>
