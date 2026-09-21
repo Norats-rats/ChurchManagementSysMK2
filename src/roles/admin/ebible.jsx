@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const DEFAULT_READER_PREFERENCES = {
   fontSize: 18,
@@ -10,7 +10,8 @@ const HIGHLIGHT_COLORS = [
   { id: 'yellow', hex: '#fef08a', label: 'Yellow' },
   { id: 'green', hex: '#bbf7d0', label: 'Green' },
   { id: 'blue', hex: '#bfdbfe', label: 'Blue' },
-  { id: 'pink', hex: '#fbcfe8', label: 'Pink' }
+  { id: 'pink', hex: '#fbcfe8', label: 'Pink' },
+  { id: 'red', hex: '#f87171', label: 'Red' },
 ];
 
 const READER_COLOR_OPTIONS = [
@@ -24,7 +25,6 @@ const READER_COLOR_OPTIONS = [
   { value: '#86198f', label: 'Readable plum' }
 ];
 
-// Replaces WEB-specific terms with traditional NIV naming conventions
 const formatWebToNivText = (text) => {
   if (!text) return '';
   return text
@@ -48,12 +48,10 @@ const EBible = ({ userId }) => {
   const [error, setError] = useState(null);
   const [readerMenuOpen, setReaderMenuOpen] = useState(false);
 
-  // Per-account storage keys
   const preferenceKey = `ebiblePreferences:${currentUserId}`;
   const notesKey = `ebibleChapterNotes:${currentUserId}`;
   const highlightsKey = `ebibleHighlights:${currentUserId}`;
 
-  // State definitions
   const [readerPreferences, setReaderPreferences] = useState(() => {
     try {
       const saved = localStorage.getItem(preferenceKey);
@@ -83,7 +81,6 @@ const EBible = ({ userId }) => {
 
   const [currentNoteText, setCurrentNoteText] = useState('');
   const [activeHighlightColor, setActiveHighlightColor] = useState('#fef08a');
-  const [expandedTocBookNotes, setExpandedTocBookNotes] = useState(null);
 
   const bookData = {
     "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34,
@@ -102,8 +99,8 @@ const EBible = ({ userId }) => {
     "3 John": 1, "Jude": 1, "Revelation": 22
   };
 
-  const versions = [{ id: 'web', label: 'New International Version (NIV Adapter)' }];
-  const versionLabel = versions.find(v => v.id === version)?.label || 'New International Version (NIV Adapter)';
+  const versions = [{ id: 'web', label: 'New International Version' }];
+  const versionLabel = versions.find(v => v.id === version)?.label || 'New International Version';
 
   const oldTestament = [
     'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth',
@@ -120,7 +117,6 @@ const EBible = ({ userId }) => {
     '1 John', '2 John', '3 John', 'Jude', 'Revelation'
   ];
 
-  // Sync preferences and notes to localStorage
   useEffect(() => {
     localStorage.setItem(preferenceKey, JSON.stringify(readerPreferences));
   }, [preferenceKey, readerPreferences]);
@@ -133,7 +129,6 @@ const EBible = ({ userId }) => {
     localStorage.setItem(highlightsKey, JSON.stringify(highlights));
   }, [highlightsKey, highlights]);
 
-  // Load active note whenever book/chapter changes
   useEffect(() => {
     if (selectedBook && selectedChapter) {
       const chapterKey = `${selectedBook}:${selectedChapter}`;
@@ -158,7 +153,6 @@ const EBible = ({ userId }) => {
       if (!response.ok) throw new Error("Could not find this chapter.");
       const data = await response.json();
 
-      // Transform WEB terms to NIV standard
       const adaptedVerses = (data.verses || []).map(v => ({
         ...v,
         text: formatWebToNivText(v.text)
@@ -177,14 +171,15 @@ const EBible = ({ userId }) => {
     setSelectedBook(book);
   };
 
-  const handleChapterSelect = (chapter) => {
+  const handleChapterSelect = (book, chapter) => {
+    setSelectedBook(book);
     setSelectedChapter(chapter);
-    fetchScripture(selectedBook, chapter);
+    fetchScripture(book, chapter);
   };
 
   const handleNextChapter = () => {
     if (!selectedBook || !selectedChapter || selectedChapter >= bookData[selectedBook]) return;
-    handleChapterSelect(Number(selectedChapter) + 1);
+    handleChapterSelect(selectedBook, Number(selectedChapter) + 1);
   };
 
   const handleReaderBookChange = (book) => {
@@ -197,7 +192,7 @@ const EBible = ({ userId }) => {
 
   const handleReaderChapterChange = (chapter) => {
     if (!chapter || !selectedBook) return;
-    handleChapterSelect(Number(chapter));
+    handleChapterSelect(selectedBook, Number(chapter));
     setReaderMenuOpen(false);
   };
 
@@ -208,7 +203,6 @@ const EBible = ({ userId }) => {
     setContent(null);
   };
 
-  // Highlighting handlers
   const toggleHighlight = (verseNum) => {
     if (!selectedBook || !selectedChapter) return;
     const verseKey = `${selectedBook}:${selectedChapter}:${verseNum}`;
@@ -224,7 +218,6 @@ const EBible = ({ userId }) => {
     });
   };
 
-  // Save note for current active chapter
   const handleSaveNote = () => {
     if (!selectedBook || !selectedChapter) return;
     const chapterKey = `${selectedBook}:${selectedChapter}`;
@@ -234,7 +227,6 @@ const EBible = ({ userId }) => {
     }));
   };
 
-  // Helper to extract notes grouped by chapter for a specific book
   const getNotesForBook = (bookName) => {
     const results = [];
     Object.keys(chapterNotes).forEach(key => {
@@ -246,6 +238,26 @@ const EBible = ({ userId }) => {
     return results.sort((a, b) => Number(a.chapter) - Number(b.chapter));
   };
 
+  const allSavedNotes = useMemo(() => {
+    const list = [];
+    Object.keys(chapterNotes).forEach(key => {
+      if (chapterNotes[key]) {
+        const [book, chapter] = key.split(':');
+        list.push({ book, chapter, note: chapterNotes[key] });
+      }
+    });
+    return list;
+  }, [chapterNotes]);
+
+  const allSavedHighlights = useMemo(() => {
+    const list = [];
+    Object.keys(highlights).forEach(key => {
+      const [book, chapter, verse] = key.split(':');
+      list.push({ book, chapter, verse, color: highlights[key] });
+    });
+    return list;
+  }, [highlights]);
+
   const styles = {
     container: { padding: '20px', maxWidth: '1120px', margin: '0 auto', fontFamily: 'serif' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px', marginTop: '20px' },
@@ -254,7 +266,8 @@ const EBible = ({ userId }) => {
     header: { borderBottom: '2px solid #053476', paddingBottom: '10px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
     verse: { marginBottom: '15px', lineHeight: '1.6', fontSize: '18px', padding: '6px', borderRadius: '4px', cursor: 'pointer' },
     verseNum: { fontWeight: 'bold', marginRight: '8px', color: '#64748b', fontSize: '14px' },
-    noteSection: { marginTop: '30px', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }
+    noteSection: { marginTop: '30px', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' },
+    dashboardBox: { marginTop: '30px', padding: '20px', border: '1px solid #cbd5e1', borderRadius: '10px', background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }
   };
 
   if (loading) return <div style={styles.container}>Loading Word...</div>;
@@ -339,6 +352,60 @@ const EBible = ({ userId }) => {
                   </div>
                 </section>
               </div>
+
+              <div style={styles.dashboardBox}>
+                <h3 style={{ margin: '0 0 16px 0', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                  📖 Saved Notes & Highlights
+                </h3>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#0f172a' }}>Saved Notes ({allSavedNotes.length})</h4>
+                    {allSavedNotes.length === 0 ? (
+                      <p style={{ color: '#64748b', fontSize: '14px' }}>No chapter notes saved yet.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
+                        {allSavedNotes.map(({ book, chapter, note }) => (
+                          <div key={`${book}:${chapter}`} style={{ padding: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                            <strong>{book} {chapter}:</strong>
+                            <p style={{ margin: '4px 0 8px 0', fontSize: '14px', color: '#334155' }}>{note}</p>
+                            <button
+                              style={{ fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}
+                              onClick={() => handleChapterSelect(book, chapter)}
+                            >
+                              Go to Chapter →
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#0f172a' }}>Highlighted Verses ({allSavedHighlights.length})</h4>
+                    {allSavedHighlights.length === 0 ? (
+                      <p style={{ color: '#64748b', fontSize: '14px' }}>No highlighted verses yet.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
+                        {allSavedHighlights.map(({ book, chapter, verse, color }) => (
+                          <div key={`${book}:${chapter}:${verse}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: color, border: '1px solid #cbd5e1', display: 'inline-block' }} />
+                              <strong style={{ fontSize: '14px' }}>{book} {chapter}:{verse}</strong>
+                            </div>
+                            <button
+                              style={{ fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}
+                              onClick={() => handleChapterSelect(book, chapter)}
+                            >
+                              Go to Chapter →
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </>
           ) : (
             <>
@@ -348,7 +415,7 @@ const EBible = ({ userId }) => {
                   <button 
                     key={n + 1} 
                     style={styles.chapterBtn}
-                    onClick={() => handleChapterSelect(n + 1)}
+                    onClick={() => handleChapterSelect(selectedBook, n + 1)}
                   >
                     {n + 1}
                   </button>
@@ -356,7 +423,6 @@ const EBible = ({ userId }) => {
                 <button onClick={() => setSelectedBook('')} style={{ ...styles.chapterBtn, background: '#64748b' }}>Back</button>
               </div>
 
-              {/* Display chapter notes for this selected book directly beneath chapter select */}
               <div style={{ ...styles.noteSection, marginTop: '24px' }}>
                 <h4 style={{ margin: '0 0 12px 0' }}>Personal Notes for {selectedBook}</h4>
                 {getNotesForBook(selectedBook).length === 0 ? (
@@ -368,7 +434,7 @@ const EBible = ({ userId }) => {
                         <strong>Chapter {chapter}:</strong> {note}
                         <button 
                           style={{ marginLeft: '12px', fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-                          onClick={() => handleChapterSelect(chapter)}
+                          onClick={() => handleChapterSelect(selectedBook, chapter)}
                         >
                           Go to Chapter
                         </button>
@@ -387,7 +453,6 @@ const EBible = ({ userId }) => {
           <h3 style={{ textAlign: 'center', fontSize: '24px', margin: '0 0 4px 0' }}>{content.reference}</h3>
           <p style={{ textAlign: 'center', fontSize: '14px', color: '#475569', marginTop: '6px' }}>Translation: {versionLabel}</p>
 
-          {/* Highlight Color Picker Bar */}
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '16px' }}>
             <span style={{ fontSize: '14px', fontWeight: 'bold' }}>Highlight Color:</span>
             {HIGHLIGHT_COLORS.map(c => (
@@ -432,7 +497,6 @@ const EBible = ({ userId }) => {
             })}
           </div>
 
-          {/* Chapter Notes Editor */}
           <div style={styles.noteSection}>
             <h4 style={{ marginTop: 0, marginBottom: '8px' }}>Personal Note for {selectedBook} Chapter {selectedChapter}</h4>
             <textarea
