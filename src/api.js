@@ -65,7 +65,16 @@ export const api = {
   sendChatMessage: (conversationId, messageData, userId) => apiClient.post(`/api/chat/conversations/${conversationId}/messages`, messageData, {
     headers: { 'x-user-id': userId }
   }),
-
+  addChatMembers: (conversationId, memberIds, userId) => apiClient.post(`/api/chat/conversations/${conversationId}/members`, { memberIds }, {
+    headers: { 'x-user-id': userId }
+  }),
+  removeChatMember: (conversationId, memberId, userId) => apiClient.delete(`/api/chat/conversations/${conversationId}/members/${memberId}`, {
+    headers: { 'x-user-id': userId }
+  }),
+  transferChatOwnership: (conversationId, newOwnerId, userId) => apiClient.patch(`/api/chat/conversations/${conversationId}/owner`, { newOwnerId }, {
+    headers: { 'x-user-id': userId }
+  }),
+  
   // Events
   getEvents: () => apiClient.get('/api/events'), 
   getLocations: () => apiClient.get('/api/locations'),

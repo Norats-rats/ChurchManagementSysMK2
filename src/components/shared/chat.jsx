@@ -16,6 +16,9 @@ const Chat = ({ user }) => {
   const [newTitle, setNewTitle] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
+  const [showParticipantModal, setShowParticipantModal] = useState(false);
+  const [addMemberSearch, setAddMemberSearch] = useState('');
+  const [membersToAdd, setMembersToAdd] = useState([]);
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -29,6 +32,15 @@ const Chat = ({ user }) => {
     if (!query) return otherMembers;
     return otherMembers.filter(member => `${getFullName(member)} ${member.email || ''}`.toLowerCase().includes(query));
   }, [memberSearch, otherMembers]);
+
+  const availableToAdd = useMemo(() => {
+    if (!selectedConversation?.participants) return [];
+    const participantIds = new Set(selectedConversation.participants.map(p => String(p._id || p)));
+    const remaining = members.filter(m => !participantIds.has(String(m._id)));
+    const query = addMemberSearch.trim().toLowerCase();
+    if (!query) return remaining;
+    return remaining.filter(m => `${getFullName(m)} ${m.email || ''}`.toLowerCase().includes(query));
+  }, [members, selectedConversation, addMemberSearch]);
 
   const loadConversations = useCallback(async (keepSelection = true) => {
     try {
@@ -86,6 +98,37 @@ const Chat = ({ user }) => {
       clearInterval(conversationTimer);
     };
   }, [loadConversations, loadMessages, selectedId]);
+
+  const handleAddMembers = async () => {
+    if (!membersToAdd.length || !selectedId) return;
+    try {
+      await api.addChatMembers(selectedId, membersToAdd, user._id);
+      setMembersToAdd([]);
+      await loadConversations();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to add members.');
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!selectedId) return;
+    try {
+      await api.removeChatMember(selectedId, memberId, user._id);
+      await loadConversations();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to remove member.');
+    }
+  };
+
+  const handleTransferOwnership = async (newOwnerId) => {
+    if (!selectedId) return;
+    try {
+      await api.transferChatOwnership(selectedId, newOwnerId, user._id);
+      await loadConversations();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to transfer ownership.');
+    }
+  };
 
   const createConversation = async (event) => {
     event.preventDefault();
@@ -222,7 +265,65 @@ const Chat = ({ user }) => {
         <main className="chat-panel">
           {selectedConversation ? (
             <>
-              <div className="chat-panel-heading"><div><span className="chat-eyebrow">{selectedConversation.type === 'public' ? 'Public forum' : selectedConversation.type === 'group' ? 'Group chat' : 'Private message'}</span><h2>{conversationLabel(selectedConversation)}</h2></div><span>{selectedConversation.participants?.length || 'All'} participants</span></div>
+              <div className="chat-panel-heading">
+                <div>
+                  <span className="chat-eyebrow">{selectedConversation.type === 'public' ? 'Public forum' : selectedConversation.type === 'group' ? 'Group chat' : 'Private message'}</span>
+                  <h2>{conversationLabel(selectedConversation)}</h2>
+                </div>
+                {selectedConversation.type === 'group' && (
+                  <button type="button" className="chat-primary-button" onClick={() => setShowParticipantModal(!showParticipantModal)}>
+                    {selectedConversation.participants?.length || 0} participants / Manage
+                  </button>
+                )}
+              </div>
+
+              {showParticipantModal && selectedConversation.type === 'group' && (
+                <div className="chat-participants-panel" style={{ padding: '1rem', borderBottom: '1px solid #ccc', background: '#f9f9f9' }}>
+                  <h3>Group Members</h3>
+                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                    {selectedConversation.participants?.map(p => (
+                      <li key={p._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span>
+                          {getFullName(p)} {String(selectedConversation.owner) === String(p._id) ? '👑 (Owner)' : ''}
+                        </span>
+                        <div>
+                          {String(selectedConversation.owner) !== String(p._id) && (
+                            <button type="button" onClick={() => handleTransferOwnership(p._id)} style={{ marginRight: '6px' }}>
+                              Make Owner
+                            </button>
+                          )}
+                          <button type="button" onClick={() => handleRemoveMember(p._id)}>
+                            Remove
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <h4>Add Members</h4>
+                  <input
+                    value={addMemberSearch}
+                    onChange={e => setAddMemberSearch(e.target.value)}
+                    placeholder="Search non-participants..."
+                  />
+                  <div style={{ maxHeight: '120px', overflowY: 'auto', margin: '8px 0' }}>
+                    {availableToAdd.map(m => (
+                      <label key={m._id} style={{ display: 'block' }}>
+                        <input
+                          type="checkbox"
+                          checked={membersToAdd.includes(m._id)}
+                          onChange={() => setMembersToAdd(prev => prev.includes(m._id) ? prev.filter(id => id !== m._id) : [...prev, m._id])}
+                        />
+                        {getFullName(m)}
+                      </label>
+                    ))}
+                  </div>
+                  <button type="button" className="chat-primary-button" onClick={handleAddMembers} disabled={!membersToAdd.length}>
+                    Add Selected Members
+                  </button>
+                </div>
+              )}
+
               <div className="chat-messages" aria-live="polite">
                 {messagesLoading && !messages.length ? <p className="chat-muted">Loading messages...</p> : messages.length ? messages.map(message => {
                   const mine = String(message.senderId) === String(user._id);

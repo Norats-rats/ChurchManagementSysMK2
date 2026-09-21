@@ -182,6 +182,7 @@ const ChatConversation = mongoose.model('chatconversations', new mongoose.Schema
   type: { type: String, enum: ['public', 'group', 'direct'], required: true },
   title: { type: String, required: true, trim: true, maxlength: 80 },
   createdBy: { type: String, required: true },
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'members' },
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'members' }]
 }, { timestamps: true }));
 
@@ -550,6 +551,7 @@ app.post('/api/chat/conversations', async (req, res) => {
       type,
       title: type === 'direct' ? 'Private conversation' : String(title).trim(),
       createdBy: String(member._id),
+      owner: member._id, // Set initial owner
       participants: ids
     });
     res.status(201).json(conversation);
@@ -612,6 +614,79 @@ app.post('/api/chat/conversations/:id/messages', async (req, res) => {
     res.status(400).json({ message: 'Unable to send message.' });
   }
 });
+
+app.post('/api/chat/conversations/:id/members', async (req, res) => {
+  try {
+    const member = await getChatMember(req);
+    if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+    const { memberIds } = req.body;
+    
+    const conversation = await ChatConversation.findOne({
+      _id: req.params.id,
+      type: 'group',
+      participants: member._id
+    });
+    if (!conversation) return res.status(404).json({ message: 'Group chat not found.' });
+
+    const updated = await ChatConversation.findByIdAndUpdate(
+      req.params.id,
+      { $addToSet: { participants: { $in: memberIds } } },
+      { new: true }
+    ).populate('participants', 'firstName lastName email profilePicture');
+
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ message: 'Failed to add members.' });
+  }
+});
+
+app.delete('/api/chat/conversations/:id/members/:memberId', async (req, res) => {
+  try {
+    const member = await getChatMember(req);
+    if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+    
+    const conversation = await ChatConversation.findOne({
+      _id: req.params.id,
+      type: 'group',
+      participants: member._id
+    });
+    if (!conversation) return res.status(404).json({ message: 'Group chat not found.' });
+
+    const updated = await ChatConversation.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { participants: req.params.memberId } },
+      { new: true }
+    ).populate('participants', 'firstName lastName email profilePicture');
+
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ message: 'Failed to remove member.' });
+  }
+});
+
+app.patch('/api/chat/conversations/:id/owner', async (req, res) => {
+  try {
+    const member = await getChatMember(req);
+    if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+    const { newOwnerId } = req.body;
+
+    const conversation = await ChatConversation.findOne({
+      _id: req.params.id,
+      type: 'group',
+      participants: member._id
+    });
+    if (!conversation) return res.status(404).json({ message: 'Group chat not found.' });
+
+    conversation.owner = newOwnerId;
+    await conversation.save();
+    const updated = await ChatConversation.findById(conversation._id).populate('participants', 'firstName lastName email profilePicture');
+
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ message: 'Failed to transfer ownership.' });
+  }
+});
+
 
 //inventory routes
 app.post('/api/inventory', async (req, res) => {
