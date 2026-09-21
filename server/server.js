@@ -191,7 +191,10 @@ const ChatMessage = mongoose.model('chatmessages', new mongoose.Schema({
   senderName: { type: String, required: true, trim: true },
   senderProfilePicture: { type: String, default: '' },
   text: { type: String, default: '', trim: true, maxlength: 2000 },
-  imageData: { type: String, default: '' }
+  imageData: { type: String, default: '' },
+  attachmentData: { type: String, default: '' },
+  attachmentName: { type: String, default: '', trim: true, maxlength: 180 },
+  attachmentType: { type: String, default: '', trim: true, maxlength: 120 }
 }, { timestamps: true }));
 
 const Event = mongoose.model('events', new mongoose.Schema({
@@ -581,18 +584,25 @@ app.post('/api/chat/conversations/:id/messages', async (req, res) => {
     });
     const text = String(req.body.text || '').trim();
     const imageData = String(req.body.imageData || '');
-    const validImage = /^data:image\/(png|jpe?g|gif|webp);base64,[a-zA-Z0-9+/=]+$/.test(imageData);
+    const attachmentData = String(req.body.attachmentData || imageData);
+    const attachmentName = String(req.body.attachmentName || '');
+    const attachmentType = String(req.body.attachmentType || 'application/octet-stream');
+    const validAttachment = /^data:[^;,]+;base64,[a-zA-Z0-9+/=]+$/.test(attachmentData);
+    const isImage = /^image\//i.test(attachmentType);
     if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
-    if (!text && !imageData) return res.status(400).json({ message: 'Add a message or image before sending.' });
+    if (!text && !attachmentData) return res.status(400).json({ message: 'Add a message or attachment before sending.' });
     if (text.length > 2000) return res.status(400).json({ message: 'Message must contain 1 to 2000 characters.' });
-    if (imageData && (!validImage || imageData.length > 7 * 1024 * 1024)) return res.status(400).json({ message: 'Images must be PNG, JPG, GIF, or WebP files under 5MB.' });
+    if (attachmentData && (!validAttachment || attachmentData.length > 14 * 1024 * 1024)) return res.status(400).json({ message: 'Attachments must be valid files under 10MB.' });
     const message = await ChatMessage.create({
       conversationId: conversation._id,
       senderId: String(member._id),
       senderName: `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.email,
       senderProfilePicture: member.profilePicture || '',
       text,
-      imageData: validImage ? imageData : ''
+      imageData: validAttachment && isImage ? attachmentData : '',
+      attachmentData: validAttachment ? attachmentData : '',
+      attachmentName: validAttachment ? attachmentName : '',
+      attachmentType: validAttachment ? attachmentType : ''
     });
     conversation.updatedAt = new Date();
     await conversation.save();

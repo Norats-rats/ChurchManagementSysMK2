@@ -11,8 +11,7 @@ const Chat = ({ user }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
-  const [imageDraft, setImageDraft] = useState('');
-  const [imageName, setImageName] = useState('');
+  const [attachmentDraft, setAttachmentDraft] = useState(null);
   const [newType, setNewType] = useState('group');
   const [newTitle, setNewTitle] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
@@ -113,14 +112,18 @@ const Chat = ({ user }) => {
   const sendMessage = async (event) => {
     event.preventDefault();
     const text = draft.trim();
-    if ((!text && !imageDraft) || !selectedId || sending) return;
+    if ((!text && !attachmentDraft) || !selectedId || sending) return;
     setSending(true);
     try {
-      const response = await api.sendChatMessage(selectedId, { text, imageData: imageDraft }, user._id);
+      const response = await api.sendChatMessage(selectedId, {
+        text,
+        attachmentData: attachmentDraft?.data || '',
+        attachmentName: attachmentDraft?.name || '',
+        attachmentType: attachmentDraft?.type || ''
+      }, user._id);
       lastSentAtRef.current = Date.now();
       setDraft('');
-      setImageDraft('');
-      setImageName('');
+      setAttachmentDraft(null);
       if (response.data?._id) {
         setMessages(current => current.some(message => String(message._id) === String(response.data._id))
           ? current
@@ -134,22 +137,22 @@ const Chat = ({ user }) => {
     }
   };
 
-  const handleImageSelected = (event) => {
+  const handleAttachmentSelected = (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) {
-      setError('Please choose a PNG, JPG, GIF, or WebP image.');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Images must be 5MB or smaller.');
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Attachments must be 10MB or smaller.');
       return;
     }
     const reader = new FileReader();
     reader.onload = () => {
-      setImageDraft(String(reader.result || ''));
-      setImageName(file.name);
+      setAttachmentDraft({
+        data: String(reader.result || ''),
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        isImage: file.type.startsWith('image/')
+      });
       setError('');
     };
     reader.readAsDataURL(file);
@@ -223,10 +226,13 @@ const Chat = ({ user }) => {
               <div className="chat-messages" aria-live="polite">
                 {messagesLoading && !messages.length ? <p className="chat-muted">Loading messages...</p> : messages.length ? messages.map(message => {
                   const mine = String(message.senderId) === String(user._id);
-                  return <article className={`chat-message ${mine ? 'mine' : ''}`} key={message._id}><div className="chat-avatar">{message.senderProfilePicture ? <img src={message.senderProfilePicture} alt="" /> : getInitials(message.senderName)}</div><div><div className="chat-message-meta"><strong>{mine ? 'You' : message.senderName}</strong><time>{new Date(message.createdAt).toLocaleString()}</time></div>{message.text && <p>{message.text}</p>}{message.imageData && <img className="chat-message-image" src={message.imageData} alt={`Image sent by ${message.senderName}`} />}</div></article>;
+                  const attachmentData = message.attachmentData || message.imageData;
+                  const attachmentType = message.attachmentType || (message.imageData ? 'image/*' : '');
+                  const attachmentName = message.attachmentName || 'Download attachment';
+                  return <article className={`chat-message ${mine ? 'mine' : ''}`} key={message._id}><div className="chat-avatar">{message.senderProfilePicture ? <img src={message.senderProfilePicture} alt="" /> : getInitials(message.senderName)}</div><div><div className="chat-message-meta"><strong>{mine ? 'You' : message.senderName}</strong><time>{new Date(message.createdAt).toLocaleString()}</time></div>{message.text && <p>{message.text}</p>}{attachmentData && attachmentType.startsWith('image/') ? <img className="chat-message-image" src={attachmentData} alt={attachmentName} /> : attachmentData && <a className="chat-file-link" href={attachmentData} download={attachmentName} target="_blank" rel="noreferrer"><span aria-hidden="true">&#128196;</span><span>{attachmentName}</span></a>}</div></article>;
                 }) : <div className="chat-empty"><strong>Make the first connection.</strong><p>Start the conversation with a thoughtful message.</p></div>}
               </div>
-              <form className="chat-composer" onSubmit={sendMessage}><label className="chat-image-button" title="Attach an image"><span aria-hidden="true">▧</span><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleImageSelected} /></label><div className="chat-composer-fields">{imageName && <div className="chat-image-preview"><img src={imageDraft} alt="Selected attachment" /><span>{imageName}</span><button type="button" onClick={() => { setImageDraft(''); setImageName(''); }}>Remove</button></div>}<textarea value={draft} onChange={event => setDraft(event.target.value)} placeholder="Write a message..." maxLength="2000" rows="2" /></div><button className="chat-primary-button" type="submit" disabled={(!draft.trim() && !imageDraft) || sending}>{sending ? 'Sending...' : 'Send'}</button></form>
+              <form className="chat-composer" onSubmit={sendMessage}><label className="chat-image-button" title="Attach a file"><span aria-hidden="true">&#128206;</span><input type="file" accept="*/*" onChange={handleAttachmentSelected} /></label><div className="chat-composer-fields">{attachmentDraft && <div className="chat-image-preview">{attachmentDraft.isImage ? <img src={attachmentDraft.data} alt="Selected attachment" /> : <span className="chat-file-preview-icon" aria-hidden="true">&#128196;</span>}<span>{attachmentDraft.name}</span><button type="button" onClick={() => setAttachmentDraft(null)}>Remove</button></div>}<textarea value={draft} onChange={event => setDraft(event.target.value)} placeholder="Write a message..." maxLength="2000" rows="2" /></div><button className="chat-primary-button" type="submit" disabled={(!draft.trim() && !attachmentDraft) || sending}>{sending ? 'Sending...' : 'Send'}</button></form>
             </>
           ) : <div className="chat-empty"><strong>Choose a conversation</strong><p>The public forum is available to every active member.</p></div>}
         </main>
