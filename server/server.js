@@ -504,21 +504,14 @@ app.post('/reset-password', async (req, res) => {
 
 // --- COMMUNITY CHAT ROUTES ---
 const getChatMember = async (req) => {
-  const userId = req.headers['x-user-id'];
+  const userId = req.headers['x-user-id'] || req.headers['x-member-id'];
   if (!userId || !mongoose.isValidObjectId(userId)) return null;
-  return Member.findOne({ _id: userId, status: 'Active', isVerified: true }).select('firstName lastName email role profilePicture');
+  return Member.findOne({ 
+    _id: userId, 
+    status: 'Active', 
+    isVerified: true 
+  }).select('firstName lastName email role profilePicture');
 };
-
-async function getChatMember(req) {
-  const userId = req.headers['x-user-id'] || req.headers['x-member-id']; 
-  if (!userId) return null;
-
-  const member = await Member.findById(userId);
-  if (!member || member.status !== 'Active' || !member.isVerified) {
-    return null;
-  }
-  return member;
-}
 
 const ensurePublicConversation = async () => ChatConversation.findOneAndUpdate(
   { type: 'public' },
