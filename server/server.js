@@ -640,6 +640,24 @@ app.post('/api/chat/conversations/:id/members', async (req, res) => {
   }
 });
 
+app.get('/api/chat/conversations/:id/members', async (req, res) => {
+  try {
+    const member = await getChatMember(req);
+    if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+
+    const conversation = await ChatConversation.findOne({
+      _id: req.params.id,
+      participants: member._id
+    }).populate('participants', 'firstName lastName email profilePicture');
+
+    if (!conversation) return res.status(404).json({ message: 'Group chat not found.' });
+
+    res.json(conversation.participants);
+  } catch (err) {
+    res.status(400).json({ message: 'Failed to retrieve group members.' });
+  }
+});
+
 app.delete('/api/chat/conversations/:id/members/:memberId', async (req, res) => {
   try {
     const member = await getChatMember(req);

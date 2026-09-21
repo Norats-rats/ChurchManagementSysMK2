@@ -65,7 +65,8 @@ export const api = {
   sendChatMessage: (conversationId, messageData, userId) => apiClient.post(`/api/chat/conversations/${conversationId}/messages`, messageData, {
     headers: { 'x-user-id': userId }
   }),
-  addChatMembers: (conversationId, memberIds, userId) => apiClient.post(`/api/chat/conversations/${conversationId}/members`, { memberIds }, {
+  addChatMembers: (conversationId, memberIds, userId) => 
+  apiClient.post(`/api/chat/conversations/${conversationId}/members`, { memberIds }, {
     headers: { 'x-user-id': userId }
   }),
   removeChatMember: (conversationId, memberId, userId) => apiClient.delete(`/api/chat/conversations/${conversationId}/members/${memberId}`, {
