@@ -4,7 +4,6 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
   const [bgImage, setBgImage] = useState('');
   const [timeGreeting, setTimeGreeting] = useState('');
 
-  // Stock church images for morning, afternoon, and evening
   const STOCK_IMAGES = {
     morning: 'https://images.unsplash.com/photo-1548625361-180a373be5c6?auto=format&fit=crop&w=1920&q=80',
     afternoon: 'https://images.unsplash.com/photo-1438032005730-c779502df39b?auto=format&fit=crop&w=1920&q=80',
@@ -28,7 +27,6 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
     };
 
     updateTimeBasedTheme();
-    // Refresh time check every minute
     const interval = setInterval(updateTimeBasedTheme, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -40,7 +38,6 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
     }
   };
 
-  // Fallback stock images for events if admin hasn't provided any
   const defaultEvents = [
     { id: 1, title: 'Sunday Worship Service', image: 'https://images.unsplash.com/photo-1510519138161-58441082695c?auto=format&fit=crop&w=600&q=80', date: 'Every Sunday at 9:00 AM' },
     { id: 2, title: 'Community Fellowship', image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=600&q=80', date: 'Wednesdays at 6:30 PM' },
@@ -51,9 +48,8 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
 
   return (
     <div className="landing-page">
-      {/* Navigation Bar */}
       <nav className="landing-nav" style={styles.nav}>
-        <div style={styles.logo}>Grace Church</div>
+        <div style={styles.logo}>Free Believers in Christ Fellowship Taguig</div>
         <div style={styles.navLinks}>
           <button style={styles.navBtn} onClick={() => scrollToSection('events')}>Events</button>
           <button style={styles.navBtn} onClick={() => scrollToSection('contact')}>Contact Us</button>
@@ -61,7 +57,6 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
         </div>
       </nav>
 
-      {/* Hero Section (Dynamically Changing Background) */}
       <header
         style={{
           ...styles.hero,
@@ -78,7 +73,6 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
         </div>
       </header>
 
-      {/* Events Section */}
       <section id="events" style={styles.section}>
         <h2 style={styles.sectionTitle}>Upcoming Events</h2>
         <div style={styles.eventsGrid}>
@@ -94,7 +88,6 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
         </div>
       </section>
 
-      {/* Footer / Contact Us Section */}
       <footer id="contact" style={styles.footer}>
         <div style={styles.footerContent}>
           <div style={styles.footerCol}>
@@ -110,14 +103,13 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
           </div>
         </div>
         <div style={styles.copyright}>
-          <p>&copy; {new Date().getFullYear()} Grace Church. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Free Believers in Christ Fellowship Taguig. All rights reserved.</p>
         </div>
       </footer>
     </div>
   );
 };
 
-// Embedded Basic Layout Styles
 const styles = {
   nav: {
     position: 'fixed',
