@@ -4,6 +4,7 @@ import api from './api';
 import './App.css';
 import churchLogo from './assets/churchlogo.jpg';
 import { useFeedbackModal } from './components/shared/feedbackmodal';
+import LandingPage from './components/shared/landingpage';
 import Signup from './components/shared/signup';
 import { normalizeRole } from './permissions';
 import Dashboard from './roles/admin/dashboard';
@@ -332,7 +333,10 @@ export default function App() {
   return (
     <div className="App">
       <Routes>
-        <Route path="/" element={<Navigate to={userData ? '/home' : '/login'} replace />} />
+        <Route
+          path="/"
+          element={userData ? <Navigate to="/home" replace /> : <LandingPage onOpenAuth={() => navigate('/login')} />}
+        />
         <Route path="/login" element={
           <LoginScreen
             onLoginSuccess={handleLoginSuccess}
