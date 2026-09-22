@@ -216,11 +216,6 @@ const Chat = ({ user }) => {
   return (
     <section className="chat-shell">
       <header className="chat-header">
-        <div>
-          <p className="chat-eyebrow">Fellowship conversations</p>
-          <h1>Community Chat</h1>
-          <p>Share updates publicly, gather a ministry group, or message one member privately.</p>
-        </div>
         <span className="chat-status">{members.length || 'All'} members connected</span>
       </header>
 
