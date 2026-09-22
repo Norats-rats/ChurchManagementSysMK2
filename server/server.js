@@ -623,8 +623,12 @@ app.post('/api/chat/conversations/:id/members', async (req, res) => {
   try {
     const member = await getChatMember(req);
     if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+
     const { memberIds } = req.body;
-    
+    if (!Array.isArray(memberIds) || !memberIds.length) {
+      return res.status(400).json({ message: 'No valid member IDs provided.' });
+    }
+
     const conversation = await ChatConversation.findOne({
       _id: req.params.id,
       type: 'group',
@@ -632,14 +636,23 @@ app.post('/api/chat/conversations/:id/members', async (req, res) => {
     });
     if (!conversation) return res.status(404).json({ message: 'Group chat not found.' });
 
+    const validObjectIds = memberIds
+      .filter(id => mongoose.isValidObjectId(id))
+      .map(id => new mongoose.Types.ObjectId(id));
+
+    if (!validObjectIds.length) {
+      return res.status(400).json({ message: 'Invalid member IDs provided.' });
+    }
+
     const updated = await ChatConversation.findByIdAndUpdate(
       req.params.id,
-      { $addToSet: { participants: { $in: memberIds } } },
+      { $addToSet: { participants: { $each: validObjectIds } } },
       { new: true }
     ).populate('participants', 'firstName lastName email profilePicture');
 
     res.json(updated);
   } catch (err) {
+    console.error('Failed to add members:', err);
     res.status(400).json({ message: 'Failed to add members.' });
   }
 });
