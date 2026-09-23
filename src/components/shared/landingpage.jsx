@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
   const [bgImage, setBgImage] = useState('');
@@ -46,6 +46,17 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
 
   const displayEvents = eventsData.length > 0 ? eventsData : defaultEvents;
 
+  const normalizedEvents = useMemo(
+    () =>
+      displayEvents.map((event, index) => ({
+        key: event.id ?? event._id ?? `${event.title}-${index}`,
+        image: event.image || event.imageUrl || '',
+        title: event.title || 'Church Event',
+        date: event.date || event.description || ''
+      })),
+    [displayEvents]
+  );
+
   return (
     <div className="landing-page">
       <nav className="landing-nav" style={styles.nav}>
@@ -65,7 +76,7 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
       >
         <div style={styles.heroContent}>
           <p style={styles.greeting}>{timeGreeting}</p>
-          <h1 style={styles.heroTitle}>A Place to Belong, Believe, and Become</h1>
+          <h1 style={styles.heroTitle}>A church for FBCFI</h1>
           <div style={styles.heroActionBtns}>
             <button style={styles.primaryHeroBtn} onClick={onOpenAuth}>Join Us Now</button>
             <button style={styles.secondaryHeroBtn} onClick={() => scrollToSection('events')}>View Events</button>
@@ -76,12 +87,12 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
       <section id="events" style={styles.section}>
         <h2 style={styles.sectionTitle}>Upcoming Events</h2>
         <div style={styles.eventsGrid}>
-          {displayEvents.map((event) => (
-            <div key={event.id || event._id} style={styles.eventCard}>
-              <img src={event.image || event.imageUrl} alt={event.title} style={styles.eventImage} />
+          {normalizedEvents.map((event) => (
+            <div key={event.key} style={styles.eventCard}>
+              <img src={event.image} alt={event.title} style={styles.eventImage} />
               <div style={styles.eventDetails}>
                 <h3>{event.title}</h3>
-                <p>{event.date || event.description}</p>
+                <p>{event.date}</p>
               </div>
             </div>
           ))}
