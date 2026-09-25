@@ -687,6 +687,13 @@ app.delete('/api/chat/conversations/:id/members/:memberId', async (req, res) => 
     });
     if (!conversation) return res.status(404).json({ message: 'Group chat not found.' });
 
+    const isOwner = String(conversation.owner || conversation.createdBy) === String(member._id);
+    const isPrivileged = /admin|ministry/i.test(member.role || '');
+    if (!isOwner && !isPrivileged) return res.status(403).json({ message: 'Only the group owner, an admin, or a ministry leader can remove members.' });
+    if (String(conversation.owner) === String(req.params.memberId)) {
+      return res.status(400).json({ message: 'Transfer ownership before removing the current owner.' });
+    }
+
     const updated = await ChatConversation.findByIdAndUpdate(
       req.params.id,
       { $pull: { participants: req.params.memberId } },
@@ -712,6 +719,13 @@ app.patch('/api/chat/conversations/:id/owner', async (req, res) => {
     });
     if (!conversation) return res.status(404).json({ message: 'Group chat not found.' });
 
+    const isOwner = String(conversation.owner || conversation.createdBy) === String(member._id);
+    const isPrivileged = /admin|ministry/i.test(member.role || '');
+    if (!isOwner && !isPrivileged) return res.status(403).json({ message: 'Only the group owner, an admin, or a ministry leader can change ownership.' });
+    if (!conversation.participants.some(p => String(p) === String(newOwnerId))) {
+      return res.status(400).json({ message: 'The new owner must already be a participant.' });
+    }
+
     conversation.owner = newOwnerId;
     await conversation.save();
     const updated = await ChatConversation.findById(conversation._id).populate('participants', 'firstName lastName email profilePicture');
@@ -722,6 +736,28 @@ app.patch('/api/chat/conversations/:id/owner', async (req, res) => {
   }
 });
 
+
+app.delete('/api/chat/conversations/:id', async (req, res) => {
+  try {
+    const member = await getChatMember(req);
+    if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+
+    const conversation = await ChatConversation.findOne({ _id: req.params.id });
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
+    if (conversation.type === 'public') return res.status(403).json({ message: 'The public forum cannot be deleted.' });
+    if (conversation.type !== 'group') return res.status(403).json({ message: 'Only group chats can be deleted.' });
+
+    const isOwner = String(conversation.owner || conversation.createdBy) === String(member._id);
+    if (!isOwner) return res.status(403).json({ message: 'Only the group owner can delete this group.' });
+
+    await ChatMessage.deleteMany({ conversationId: conversation._id });
+    await ChatConversation.findByIdAndDelete(conversation._id);
+    res.json({ message: 'Group deleted.' });
+  } catch (err) {
+    console.error('Failed to delete chat conversation:', err);
+    res.status(400).json({ message: 'Failed to delete group.' });
+  }
+});
 
 //inventory routes
 app.post('/api/inventory', async (req, res) => {

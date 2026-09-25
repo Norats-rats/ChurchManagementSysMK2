@@ -67,15 +67,6 @@ export const api = {
     headers: { 'x-user-id': userId }
   }),
   addChatMembers: (conversationId, memberIds, userId) => 
-    apiClient.post(`/api/chat/conversations/${conversationId}/members`,
-  { memberIds },
-  {
-    headers: {
-      'x-user-id': userId
-    }
-  }
-),
-  addChatMembers: (conversationId, memberIds, userId) => 
   apiClient.post(`/api/chat/conversations/${conversationId}/members`, { memberIds }, {
     headers: { 'x-user-id': userId }
   }),
@@ -83,6 +74,9 @@ export const api = {
     headers: { 'x-user-id': userId }
   }),
   transferChatOwnership: (conversationId, newOwnerId, userId) => apiClient.patch(`/api/chat/conversations/${conversationId}/owner`, { newOwnerId }, {
+    headers: { 'x-user-id': userId }
+  }),
+  deleteChatConversation: (conversationId, userId) => apiClient.delete(`/api/chat/conversations/${conversationId}`, {
     headers: { 'x-user-id': userId }
   }),
   
