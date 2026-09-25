@@ -27,6 +27,7 @@ const Chat = ({ user }) => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const lastSentAtRef = useRef(0);
+  const textareaRef = useRef(null);
   const { askConfirmation, showFeedback, FeedbackModal } = useFeedbackModal();
 
   const normalizedRole = normalizeRole(user?.role);
@@ -121,6 +122,14 @@ const Chat = ({ user }) => {
       clearInterval(conversationTimer);
     };
   }, [loadConversations, loadMessages, selectedId]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [draft]);
 
   const handleAddMembers = async () => {
     if (!membersToAdd.length || !selectedId) return;
@@ -327,7 +336,7 @@ const Chat = ({ user }) => {
                   return <article className={`chat-message ${mine ? 'mine' : ''}`} key={message._id}><div className="chat-avatar">{message.senderProfilePicture ? <img src={message.senderProfilePicture} alt="" /> : getInitials(message.senderName)}</div><div><div className="chat-message-meta"><strong>{mine ? 'You' : message.senderName}</strong><time>{new Date(message.createdAt).toLocaleString()}</time></div>{message.text && <p>{message.text}</p>}{attachmentData && attachmentType.startsWith('image/') ? <img className="chat-message-image" src={attachmentData} alt={attachmentName} /> : attachmentData && <a className="chat-file-link" href={attachmentData} download={attachmentName} target="_blank" rel="noreferrer"><span aria-hidden="true">&#128196;</span><span>{attachmentName}</span></a>}</div></article>;
                 }) : <div className="chat-empty"><strong>Make the first connection.</strong><p>Start the conversation with a thoughtful message.</p></div>}
               </div>
-              <form className="chat-composer" onSubmit={sendMessage}><label className="chat-image-button" title="Attach a file"><span aria-hidden="true">&#128206;</span><input type="file" accept="*/*" onChange={handleAttachmentSelected} /></label><div className="chat-composer-fields">{attachmentDraft && <div className="chat-image-preview">{attachmentDraft.isImage ? <img src={attachmentDraft.data} alt="Selected attachment" /> : <span className="chat-file-preview-icon" aria-hidden="true">&#128196;</span>}<span>{attachmentDraft.name}</span><button type="button" onClick={() => setAttachmentDraft(null)}>Remove</button></div>}<textarea value={draft} onChange={event => setDraft(event.target.value)} placeholder="Write a message..." maxLength="2000" rows="2" /></div><button className="chat-primary-button" type="submit" disabled={(!draft.trim() && !attachmentDraft) || sending}>{sending ? 'Sending...' : 'Send'}</button></form>
+              <form className="chat-composer" onSubmit={sendMessage}><label className="chat-image-button" title="Attach a file"><span aria-hidden="true">&#128206;</span><input type="file" accept="*/*" onChange={handleAttachmentSelected} /></label><div className="chat-composer-fields">{attachmentDraft && <div className="chat-image-preview">{attachmentDraft.isImage ? <img src={attachmentDraft.data} alt="Selected attachment" /> : <span className="chat-file-preview-icon" aria-hidden="true">&#128196;</span>}<span>{attachmentDraft.name}</span><button type="button" onClick={() => setAttachmentDraft(null)}>Remove</button></div>}<textarea ref={textareaRef} value={draft} onChange={event => setDraft(event.target.value)} placeholder="Write a message..." maxLength="2000" rows="1" /></div><button className="chat-primary-button" type="submit" disabled={(!draft.trim() && !attachmentDraft) || sending}>{sending ? 'Sending...' : 'Send'}</button></form>
             </>
           ) : <div className="chat-empty"><strong>Choose a conversation</strong><p>The public forum is available to every active member.</p></div>}
         </main>
