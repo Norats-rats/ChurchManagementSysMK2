@@ -76,9 +76,12 @@ export const api = {
   transferChatOwnership: (conversationId, newOwnerId, userId) => apiClient.patch(`/api/chat/conversations/${conversationId}/owner`, { newOwnerId }, {
     headers: { 'x-user-id': userId }
   }),
-  deleteChatConversation: (conversationId, userId) => apiClient.delete(`/api/chat/conversations/${conversationId}`, {
-    headers: { 'x-user-id': userId }
-  }),
+   deleteChatConversation: (conversationId, userId) => apiClient.delete(`/api/chat/conversations/${conversationId}`, {
+     headers: { 'x-user-id': userId }
+   }),
+   updateChatConversation: (conversationId, updateData, userId) => apiClient.patch(`/api/chat/conversations/${conversationId}`, updateData, {
+     headers: { 'x-user-id': userId }
+   }),
   
   // Events
   getEvents: () => apiClient.get('/api/events'), 

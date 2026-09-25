@@ -181,6 +181,7 @@ const Member = mongoose.model('members', new mongoose.Schema({
 const ChatConversation = mongoose.model('chatconversations', new mongoose.Schema({
   type: { type: String, enum: ['public', 'group', 'direct'], required: true },
   title: { type: String, required: true, trim: true, maxlength: 80 },
+  icon: { type: String, default: '' },
   createdBy: { type: String, required: true },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'members' },
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'members' }]
@@ -760,6 +761,37 @@ app.delete('/api/chat/conversations/:id', async (req, res) => {
   } catch (err) {
     console.error('Failed to delete chat conversation:', err);
     res.status(400).json({ message: 'Failed to delete conversation.' });
+  }
+});
+
+app.patch('/api/chat/conversations/:id', async (req, res) => {
+  try {
+    const member = await getChatMember(req);
+    if (!member) return res.status(401).json({ message: 'Active member access is required.' });
+
+    const conversation = await ChatConversation.findOne({ _id: req.params.id });
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
+    if (conversation.type === 'public') return res.status(403).json({ message: 'The public forum cannot be modified.' });
+
+    const isOwner = String(conversation.owner || conversation.createdBy) === String(member._id);
+    const isPrivileged = /admin|ministry/i.test(member.role || '');
+    if (!isOwner && !isPrivileged) return res.status(403).json({ message: 'Only the group owner, an admin, or a ministry leader can modify this group.' });
+
+    const { title, icon } = req.body;
+    if (title !== undefined) {
+      if (!String(title || '').trim()) return res.status(400).json({ message: 'Group name cannot be empty.' });
+      if (String(title).length > 80) return res.status(400).json({ message: 'Group name must be 80 characters or fewer.' });
+      conversation.title = String(title).trim();
+    }
+    if (icon !== undefined) {
+      conversation.icon = String(icon || '');
+    }
+    await conversation.save();
+    const updated = await ChatConversation.findById(conversation._id).populate('participants', 'firstName lastName email profilePicture');
+    res.json(updated);
+  } catch (err) {
+    console.error('Failed to update chat conversation:', err);
+    res.status(400).json({ message: 'Failed to update group.' });
   }
 });
 

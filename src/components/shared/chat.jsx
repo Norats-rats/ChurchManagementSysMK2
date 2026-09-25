@@ -26,6 +26,10 @@ const Chat = ({ user }) => {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [showEditGroupModal, setShowEditGroupModal] = useState(false);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupIcon, setEditGroupIcon] = useState('');
+  const [newGroupIcon, setNewGroupIcon] = useState('');
   const lastSentAtRef = useRef(0);
   const textareaRef = useRef(null);
   const { askConfirmation, showFeedback, FeedbackModal } = useFeedbackModal();
@@ -188,6 +192,50 @@ const Chat = ({ user }) => {
     });
   };
 
+  const handleGroupIconSelected = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > 100 * 1024) {
+      setError('Group icon must be 100KB or smaller.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditGroupIcon(String(reader.result || ''));
+      setError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCreateIconSelected = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > 100 * 1024) {
+      setError('Group icon must be 100KB or smaller.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setNewGroupIcon(String(reader.result || ''));
+      setError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUpdateGroup = async () => {
+    if (!selectedId || !editGroupName.trim()) return;
+    try {
+      await api.updateChatConversation(selectedId, { title: editGroupName.trim(), icon: editGroupIcon }, user._id);
+      await loadConversations();
+      setShowEditGroupModal(false);
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to update group.');
+    }
+  };
+
   const createConversation = async (event) => {
     event.preventDefault();
     const participantIds = selectedMembers.map(member => member._id);
@@ -197,9 +245,11 @@ const Chat = ({ user }) => {
       const response = await api.createChatConversation({
         type: newType,
         title: newTitle.trim(),
+        icon: newGroupIcon,
         participantIds
       }, user._id);
       setNewTitle('');
+      setNewGroupIcon('');
       setMemberSearch('');
       setSelectedMembers([]);
       await loadConversations(false);
@@ -296,7 +346,7 @@ const Chat = ({ user }) => {
                   onClick={() => setSelectedId(conversation._id)}
                 >
                   <span className="chat-conversation-content">
-                    <span className="chat-conversation-icon">{conversation.type === 'public' ? '◎' : conversation.type === 'direct' ? '↗' : '◌'}</span>
+                    <span className="chat-conversation-icon">{conversation.icon ? <img className="chat-conversation-group-icon" src={conversation.icon} alt="" /> : (conversation.type === 'public' ? '◎' : conversation.type === 'direct' ? '↗' : '◌')}</span>
                     <span><strong>{conversationLabel(conversation)}</strong><small>{conversation.type === 'public' ? 'Open forum' : conversation.type === 'direct' ? 'Private' : 'Group chat'}</small></span>
                   </span>
                   {canDeleteItem && (
@@ -323,8 +373,16 @@ const Chat = ({ user }) => {
               <div className="chat-panel-heading">
                 <div>
                   <span className="chat-eyebrow">{selectedConversation.type === 'public' ? 'Public forum' : selectedConversation.type === 'group' ? 'Group chat' : 'Private message'}</span>
-                  <h2>{conversationLabel(selectedConversation)}</h2>
+                  <h2>
+                    {selectedConversation.icon ? <img className="chat-group-icon" src={selectedConversation.icon} alt="" /> : ''}
+                    {conversationLabel(selectedConversation)}
+                  </h2>
                 </div>
+                {selectedConversation.type === 'group' && (isGroupOwner || isPrivilegedRole) && (
+                  <button type="button" className="chat-edit-group-button" title="Edit group" onClick={() => { setEditGroupName(selectedConversation.title); setEditGroupIcon(selectedConversation.icon || ''); setShowEditGroupModal(true); }}>
+                    ⚙
+                  </button>
+                )}
               </div>
 
               <div className="chat-messages" aria-live="polite">
@@ -437,7 +495,17 @@ const Chat = ({ user }) => {
                 <button type="button" className={newType === 'group' ? 'active' : ''} onClick={() => setNewType('group')}>Group</button>
                 <button type="button" className={newType === 'direct' ? 'active' : ''} onClick={() => setNewType('direct')}>Private</button>
               </div>
-              {newType === 'group' && <input value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Group name" maxLength="80" />}
+              {newType === 'group' && (
+                <>
+                  <div className="chat-icon-upload-row">
+                    <label className="chat-icon-upload-label">
+                      <span className="chat-icon-preview">{newGroupIcon ? <img src={newGroupIcon} alt="Group icon" /> : '🏷'}</span>
+                      <input type="file" accept="image/*" onChange={handleCreateIconSelected} />
+                    </label>
+                  </div>
+                  <input value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Group name" maxLength="80" />
+                </>
+              )}
               <input className="chat-member-search" value={memberSearch} onChange={event => setMemberSearch(event.target.value)} placeholder="Search members by name or email" aria-label="Search members" />
               <div className="chat-member-picker">
                 {filteredMembers.length ? filteredMembers.map(member => (
@@ -450,6 +518,36 @@ const Chat = ({ user }) => {
               </div>
               <button className="chat-primary-button" type="submit">Create {newType === 'group' ? 'group' : 'private chat'}</button>
             </form>
+          </div>
+        </div>
+      )}
+      {showEditGroupModal && (
+        <div className="chat-add-modal-overlay" role="presentation" onClick={() => setShowEditGroupModal(false)}>
+          <div className="chat-add-modal" role="dialog" aria-modal="true" aria-label="Edit group" onClick={event => event.stopPropagation()}>
+            <div className="chat-create-modal-header">
+              <h3>Edit group</h3>
+              <button type="button" onClick={() => setShowEditGroupModal(false)}>×</button>
+            </div>
+            <div className="chat-icon-upload-row">
+              <label className="chat-icon-upload-label">
+                <span className="chat-icon-preview">{editGroupIcon ? <img src={editGroupIcon} alt="Group icon" /> : '🏷'}</span>
+                <input type="file" accept="image/*" onChange={handleGroupIconSelected} />
+              </label>
+            </div>
+            <input
+              value={editGroupName}
+              onChange={e => setEditGroupName(e.target.value)}
+              placeholder="Group name"
+              maxLength="80"
+            />
+            <div className="chat-modal-actions">
+              <button type="button" className="chat-primary-button" onClick={handleUpdateGroup} disabled={!editGroupName.trim()}>
+                Save
+              </button>
+              <button type="button" className="chat-cancel-button" onClick={() => setShowEditGroupModal(false)}>
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

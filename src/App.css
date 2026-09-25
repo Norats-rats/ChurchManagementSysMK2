@@ -1478,7 +1478,7 @@ body, .App {
 .chat-error { margin-bottom: 14px; padding: 11px 14px; border: 1px solid #fecaca; border-radius: 8px; background: #fff1f2; color: #b91c1c; }
 .chat-layout { display: grid; grid-template-columns: minmax(230px, 285px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 650px; overflow: hidden; border: 1px solid #dce7e4; border-radius: 14px; background: #fff; box-shadow: 0 12px 32px rgba(16, 42, 67, .08); position: relative; }
 .chat-layout-discord { grid-template-columns: minmax(210px, 260px) minmax(0, 1fr) minmax(210px, 260px); }
-.chat-sidebar { display: flex; flex-direction: column; min-height: 0; gap: 8px; padding: 18px 12px; border-right: 1px solid #e2e8f0; background: #f7faf9; overflow-y: auto; }
+.chat-sidebar { display: flex; flex-direction: column; min-height: 0; gap: 8px; padding: 18px 12px; border-right: 1px solid #e2e8f0; background: #f7faf9; overflow-y: auto; overflow-x: hidden; }
 .chat-sidebar-heading { display: flex; justify-content: space-between; padding: 2px 8px 8px; color: #334155; }
 .chat-sidebar-heading span { color: #087f5b; }
 .chat-conversation { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 9px; border: 0; border-radius: 8px; background: transparent; color: #334155; text-align: left; cursor: pointer; position: relative; }
@@ -1486,6 +1486,15 @@ body, .App {
 .chat-conversation-content { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .chat-conversation-delete { display: none; flex: 0 0 auto; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 5px; background: transparent; color: #ef4444; cursor: pointer; font-size: 15px; opacity: 0.6; transition: opacity 160ms ease, color 160ms ease; }
 .chat-conversation:hover .chat-conversation-delete, .chat-conversation-delete:hover { display: grid; opacity: 1; color: #ef4444; }
+.chat-conversation-content { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.chat-conversation-group-icon { width: 24px; height: 24px; flex: 0 0 24px; border-radius: 6px; object-fit: cover; }
+.chat-group-icon { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; margin-right: 8px; vertical-align: middle; }
+.chat-edit-group-button { min-width: 36px; height: 34px; padding: 0 8px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #475569; cursor: pointer; font-size: 15px; }
+.chat-edit-group-button:hover { background: #f1f5f9; }
+.chat-icon-upload-row { display: flex; justify-content: flex-start; padding: 4px 0 4px; }
+.chat-icon-upload-label { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; color: #64748b; cursor: pointer; font-size: 22px; overflow: hidden; }
+.chat-icon-upload-label:hover { border-color: #087f5b; color: #087f5b; }
+.chat-icon-preview img { width: 100%; height: 100%; border-radius: 6px; object-fit: cover; }
 .chat-conversation-icon { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border-radius: 8px; background: #d7eee5; color: #087f5b; font-size: 18px; }
 .chat-conversation strong, .chat-conversation small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-conversation small { margin-top: 3px; color: #78909c; font-size: 11px; }
@@ -1507,7 +1516,7 @@ body, .App {
 .chat-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; }
 .chat-panel-heading h2 { font-size: 20px; }
 .chat-panel-heading > span { color: #64748b; font-size: 12px; }
-.chat-messages { display: flex; flex: 1; flex-direction: column; gap: 17px; min-height: 0; max-height: 520px; overflow-y: auto; padding: 22px; background: #fbfdfc; }
+.chat-messages { display: flex; flex: 1; flex-direction: column; gap: 17px; min-height: 0; max-height: 520px; overflow-y: auto; overflow-x: hidden; padding: 22px; background: #fbfdfc; text-align: left; }
 .chat-message { display: flex; align-items: flex-start; gap: 10px; max-width: min(720px, 90%); }
 .chat-message.mine { align-self: flex-end; flex-direction: row-reverse; }
 .chat-avatar { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 50%; background: #d7eee5; color: #075e45; font-size: 11px; font-weight: 800; }
@@ -1516,7 +1525,7 @@ body, .App {
 .chat-message-meta { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; font-size: 12px; }
 .chat-message-meta time { color: #94a3b8; font-size: 10px; }
 .chat-message.mine .chat-message-meta time { color: #b8ead7; }
-.chat-message p { margin: 0; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.chat-message p { margin: 0; line-height: 1.45; white-space: pre-wrap; word-break: break-word; text-align: left; }
 .chat-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .chat-message-image { display: block; max-width: min(360px, 100%); max-height: 320px; margin-top: 8px; border-radius: 8px; object-fit: contain; }
 .chat-file-link { display: flex; align-items: center; gap: 8px; max-width: 320px; margin-top: 8px; padding: 9px 11px; border: 1px solid #cde7dc; border-radius: 7px; background: #f2fbf7; color: #075e45; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
@@ -1540,7 +1549,7 @@ body, .App {
 .chat-danger-button:hover { background: #fee2e2; }
 
 .chat-members-sidebar { display: flex; flex-direction: column; min-height: 0; gap: 8px; padding: 18px 12px; border-left: 1px solid #e2e8f0; background: #f7faf9; overflow: hidden; }
-.chat-members-scroll { flex: 1; min-height: 0; max-height: 420px; overflow-y: auto; }
+.chat-members-scroll { flex: 1; min-height: 0; max-height: 420px; overflow-y: auto; overflow-x: hidden; }
 .chat-members-list { display: flex; flex-direction: column; gap: 2px; }
 .chat-member-row { position: relative; display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: 8px; }
 .chat-member-row:hover { background: #eef6f2; }
@@ -1593,3 +1602,5 @@ body, .App {
 .theme-dark .chat-cancel-button { background: #0b1220; color: #e6eef8; border-color: rgba(255,255,255,0.06); }
 .theme-dark .chat-add-modal .chat-member-search { background: rgba(255,255,255,0.06); color: #e6eef8; border-color: rgba(255,255,255,0.06); }
 .theme-dark .chat-add-members-list { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.06); }
+.theme-dark .chat-edit-group-button { background: #0b1220; color: #e6eef8; border-color: rgba(255,255,255,0.06); }
+.theme-dark .chat-icon-upload-label { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.06); color: #93c5fd; }
