@@ -745,17 +745,21 @@ app.delete('/api/chat/conversations/:id', async (req, res) => {
     const conversation = await ChatConversation.findOne({ _id: req.params.id });
     if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
     if (conversation.type === 'public') return res.status(403).json({ message: 'The public forum cannot be deleted.' });
-    if (conversation.type !== 'group') return res.status(403).json({ message: 'Only group chats can be deleted.' });
 
-    const isOwner = String(conversation.owner || conversation.createdBy) === String(member._id);
-    if (!isOwner) return res.status(403).json({ message: 'Only the group owner can delete this group.' });
+    if (conversation.type === 'group') {
+      const isOwner = String(conversation.owner || conversation.createdBy) === String(member._id);
+      if (!isOwner) return res.status(403).json({ message: 'Only the group owner can delete this group.' });
+    } else if (conversation.type === 'direct') {
+      const isParticipant = conversation.participants.some(p => String(p) === String(member._id));
+      if (!isParticipant) return res.status(403).json({ message: 'Only participants can delete this conversation.' });
+    }
 
     await ChatMessage.deleteMany({ conversationId: conversation._id });
     await ChatConversation.findByIdAndDelete(conversation._id);
-    res.json({ message: 'Group deleted.' });
+    res.json({ message: conversation.type === 'group' ? 'Group deleted.' : 'Conversation deleted.' });
   } catch (err) {
     console.error('Failed to delete chat conversation:', err);
-    res.status(400).json({ message: 'Failed to delete group.' });
+    res.status(400).json({ message: 'Failed to delete conversation.' });
   }
 });
 

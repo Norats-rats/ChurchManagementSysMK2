@@ -19,7 +19,7 @@ const Chat = ({ user }) => {
   const [memberSearch, setMemberSearch] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showParticipantModal, setShowParticipantModal] = useState(false);
+  const [showAddMembersPanel, setShowAddMembersPanel] = useState(false);
   const [addMemberSearch, setAddMemberSearch] = useState('');
   const [membersToAdd, setMembersToAdd] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,9 +35,21 @@ const Chat = ({ user }) => {
   const selectedConversation = conversations.find(item => String(item._id) === String(selectedId));
   const isGroupOwner = selectedConversation?.type === 'group' && String(selectedConversation.owner) === String(user?._id);
   const canManageParticipants = selectedConversation?.type === 'group' && (isGroupOwner || isPrivilegedRole);
-  const canDeleteGroup = isGroupOwner;
+
   const activeMembers = useMemo(() => members.filter(member => !member.status || member.status === 'Active'), [members]);
   const otherMembers = useMemo(() => members.filter(member => String(member._id) !== String(user?._id)), [members, user?._id]);
+
+  // Members shown in the right-hand sidebar depend on the open conversation type:
+  // public -> everyone active, group -> only that group's participants, direct -> hidden entirely.
+  const sidebarMembers = useMemo(() => {
+    if (!selectedConversation) return [];
+    if (selectedConversation.type === 'public') return activeMembers;
+    if (selectedConversation.type === 'group') {
+      const participantIds = new Set((selectedConversation.participants || []).map(p => String(p._id || p)));
+      return activeMembers.filter(member => participantIds.has(String(member._id)));
+    }
+    return [];
+  }, [selectedConversation, activeMembers]);
   const filteredMembers = useMemo(() => {
     const query = memberSearch.trim().toLowerCase();
     if (!query) return otherMembers;
@@ -145,15 +157,24 @@ const Chat = ({ user }) => {
     });
   };
 
-  const handleDeleteConversation = () => {
-    if (!selectedId || !selectedConversation) return;
-    askConfirmation('Delete this group for everyone? This cannot be undone.', async () => {
+  const handleDeleteConversationItem = (conversation) => {
+    if (!conversation?._id) return;
+    const isGroup = conversation.type === 'group';
+    const isDirect = conversation.type === 'direct';
+    if (!isGroup && !isDirect) return;
+
+    const confirmMessage = isGroup
+      ? 'Delete this group for everyone? This cannot be undone.'
+      : 'Delete this conversation? It will be removed for everyone.';
+    const successMessage = isGroup ? 'Group deleted.' : 'Conversation deleted.';
+
+    askConfirmation(confirmMessage, async () => {
       try {
-        await api.deleteChatConversation(selectedId, user._id);
+        await api.deleteChatConversation(conversation._id, user._id);
         await loadConversations(false);
-        showFeedback('Group deleted.');
+        showFeedback(successMessage);
       } catch (err) {
-        setError(err.response?.data?.message || 'Unable to delete group.');
+        setError(err.response?.data?.message || 'Unable to delete conversation.');
       }
     });
   };
@@ -254,17 +275,37 @@ const Chat = ({ user }) => {
       <div className="chat-layout chat-layout-discord">
         <aside className="chat-sidebar">
           <div className="chat-sidebar-heading"><strong>Conversations</strong><span>{conversations.length}</span></div>
-          {loading ? <p className="chat-muted">Loading conversations...</p> : conversations.map(conversation => (
-            <button
-              type="button"
-              key={conversation._id}
-              className={`chat-conversation ${String(selectedId) === String(conversation._id) ? 'active' : ''}`}
-              onClick={() => setSelectedId(conversation._id)}
-            >
-              <span className="chat-conversation-icon">{conversation.type === 'public' ? '◎' : conversation.type === 'direct' ? '↗' : '◌'}</span>
-              <span><strong>{conversationLabel(conversation)}</strong><small>{conversation.type === 'public' ? 'Open forum' : conversation.type === 'direct' ? 'Private' : 'Group chat'}</small></span>
-            </button>
-          ))}
+            {loading ? <p className="chat-muted">Loading conversations...</p> : conversations.map((conversation) => {
+              const canDeleteItem = conversation.type !== 'public' && (
+                (conversation.type === 'group' && String(conversation.owner) === String(user?._id)) ||
+                (conversation.type === 'direct' && (conversation.participants || []).some(p => String(p._id || p) === String(user?._id)))
+              );
+              return (
+                <div
+                  key={conversation._id}
+                  className={`chat-conversation ${String(selectedId) === String(conversation._id) ? 'active' : ''}`}
+                  onClick={() => setSelectedId(conversation._id)}
+                >
+                  <span className="chat-conversation-content">
+                    <span className="chat-conversation-icon">{conversation.type === 'public' ? '◎' : conversation.type === 'direct' ? '↗' : '◌'}</span>
+                    <span><strong>{conversationLabel(conversation)}</strong><small>{conversation.type === 'public' ? 'Open forum' : conversation.type === 'direct' ? 'Private' : 'Group chat'}</small></span>
+                  </span>
+                  {canDeleteItem && (
+                    <button
+                      type="button"
+                      className="chat-conversation-delete"
+                      title={conversation.type === 'group' ? 'Delete group' : 'Delete conversation'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteConversationItem(conversation);
+                      }}
+                    >
+                      🗑
+                    </button>
+                  )}
+                </div>
+              );
+            })}
         </aside>
 
         <main className="chat-panel">
@@ -275,74 +316,7 @@ const Chat = ({ user }) => {
                   <span className="chat-eyebrow">{selectedConversation.type === 'public' ? 'Public forum' : selectedConversation.type === 'group' ? 'Group chat' : 'Private message'}</span>
                   <h2>{conversationLabel(selectedConversation)}</h2>
                 </div>
-                {selectedConversation.type === 'group' && (
-                  <div className="chat-panel-actions">
-                    <button type="button" className="chat-primary-button" onClick={() => setShowParticipantModal(!showParticipantModal)}>
-                      {selectedConversation.participants?.length || 0} participants / Manage
-                    </button>
-                    {canDeleteGroup && (
-                      <button type="button" className="chat-danger-button" onClick={handleDeleteConversation}>
-                        Delete Group
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
-
-              {showParticipantModal && selectedConversation.type === 'group' && (
-                <div className="chat-participants-panel" style={{ padding: '1rem', borderBottom: '1px solid #ccc', background: '#f9f9f9' }}>
-                  <h3>Group Members</h3>
-                  <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {selectedConversation.participants?.map(p => {
-                      const isOwnerRow = String(selectedConversation.owner) === String(p._id);
-                      const isSelfRow = String(p._id) === String(user._id);
-                      return (
-                        <li key={p._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span>
-                            {getFullName(p)} {isOwnerRow ? '👑 (Owner)' : ''}
-                          </span>
-                          {canManageParticipants && !isSelfRow && !isOwnerRow && (
-                            <div>
-                              <button type="button" onClick={() => handleTransferOwnership(p._id, getFullName(p))} style={{ marginRight: '6px' }}>
-                                Make Owner
-                              </button>
-                              <button type="button" onClick={() => handleRemoveMember(p._id, getFullName(p))}>
-                                Remove
-                              </button>
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-
-                  {canManageParticipants && (
-                    <>
-                      <h4>Add Members</h4>
-                      <input
-                        value={addMemberSearch}
-                        onChange={e => setAddMemberSearch(e.target.value)}
-                        placeholder="Search non-participants..."
-                      />
-                      <div style={{ maxHeight: '120px', overflowY: 'auto', margin: '8px 0' }}>
-                        {availableToAdd.map(m => (
-                          <label key={m._id} style={{ display: 'block' }}>
-                            <input
-                              type="checkbox"
-                              checked={membersToAdd.includes(m._id)}
-                              onChange={() => setMembersToAdd(prev => prev.includes(m._id) ? prev.filter(id => id !== m._id) : [...prev, m._id])}
-                            />
-                            {getFullName(m)}
-                          </label>
-                        ))}
-                      </div>
-                      <button type="button" className="chat-primary-button" onClick={handleAddMembers} disabled={!membersToAdd.length}>
-                        Add Selected Members
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
 
               <div className="chat-messages" aria-live="polite">
                 {messagesLoading && !messages.length ? <p className="chat-muted">Loading messages...</p> : messages.length ? messages.map(message => {
@@ -358,33 +332,86 @@ const Chat = ({ user }) => {
           ) : <div className="chat-empty"><strong>Choose a conversation</strong><p>The public forum is available to every active member.</p></div>}
         </main>
 
-        <aside className="chat-members-sidebar">
-          <div className="chat-sidebar-heading"><strong>Active Members</strong><span>{activeMembers.length}</span></div>
-          <div className="chat-members-list">
-            {activeMembers.length ? activeMembers.map(member => {
-              const isSelf = String(member._id) === String(user._id);
-              const isParticipant = selectedConversation?.type === 'group' && selectedConversation.participants?.some(p => String(p._id || p) === String(member._id));
-              const isMemberOwner = selectedConversation?.type === 'group' && String(selectedConversation.owner) === String(member._id);
-              const showQuickActions = !isSelf && canManageParticipants && isParticipant && !isMemberOwner;
-              return (
-                <div className="chat-member-row" key={member._id}>
-                  <span className="chat-member-online-dot" aria-hidden="true" />
-                  {member.profilePicture ? <img className="chat-member-avatar" src={member.profilePicture} alt="" /> : <span className="chat-member-avatar chat-member-avatar-fallback">{getInitials(getFullName(member))}</span>}
-                  <span className="chat-member-row-info">
-                    <strong>{getFullName(member)}{isSelf ? ' (You)' : ''}</strong>
-                    <small>{member.role || 'Member'}{isMemberOwner ? ' · 👑 Owner' : ''}</small>
-                  </span>
-                  {showQuickActions && (
-                    <div className="chat-member-quick-actions">
-                      <button type="button" title="Make group owner" onClick={() => handleTransferOwnership(member._id, getFullName(member))}>👑</button>
-                      <button type="button" title="Remove from group" onClick={() => handleRemoveMember(member._id, getFullName(member))}>✕</button>
+        {selectedConversation && selectedConversation.type !== 'direct' && (
+          <aside className="chat-members-sidebar">
+            <div className="chat-sidebar-heading">
+              <strong>{selectedConversation.type === 'public' ? 'Active Members' : 'Group Members'}</strong>
+              <span>{sidebarMembers.length}</span>
+            </div>
+            <div className="chat-members-scroll">
+              <div className="chat-members-list">
+                {sidebarMembers.length ? sidebarMembers.map(member => {
+                  const isSelf = String(member._id) === String(user._id);
+                  const isMemberOwner = selectedConversation.type === 'group' && String(selectedConversation.owner) === String(member._id);
+                  const showQuickActions = !isSelf && canManageParticipants && !isMemberOwner;
+                  return (
+                    <div className="chat-member-row" key={member._id}>
+                      <span className="chat-member-online-dot" aria-hidden="true" />
+                      {member.profilePicture ? <img className="chat-member-avatar" src={member.profilePicture} alt="" /> : <span className="chat-member-avatar chat-member-avatar-fallback">{getInitials(getFullName(member))}</span>}
+                      <span className="chat-member-row-info">
+                        <strong>{getFullName(member)}{isSelf ? ' (You)' : ''}</strong>
+                        <small>{member.role || 'Member'}{isMemberOwner ? ' · 👑 Owner' : ''}</small>
+                      </span>
+                      {showQuickActions && (
+                        <div className="chat-member-quick-actions">
+                          <button type="button" title="Make group owner" onClick={() => handleTransferOwnership(member._id, getFullName(member))}>👑</button>
+                          <button type="button" title="Remove from group" onClick={() => handleRemoveMember(member._id, getFullName(member))}>✕</button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            }) : <p className="chat-muted">No active members found.</p>}
+                  );
+                }) : <p className="chat-muted">No members to show.</p>}
+              </div>
+            </div>
+
+            {canManageParticipants && (
+              <div className="chat-add-member-footer">
+                <button type="button" className="chat-add-member-button" onClick={() => setShowAddMembersPanel(true)}>
+                  Add a New member
+                </button>
+              </div>
+            )}
+          </aside>
+        )}
+
+        {showAddMembersPanel && (
+          <div className="chat-add-modal-overlay" role="presentation" onClick={() => setShowAddMembersPanel(false)}>
+            <div className="chat-add-modal" role="dialog" aria-modal="true" aria-label="Add members" onClick={event => event.stopPropagation()}>
+              <div className="chat-create-modal-header">
+                <h3>Add members to group</h3>
+                <button type="button" onClick={() => setShowAddMembersPanel(false)}>×</button>
+              </div>
+              <input
+                className="chat-member-search"
+                value={addMemberSearch}
+                onChange={e => setAddMemberSearch(e.target.value)}
+                placeholder="Search members by name or email..."
+                aria-label="Search members"
+              />
+              <div className="chat-add-members-list">
+                {availableToAdd.length ? availableToAdd.map(m => (
+                  <label key={m._id}>
+                    <input
+                      type="checkbox"
+                      checked={membersToAdd.includes(m._id)}
+                      onChange={() => setMembersToAdd(prev => prev.includes(m._id) ? prev.filter(id => id !== m._id) : [...prev, m._id])}
+                    />
+                    {m.profilePicture ? <img className="chat-member-avatar" src={m.profilePicture} alt="" /> : <span className="chat-member-avatar chat-member-avatar-fallback">{getInitials(getFullName(m))}</span>}
+                    <span>{getFullName(m)}</span>
+                  </label>
+                )) : <span className="chat-muted">No members available to add.</span>}
+              </div>
+              <div className="chat-modal-actions">
+                <button type="button" className="chat-primary-button" onClick={handleAddMembers} disabled={!membersToAdd.length}>
+                  Add Selected Members
+                </button>
+                <button type="button" className="chat-cancel-button" onClick={() => setShowAddMembersPanel(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
-        </aside>
+        )}
       </div>
 
       <button type="button" className="chat-fab" title="Start a conversation" onClick={() => setShowCreateModal(true)}>+</button>
