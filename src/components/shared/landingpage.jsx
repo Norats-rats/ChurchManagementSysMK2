@@ -37,6 +37,20 @@ const SLIDE_LABELS = {
 const SLIDE_DEFAULT_LABEL = 'Church Event';
 const SLIDE_INTERVAL = 5000;
 
+const SERVICES = [
+  { name: 'Worship Service', description: 'Our main gathering to worship God together through praise and the Word.' },
+  { name: 'Jail Preaching', description: 'Sharing the gospel with those in prison and bringing hope and encouragement.' },
+  { name: 'Wedding', description: 'Celebrating the union of two families before God and the congregation.' },
+  { name: 'Dedication', description: 'Dedicating a new home, vehicle, or blessing to the Lord.' },
+  { name: 'Anniversary', description: 'Marking a special milestone of thanksgiving with the whole family.' },
+  { name: 'Healing Crusade', description: 'A time of prayer and faith for the healing of the sick and the brokenhearted.' },
+  { name: 'Feeding Program', description: 'Serving meals to families in need within our community.' },
+  { name: 'Baptism', description: 'Public immersion as a declaration of faith in Jesus Christ.' },
+  { name: 'Bible Study', description: 'Going deeper into the Word through study, discussion, and prayer.' },
+  { name: 'Prayer Meeting', description: 'Coming together in prayer for the church, our community, and the nation.' },
+  { name: 'Youth Camp', description: 'A retreat for young people to grow in faith and fellowship.' }
+];
+
 const GALLERY_IMAGES = Object.keys(galleryModules)
   .sort()
   .map((key) => {
@@ -120,6 +134,7 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
         <div style={styles.logo}>Free Believers in Christ Fellowship Taguig</div>
         <div style={styles.navLinks}>
           <button style={styles.navBtn} onClick={() => scrollToSection('events')}>Events</button>
+          <button style={styles.navBtn} onClick={() => scrollToSection('services')}>Our Services</button>
           <button style={styles.navBtn} onClick={() => scrollToSection('contact')}>Contact Us</button>
           <button style={styles.joinBtn} onClick={onOpenAuth}>Join Us Now</button>
         </div>
@@ -225,6 +240,18 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
         </div>
       </section>
 
+      <section id="services" style={styles.section}>
+        <h2 style={styles.sectionTitle}>Our Services</h2>
+        <div style={styles.servicesGrid}>
+          {SERVICES.map((service) => (
+            <article key={service.name} style={styles.serviceCard}>
+              <h3 style={styles.serviceTitle}>{service.name}</h3>
+              <p style={styles.serviceDescription}>{service.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <footer id="contact" style={styles.footer}>
         <div style={styles.footerContent}>
           <div style={styles.footerCol}>
@@ -232,11 +259,6 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
             <p><strong>Address:</strong> {contactInfo.address || '123 Faith Street, Cityville'}</p>
             <p><strong>Phone:</strong> {contactInfo.phone || '(555) 019-2834'}</p>
             <p><strong>Email:</strong> {contactInfo.email || 'info@gracechurch.org'}</p>
-          </div>
-          <div style={styles.footerCol}>
-            <h3>Service Times</h3>
-            <p>{contactInfo.serviceTimes || 'Sunday Worship: 9:00 AM & 11:00 AM'}</p>
-            <p>{contactInfo.midweekTimes || 'Wednesday Prayer: 7:00 PM'}</p>
           </div>
         </div>
         <div style={styles.copyright}>
@@ -441,6 +463,33 @@ const styles = {
     color: '#fff',
     fontSize: '0.8rem',
     letterSpacing: '0.5px'
+  },
+  servicesGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gap: '1.25rem'
+  },
+  serviceCard: {
+    background: '#ffffff',
+    border: '1px solid #e2e8f0',
+    borderLeft: '4px solid #4f46e5',
+    borderRadius: '10px',
+    padding: '1.25rem',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem'
+  },
+  serviceTitle: {
+    margin: 0,
+    fontSize: '1.05rem',
+    color: '#0f172a'
+  },
+  serviceDescription: {
+    margin: 0,
+    fontSize: '0.92rem',
+    lineHeight: 1.5,
+    color: '#475569'
   },
   footer: {
     backgroundColor: '#1a1a1a',
