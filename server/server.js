@@ -2228,10 +2228,42 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   }
 });
 
-app.post('/api/ai/analyze-metrics', async (req, res) => {
-  try {
-    const { totalMembers, activeMinistries, upcomingEvents, ministryDistribution } = req.body;
+const computeMetricsFallback = (focus, data) => {
+  if (!data) data = {};
+  if (focus === 'age') {
+    const groups = data.ageGroupDistribution || [];
+    const top = groups.reduce((a, b) => (b.value > a.value ? b : a), { name: 'N/A', value: 0 });
+    return `Age Insight: The average member age is ${data.averageAge || 0}, with the largest cohort (${top.name}) totaling ${top.value} members. Targeted engagement for under-represented age bands is recommended.`;
+  }
+  if (focus === 'gender') {
+    const items = (data.genderDistribution || []).filter(d => d.name !== 'Unknown' && d.name !== 'Prefer not to say');
+    const totalKnown = items.reduce((s, d) => s + d.value, 0);
+    const parts = items.map(d => `${d.name}: ${totalKnown ? Math.round((d.value / totalKnown) * 100) : 0}%`).join(', ');
+    return `Gender Insight: ${parts || 'Data pending.'}`;
+  }
+  if (focus === 'birthday') {
+    const bdays = data.nextBirthdays || [];
+    if (!bdays.length) return 'Birthday Insight: No upcoming birthdays in the next 60 days. Consider a monthly recognition program.';
+    const next = bdays[0];
+    return `Birthday Insight: ${bdays.length} upcoming birthday(s). Next: ${next.name} on ${next.displayDate}. A timely greeting strengthens member connection.`;
+  }
+  return `System Analysis: The congregation has ${data.totalMembers || 0} members across ${data.activeMinistries || 0} ministries with ${data.upcomingEvents || 0} upcoming events. Review event timelines and member engagement metrics to support community plans.`;
+};
 
+app.post('/api/ai/analyze-metrics', async (req, res) => {
+  const {
+    focus,
+    totalMembers,
+    activeMinistries,
+    upcomingEvents,
+    ministryDistribution,
+    ageGroupDistribution,
+    averageAge,
+    genderDistribution,
+    nextBirthdays
+  } = req.body || {};
+
+  try {
     if (!process.env.PUTER_AUTH_TOKEN) {
       console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN inside environment variables.");
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
@@ -2240,28 +2272,53 @@ app.post('/api/ai/analyze-metrics', async (req, res) => {
     const today = new Date();
     const formattedToday = getPhDateString(today);
 
-    const prompt = `
-      You are an expert Church Administration and Growth consultant. 
-      Today's Reference Date: ${formattedToday} (Philippine Standard Time, GMT+8)
-      
-      Review the following live congregation metrics:
-      - Total Registered Members: ${totalMembers}
-      - Active Ministry Departments: ${activeMinistries}
-      - Upcoming Events Scheduled: ${upcomingEvents}
-      - Top Ministry Distribution Breakdown: ${JSON.stringify(ministryDistribution)}
-      - Top 3 Most Popular Ministries by Membership: ${JSON.stringify(Object.keys(ministryDistribution).slice(0, 3))}
-      - Top 3 Least Popular Ministries by Membership: ${JSON.stringify(Object.keys(ministryDistribution).slice(-3))}
-      - Top Age Demographic Group: ${ministryDistribution.ageGroups ? Object.keys(ministryDistribution.ageGroups).reduce((a, b) => ministryDistribution.ageGroups[a] > ministryDistribution.ageGroups[b] ? a : b) : 'N/A'}
-      - Least Engaged Age Demographic Group: ${ministryDistribution.ageGroups ? Object.keys(ministryDistribution.ageGroups).reduce((a, b) => ministryDistribution.ageGroups[a] < ministryDistribution.ageGroups[b] ? a : b) : 'N/A'}
-      - Top attendance rate for events: ${ministryDistribution.eventAttendance ? Object.keys(ministryDistribution.eventAttendance).reduce((a, b) => ministryDistribution.eventAttendance[a] > ministryDistribution.eventAttendance[b] ? a : b) : 'N/A'}
-      - Lowest attendance rate for events: ${ministryDistribution.eventAttendance ? Object.keys(ministryDistribution.eventAttendance).reduce((a, b) => ministryDistribution.eventAttendance[a] < ministryDistribution.eventAttendance[b] ? a : b) : 'N/A'}
-      - Top gender demographic: ${ministryDistribution.gender ? Object.keys(ministryDistribution.gender).reduce((a, b) => ministryDistribution.gender[a] > ministryDistribution.gender[b] ? a : b) : 'N/A'}
-      - Least Engaged gender demographic: ${ministryDistribution.gender ? Object.keys(ministryDistribution.gender).reduce((a, b) => ministryDistribution.gender[a] < ministryDistribution.gender[b] ? a : b) : 'N/A'}
+    const safeNum = (v) => (v === undefined || v === null ? 'N/A' : v);
+    const safeJson = (v) => (v === undefined || v === null ? 'N/A' : JSON.stringify(v));
+    const topKey = (obj) => (obj && typeof obj === 'object' && Object.keys(obj).length
+      ? Object.keys(obj).reduce((a, b) => (obj[a] > obj[b] ? a : b))
+      : 'N/A');
+    const minKey = (obj) => (obj && typeof obj === 'object' && Object.keys(obj).length
+      ? Object.keys(obj).reduce((a, b) => (obj[a] < obj[b] ? a : b))
+      : 'N/A');
 
-      Task: Provide a sophisticated, cohesive system analysis summary (approx 2-3 sentences). Detail structural strengths based on the membership count vs active channels, age range, gender demographics and assess if event volume is sufficient to maintain community engagement, and offer one highly actionable development recommendation.
-      
-      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown formatting, do not wrap your answer in triple backticks, and do not write introduction or conversational text.
-      Format: {"suggestion": "Your full comprehensive analysis text goes here"}
+    let focusData = '';
+    let task = '';
+
+    if (focus === 'age') {
+      focusData = `- Average Member Age: ${safeNum(averageAge)}
+- Age Group Distribution: ${safeJson(ageGroupDistribution)}`;
+      task = 'Provide a concise, actionable insight (1-2 sentences) interpreting the age distribution. Highlight the largest cohort and any notable gaps, then offer one practical recommendation.';
+    } else if (focus === 'gender') {
+      focusData = `- Gender Distribution: ${safeJson(genderDistribution)}`;
+      task = 'Provide a concise, actionable insight (1-2 sentences) interpreting the gender balance. Highlight the dominant demographic and note any imbalances, then offer one practical recommendation.';
+    } else if (focus === 'birthday') {
+      focusData = `- Upcoming Birthdays: ${safeJson(nextBirthdays)}`;
+      task = 'Provide a concise, actionable insight (1-2 sentences) around upcoming birthdays. Note how many are coming up and suggest one engagement idea for recognizing members.';
+    } else {
+      focusData = `- Total Registered Members: ${safeNum(totalMembers)}
+- Active Ministry Departments: ${safeNum(activeMinistries)}
+- Upcoming Events Scheduled: ${safeNum(upcomingEvents)}
+- Top Ministry Distribution Breakdown: ${safeJson(ministryDistribution)}
+- Top Age Demographic Group: ${topKey(ministryDistribution && ministryDistribution.ageGroups)}
+- Least Engaged Age Demographic Group: ${minKey(ministryDistribution && ministryDistribution.ageGroups)}
+- Top attendance rate for events: ${topKey(ministryDistribution && ministryDistribution.eventAttendance)}
+- Lowest attendance rate for events: ${minKey(ministryDistribution && ministryDistribution.eventAttendance)}
+- Top gender demographic: ${topKey(ministryDistribution && ministryDistribution.gender)}
+- Least Engaged gender demographic: ${minKey(ministryDistribution && ministryDistribution.gender)}`;
+      task = 'Provide a sophisticated, cohesive system analysis summary (approx 2-3 sentences). Detail structural strengths based on the membership count vs active channels, age range, gender demographics and assess if event volume is sufficient to maintain community engagement, and offer one highly actionable development recommendation.';
+    }
+
+    const prompt = `
+You are an expert Church Administration and Growth consultant.
+Today's Reference Date: ${formattedToday} (Philippine Standard Time, GMT+8)
+
+Review the following live congregation metrics:
+${focusData}
+
+Task: ${task}
+
+Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown formatting, do not wrap your answer in triple backticks, and do not write introduction or conversational text.
+Format: {"suggestion": "Your full comprehensive analysis text goes here"}
     `;
 
     const httpResponse = await axios.post(
@@ -2295,8 +2352,9 @@ app.post('/api/ai/analyze-metrics', async (req, res) => {
     }
 
     const parsedData = JSON.parse(rawText);
-    
-    const finalInsight = parsedData.suggestion || parsedData.insight || "System Analysis completed with no exceptional anomalies recorded.";
+
+    const fallbackData = { ageGroupDistribution, averageAge, genderDistribution, nextBirthdays, totalMembers, activeMinistries, upcomingEvents };
+    const finalInsight = parsedData.suggestion || parsedData.insight || computeMetricsFallback(focus, fallbackData);
 
     return res.json({ insight: finalInsight });
 
@@ -2307,8 +2365,9 @@ app.post('/api/ai/analyze-metrics', async (req, res) => {
 
     console.error("❌ Puter Analytics Assistant Error Route:", detailedError);
 
+    const fallbackData = { ageGroupDistribution, averageAge, genderDistribution, nextBirthdays, totalMembers, activeMinistries, upcomingEvents };
     return res.json({
-      insight: "System Analysis: Operation infrastructure channels are performing optimally. Continue monitoring event schedules and member registration metrics to support upcoming community plans."
+      insight: computeMetricsFallback(focus, fallbackData)
     });
   }
 });
