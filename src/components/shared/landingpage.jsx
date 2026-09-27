@@ -6,12 +6,47 @@ const galleryModules = import.meta.glob('../../assets/landingpvents/*.{jpg,jpeg,
   import: 'default'
 });
 
+// Keyed by file name (e.g. 'IMG_2567.JPG'). Add or edit a key to change that
+// slide's label; anything not listed falls back to SLIDE_DEFAULT_LABEL.
+const SLIDE_LABELS = {
+  'IMG_2567.JPG': 'Church Event',
+  'IMG_3198.JPG': 'Church Event',
+  'IMG_3201.JPG': 'Church Event',
+  'IMG_3219.JPG': 'Church Event',
+  'IMG_3313.JPG': 'Church Event',
+  'IMG_3325.JPG': 'Church Event',
+  'IMG_3465.JPG': 'Church Event',
+  'IMG_3545.JPG': 'Church Event',
+  'IMG_3592.JPG': 'Church Event',
+  'IMG_3758.JPG': 'Church Event',
+  'IMG_3762.JPG': 'Church Event',
+  'IMG_5072.JPG': 'Church Event',
+  'IMG_5118.JPG': 'Church Event',
+  'IMG_8414.JPG': 'Church Event',
+  'IMG_8530.JPG': 'Church Event',
+  'IMG_8531.JPG': 'Church Event',
+  'IMG_8546.JPG': 'Church Event',
+  'IMG_8781.JPG': 'Church Event',
+  'IMG_8796.JPG': 'Church Event',
+  'IMG_8935.JPG': 'Church Event',
+  'IMG_9227.JPG': 'Church Event',
+  '825310055_1617566113141805_1993782545261584226_n.jpg': 'Church Event',
+  'BG for Log In': 'Church Event',
+  Musc: 'Church Event'
+};
+
+const SLIDE_DEFAULT_LABEL = 'Church Event';
+const SLIDE_INTERVAL = 5000;
+
 const GALLERY_IMAGES = Object.keys(galleryModules)
   .sort()
-  .map((key) => galleryModules[key]);
-
-const SLIDE_INTERVAL = 5000;
-const SLIDE_LABEL = 'Church Event';
+  .map((key) => {
+    const fileName = key.split('/').pop().replace(/\.[^.]+$/, '');
+    return {
+      src: galleryModules[key],
+      label: SLIDE_LABELS[fileName] || SLIDE_DEFAULT_LABEL
+    };
+  });
 
 const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
   const [bgImage, setBgImage] = useState('');
@@ -73,10 +108,7 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
     [displayEvents]
   );
 
-  const slides = useMemo(
-    () => GALLERY_IMAGES.map((src, index) => ({ src, label: normalizedEvents[index]?.title || SLIDE_LABEL })),
-    [normalizedEvents]
-  );
+  const slides = GALLERY_IMAGES;
 
   const totalSlides = slides.length;
 
@@ -357,7 +389,7 @@ const styles = {
     borderRadius: '12px',
     overflow: 'hidden',
     boxShadow: '0 6px 24px rgba(0,0,0,0.18)',
-    backgroundColor: '#0f172a'
+    backgroundColor: '#0b1220'
   },
   carouselViewport: {
     position: 'relative',
@@ -373,7 +405,7 @@ const styles = {
   slideImage: {
     width: '100%',
     height: '100%',
-    objectFit: 'cover',
+    objectFit: 'contain',
     display: 'block'
   },
   slideCaption: {
