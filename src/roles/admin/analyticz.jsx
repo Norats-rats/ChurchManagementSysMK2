@@ -25,7 +25,7 @@ const getNextBirthday = (birthdate) => {
 
 const formatInsightText = (text) => {
   if (!text) return '';
-  return String(text).replace(/\s+/g, ' ').trim().slice(0, 320);
+  return String(text).replace(/\s+/g, ' ').trim().slice(0, 800);
 };
 
 const buildAgeInsight = (stats) => {
