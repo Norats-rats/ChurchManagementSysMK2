@@ -107,6 +107,60 @@ const Location = mongoose.model('locations', new mongoose.Schema({
   status: { type: String, enum: ['active', 'archived'], default: 'active' }
 }, { timestamps: true }));
 
+const PH_TIMEZONE = 'Asia/Manila';
+const PH_OFFSET_MINUTES = 8 * 60;
+
+const getPhDateParts = (input = new Date()) => {
+  const date = input instanceof Date ? input : new Date(input);
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: PH_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).formatToParts(date);
+
+    const values = {};
+    parts.forEach(part => { values[part.type] = part.value; });
+
+    const hour = Number(values.hour);
+    return {
+      year: Number(values.year),
+      month: Number(values.month),
+      day: Number(values.day),
+      hour: hour === 24 ? 0 : hour,
+      minute: Number(values.minute),
+      second: Number(values.second)
+    };
+  } catch {
+    const shifted = new Date(date.getTime() + PH_OFFSET_MINUTES * 60 * 1000);
+    return {
+      year: shifted.getUTCFullYear(),
+      month: shifted.getUTCMonth() + 1,
+      day: shifted.getUTCDate(),
+      hour: shifted.getUTCHours(),
+      minute: shifted.getUTCMinutes(),
+      second: shifted.getUTCSeconds()
+    };
+  }
+};
+
+const getPhDateString = (input = new Date()) => {
+  const { year, month, day } = getPhDateParts(input);
+  const pad = value => String(value).padStart(2, '0');
+  return `${year}-${pad(month)}-${pad(day)}`;
+};
+
+const getPhTimeString = (input = new Date()) => {
+  const { hour, minute } = getPhDateParts(input);
+  const pad = value => String(value).padStart(2, '0');
+  return `${pad(hour)}:${pad(minute)}`;
+};
+
 const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
   try {
     const subject = isPasswordReset ? 'Password Reset Code' : 'Verify Your Church Account';
@@ -1255,8 +1309,8 @@ app.post('/api/attendance', async (req, res) => {
       userId,
       eventId,
       userName,
-      date: date || new Date().toISOString().split('T')[0],
-      time: time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      date: date || getPhDateString(),
+      time: time || getPhTimeString(),
       status: status || 'Present'
     });
 
@@ -1542,8 +1596,8 @@ app.post('/api/events/scan-qr', async (req, res) => {
       userId: userId,
       eventId: eventId,
       userName: userName,
-      date: event.date || new Date().toISOString().split('T')[0],
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      date: event.date || getPhDateString(),
+      time: getPhTimeString(),
       status: 'Present'
     });
 
@@ -1917,11 +1971,12 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
     }
 
     const today = new Date();
-    const formattedToday = today.toISOString().split('T')[0];
+    const formattedToday = getPhDateString(today);
     const prompt = `
       You are a Church Event Assistant. 
       
       CRITICAL CALENDAR CONTEXT:
+      - All dates and times are in Philippine Standard Time (Asia/Manila, GMT+8, no daylight saving).
       - Today's current date is exactly: ${formattedToday}
       - Any slot you suggest MUST be strictly in the FUTURE relative to this date. Never suggest a past date.
       
@@ -2005,11 +2060,11 @@ app.post('/api/ai/analyze-metrics', async (req, res) => {
     }
 
     const today = new Date();
-    const formattedToday = today.toISOString().split('T')[0];
+    const formattedToday = getPhDateString(today);
 
     const prompt = `
       You are an expert Church Administration and Growth consultant. 
-      Today's Reference Date: ${formattedToday}
+      Today's Reference Date: ${formattedToday} (Philippine Standard Time, GMT+8)
       
       Review the following live congregation metrics:
       - Total Registered Members: ${totalMembers}

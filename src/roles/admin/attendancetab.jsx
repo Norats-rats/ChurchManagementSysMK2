@@ -4,6 +4,18 @@ import * as XLSX from 'xlsx';
 import { api } from '../../api';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import { canManageAttendance } from '../../permissions';
+import {
+  PH_TIMEZONE_LABEL,
+  formatPhDateObject,
+  getPhDateString,
+  getPhTodayDateObject,
+  isSamePhDay,
+  normalizeDateString,
+  normalizeTimeString,
+  phWallClockToMillis,
+  toDisplayTime,
+  usePhClock
+} from '../../utils/philippinesTime';
 
 const AttendanceTab = ({ role, userId, user }) => {
   const [checkIns, setCheckIns] = useState([]);
@@ -20,7 +32,7 @@ const AttendanceTab = ({ role, userId, user }) => {
     titleSelection: 'Worship Service',
     reservationName: 'New Session',
     category: 'Worship',
-    date: new Date().toISOString().split('T')[0],
+    date: getPhDateString(),
     time: '08:00 AM',
     room: 'Main Sanctuary',
     type: 'Once',
@@ -30,11 +42,19 @@ const AttendanceTab = ({ role, userId, user }) => {
 
   const canManage = canManageAttendance(role);
   const { showFeedback, FeedbackModal } = useFeedbackModal();
-  const todayStr = new Date().toISOString().split('T')[0];
+  const { todayStr, timeStr: phClockTime } = usePhClock();
+  const todayLabel = formatPhDateObject(getPhTodayDateObject());
+
+  const isPhTodayLog = (record) => {
+    if (isSamePhDay(record?.date)) return true;
+    if (!record?.createdAt) return false;
+    const loggedAt = new Date(record.createdAt);
+    return !Number.isNaN(loggedAt.getTime()) && isSamePhDay(loggedAt);
+  };
 
   useEffect(() => {
     fetchInitialData();
-  }, [role, userId]);
+  }, [role, userId, todayStr]);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -48,7 +68,7 @@ const AttendanceTab = ({ role, userId, user }) => {
       setCheckIns(attData);
       setUpcomingEvents(eventsRes.data || []);
 
-      setHasCheckedInToday(attData.some(log => log.userId === String(userId) && log.date === todayStr));
+      setHasCheckedInToday(attData.some(log => String(log.userId) === String(userId) && isPhTodayLog(log)));
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -60,9 +80,7 @@ const AttendanceTab = ({ role, userId, user }) => {
 
   const todaysEvents = upcomingEvents.filter(event => {
     if (!event.date) return false;
-    const cleanEventDate = String(event.date).replace(/\//g, '-');
-    const cleanTodayStr = String(todayStr).replace(/\//g, '-');
-    return cleanEventDate === cleanTodayStr;
+    return isSamePhDay(event.date, new Date());
   });
 
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -71,8 +89,10 @@ const AttendanceTab = ({ role, userId, user }) => {
   const getEventType = (event) => event.titleSelection || event.type || event.category || 'Other';
   const getAttendeeName = (record) => record.name || record.userName || record.userId || '';
   const getAttendanceTime = (record) => {
-    const timestamp = new Date(`${record.date || todayStr} ${record.time || '12:00 AM'}`).getTime();
-    return Number.isNaN(timestamp) ? 0 : timestamp;
+    const wallClock = phWallClockToMillis(record.date, record.time);
+    if (wallClock > 0) return wallClock;
+    const createdAt = record.createdAt ? new Date(record.createdAt).getTime() : NaN;
+    return Number.isNaN(createdAt) ? 0 : createdAt;
   };
 
   const eventTypeOptions = [
@@ -112,7 +132,11 @@ const AttendanceTab = ({ role, userId, user }) => {
 
   const selectedTodayEvent = todaysEvents.find(event => String(event._id || event.id) === String(selectedTodayEventId)) || null;
 
-  const qrValueForEvent = (event) => `${window.location.origin}?checkIn=true&eventId=${event._id || event.id}&eventTitle=${encodeURIComponent(event.titleSelection || event.title || 'Event')}`;
+  const qrValueForEvent = (event) => {
+    const eventId = event._id || event.id;
+    const eventTitle = getEventTitle(event);
+    return `${window.location.origin}?checkin=${encodeURIComponent(eventTitle)}&title=${encodeURIComponent(eventTitle)}&eventId=${encodeURIComponent(String(eventId))}`;
+  };
 
   const selectedEventAttendees = selectedTodayEvent
     ? checkIns.filter(record => String(record.eventId) === String(selectedTodayEvent._id || selectedTodayEvent.id))
@@ -122,7 +146,9 @@ const AttendanceTab = ({ role, userId, user }) => {
     const comparison = attendanceSortField === 'alphabetical'
       ? getAttendeeName(firstRecord).localeCompare(getAttendeeName(secondRecord))
       : getAttendanceTime(firstRecord) - getAttendanceTime(secondRecord);
-    return attendanceSortDirection === 'desc' ? comparison * -1 : comparison;
+    const directed = attendanceSortDirection === 'desc' ? comparison * -1 : comparison;
+    if (directed !== 0) return directed;
+    return getAttendeeName(firstRecord).localeCompare(getAttendeeName(secondRecord));
   });
 
   const handleCreateEvent = async (e) => {
@@ -150,14 +176,15 @@ const AttendanceTab = ({ role, userId, user }) => {
       return {
         Event: event ? (event.titleSelection || event.title) : (record.service || `Event ${record.eventId}`),
         Attendee: record.userName || record.userId,
-        Date: record.date,
-        Time: record.time,
+        Date: normalizeDateString(record.date),
+        Time: normalizeTimeString(record.time),
+        'Time (GMT+8)': toDisplayTime(record.time),
         Status: record.status || ''
       };
     });
 
     const worksheet = XLSX.utils.json_to_sheet(formattedRows, {
-      header: ['Event', 'Attendee', 'Date', 'Time', 'Status']
+      header: ['Event', 'Attendee', 'Date', 'Time', 'Time (GMT+8)', 'Status']
     });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Log");
@@ -223,6 +250,7 @@ const AttendanceTab = ({ role, userId, user }) => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '13px' }}>Today's Events</span>
                 <span style={{ fontSize: '11px', color: '#64748b' }}>{todaysEvents.length} available</span>
+                <span style={{ fontSize: '10px', color: '#94a3b8' }}>GMT+8</span>
               </div>
             )}
 
@@ -282,6 +310,9 @@ const AttendanceTab = ({ role, userId, user }) => {
             <div>
               <h3 style={styles.cardTitle}>Selected Event Check-In</h3>
               <p style={styles.cardSubtitle}>{selectedTodayEvent ? `${selectedEventAttendees.length} checked in for this event` : 'Choose an event from the left to view the QR and logs.'}</p>
+              <p style={{ ...styles.cardSubtitle, marginTop: '6px' }}>
+                🕒 {PH_TIMEZONE_LABEL} • {todayLabel} • {toDisplayTime(phClockTime)}
+              </p>
             </div>
             <button style={{ ...styles.exportBtn, background: 'var(--color-primary)', borderColor: 'transparent' }} onClick={exportToExcel} disabled={!selectedTodayEvent || selectedEventAttendees.length === 0}>
               📥 Export Sheet
@@ -324,7 +355,7 @@ const AttendanceTab = ({ role, userId, user }) => {
                     {sortedSelectedEventAttendees.map((att, idx) => (
                       <div key={`${selectedTodayEvent._id || selectedTodayEvent.id}-${idx}`} style={styles.historyRow}>
                         <span>{att.name || att.userName || att.userId}</span>
-                        <span>{att.time}</span>
+                        <span>{toDisplayTime(att.time) || att.time || '--'}</span>
                       </div>
                     ))}
                   </div>

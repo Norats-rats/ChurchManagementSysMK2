@@ -8,6 +8,7 @@ import LandingPage from './components/shared/landingpage';
 import Signup from './components/shared/signup';
 import { normalizeRole } from './permissions';
 import Dashboard from './roles/admin/dashboard';
+import { getPhDateString, getPhTimeString } from './utils/philippinesTime';
 
 const ForgotPasswordView = ({ onGoToLogin }) => {
   const [email, setEmail] = useState('');
@@ -244,10 +245,11 @@ export default function App() {
         try {
           await api.recordAttendance({
             userId: userData._id,
+            eventId: eventId || undefined,
             name: `${userData.firstName} ${userData.lastName}`,
             service: eventTitle,
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+            date: getPhDateString(),
+            time: getPhTimeString(),
             status: 'Present'
           });
           showFeedback(`Check-in confirmed for: ${eventTitle}`);

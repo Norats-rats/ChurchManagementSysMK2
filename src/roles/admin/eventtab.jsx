@@ -2,15 +2,22 @@ import { useEffect, useState } from 'react';
 import api from '../../api';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import { canManageEvents } from '../../permissions';
+import {
+  PH_TIMEZONE_LABEL,
+  formatPhDateObject,
+  getPhDateString,
+  getPhTodayDateObject,
+  normalizeDateString
+} from '../../utils/philippinesTime';
 
 const EventTab = ({ role, userId }) => {
   const [events, setEvents] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
-  
-  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(() => getPhTodayDateObject());
+  const [selectedDate, setSelectedDate] = useState(() => getPhTodayDateObject());
 
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState(null); 
@@ -28,7 +35,7 @@ const EventTab = ({ role, userId }) => {
     titleSelection: 'Worship Service',
     reservationName: '',
     category: 'Worship',
-    date: new Date().toISOString().split('T')[0],
+    date: getPhDateString(),
     timeStart: '08:00',
     timeEnd: '09:00',
     room: '',
@@ -41,7 +48,7 @@ const EventTab = ({ role, userId }) => {
   const canManage = canManageEvents(role);
   const { showFeedback, askConfirmation, FeedbackModal } = useFeedbackModal();
 
-  const today = new Date();
+  const today = getPhTodayDateObject();
   today.setHours(0, 0, 0, 0);
 
   useEffect(() => {
@@ -108,9 +115,8 @@ const EventTab = ({ role, userId }) => {
     if (!day) return;
     const newSelected = new Date(currentYear, currentMonth, day);
     setSelectedDate(newSelected);
-    
-    const offset = newSelected.getTimezoneOffset();
-    const localDate = new Date(newSelected.getTime() - (offset*60*1000)).toISOString().split('T')[0];
+
+    const localDate = `${newSelected.getFullYear()}-${String(newSelected.getMonth() + 1).padStart(2, '0')}-${String(newSelected.getDate()).padStart(2, '0')}`;
     setFormData(prev => ({ ...prev, date: localDate }));
   };
 
@@ -120,7 +126,9 @@ const EventTab = ({ role, userId }) => {
     checkDate.setHours(0, 0, 0, 0);
     return events.some(event => {
       if (event.status === 'archived') return false;
-      const eventDate = new Date(`${event.date}T00:00:00`);
+      const eventDateText = normalizeDateString(event.date);
+      if (!eventDateText) return false;
+      const eventDate = new Date(`${eventDateText}T00:00:00`);
       const overnight = event.timeStart && event.timeEnd && event.timeEnd < event.timeStart;
       const nextDate = new Date(eventDate);
       nextDate.setDate(nextDate.getDate() + 1);
@@ -132,7 +140,9 @@ const EventTab = ({ role, userId }) => {
   const getEventsForSelectedDate = () => {
     if (!selectedDate) return [];
     return events.filter(event => {
-      const eDate = new Date(event.date);
+      const eventDateText = normalizeDateString(event.date);
+      if (!eventDateText) return false;
+      const eDate = new Date(`${eventDateText}T00:00:00`);
       const sameStartDate = eDate.getFullYear() === selectedDate.getFullYear() &&
         eDate.getMonth() === selectedDate.getMonth() &&
         eDate.getDate() === selectedDate.getDate();
@@ -204,7 +214,7 @@ const EventTab = ({ role, userId }) => {
   const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
 
-    const selectedDateObj = new Date(formData.date + 'T00:00:00');
+    const selectedDateObj = new Date(`${normalizeDateString(formData.date) || formData.date}T00:00:00`);
     if (selectedDateObj < today && !editingId) {
       showFeedback('Cannot schedule new events for past dates.');
       return;
@@ -270,7 +280,7 @@ const EventTab = ({ role, userId }) => {
 
     const combinedTitle = `${trimmedTitle} for ${trimmedReservation}`;
     const duplicateEvent = events.some(ev =>
-      ev.date === formData.date &&
+      normalizeDateString(ev.date) === normalizeDateString(formData.date) &&
       ev.reservationName?.trim().toLowerCase() === trimmedReservation.toLowerCase() &&
       ev.titleSelection?.trim().toLowerCase() === trimmedTitle.toLowerCase() &&
       ev.room?.trim().toLowerCase() === formData.room.trim().toLowerCase() &&
@@ -422,6 +432,19 @@ const EventTab = ({ role, userId }) => {
           <h3 style={styles.calTitle} onClick={() => setMonthPickerOpen(prev => !prev)} title="Click to change month and year">
             {currentCalendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
           </h3>
+          <button
+            type="button"
+            onClick={() => {
+              const phToday = getPhTodayDateObject();
+              setCurrentCalendarDate(phToday);
+              setSelectedDate(phToday);
+              setFormData(prev => ({ ...prev, date: getPhDateString() }));
+            }}
+            style={{ ...styles.calNavBtn, border: '1px solid #3f3f46', borderRadius: '6px' }}
+            title={`Jump to today (${PH_TIMEZONE_LABEL})`}
+          >
+            Today
+          </button>
         </div>
 
         {monthPickerOpen && (
@@ -483,7 +506,7 @@ const EventTab = ({ role, userId }) => {
       <div style={styles.mainContent}>
         <h2 style={styles.headerTitle}>Daily Schedule</h2>
         <p style={styles.headerSub}>
-          Events for {selectedDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          Events for {formatPhDateObject(selectedDate)} • {PH_TIMEZONE_LABEL}
         </p>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
