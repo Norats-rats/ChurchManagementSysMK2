@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import api from '../../api';
+import { normalizeRole, ROLE_NAMES } from '../../permissions';
 
 const getAgeFromBirthdate = (birthdate) => {
   const date = new Date(birthdate);
@@ -22,9 +23,39 @@ const getNextBirthday = (birthdate) => {
   return nextBirthday;
 };
 
-const Analytics = () => {
+const formatInsightText = (text) => {
+  if (!text) return '';
+  return String(text).replace(/\s+/g, ' ').trim().slice(0, 320);
+};
+
+const buildAgeInsight = (stats) => {
+  const groups = stats.ageGroupDistribution || [];
+  const top = groups.reduce((a, b) => (b.value > a.value ? b : a), { name: 'N/A', value: 0 });
+  return `Average age: ${stats.averageAge || 0}. Largest cohort: ${top.name} (${top.value} members).`;
+};
+
+const buildGenderInsight = (stats) => {
+  const items = (stats.genderDistribution || []).filter(
+    d => d.name !== 'Unknown' && d.name !== 'Prefer not to say'
+  );
+  const totalKnown = items.reduce((s, d) => s + d.value, 0);
+  const parts = items.map(d => `${d.name}: ${totalKnown ? Math.round((d.value / totalKnown) * 100) : 0}%`).join(', ');
+  return parts ? `Gender mix — ${parts}.` : 'Gender mix — data pending.';
+};
+
+const buildBirthdayInsight = (stats) => {
+  const bdays = stats.nextBirthdays || [];
+  if (!bdays.length) return 'No upcoming birthdays in the next 60 days.';
+  const next = bdays[0];
+  return `${bdays.length} upcoming birthday(s). Next: ${next.name} on ${next.displayDate}.`;
+};
+
+const Analytics = ({ user, role }) => {
   const [loading, setLoading] = useState(true);
   const [aiInsight, setAiInsight] = useState("Generating live machine learning overview...");
+  const [aiAgeInsight, setAiAgeInsight] = useState("");
+  const [aiGenderInsight, setAiGenderInsight] = useState("");
+  const [aiBirthdayInsight, setAiBirthdayInsight] = useState("");
   const [dbStats, setDbStats] = useState({
     totalMembers: 0,
     activeMinistries: 0,
@@ -51,9 +82,35 @@ const Analytics = () => {
         api.getAttendance()
       ]);
 
-      const members = membersRes.data || [];
+      const allMembers = membersRes.data || [];
       const ministries = ministriesRes.data || [];
       const events = eventsRes.data || [];
+
+      const normalizedRole = normalizeRole(role);
+      const isMinistryLeader = normalizedRole === ROLE_NAMES.MINISTRY_LEADER;
+
+      let members = allMembers;
+      let attendanceRecords = attendanceRes.data || [];
+
+      if (isMinistryLeader) {
+        const leaderUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim().toLowerCase();
+        const leaderMinistries = ministries.filter(
+          m => m.leader?.trim().toLowerCase() === leaderUserName
+        );
+        const leaderMinistryNames = leaderMinistries.map(m => m.name);
+
+        members = allMembers.filter(member => {
+          const memberMinistries = Array.isArray(member?.ministries)
+            ? member.ministries
+            : member?.ministry ? [member.ministry] : [];
+          return memberMinistries.some(min => leaderMinistryNames.includes(min));
+        });
+
+        const memberIdSet = new Set(members.map(m => String(m._id || m.id || '')));
+        attendanceRecords = (attendanceRes.data || []).filter(
+          record => record.userId && memberIdSet.has(String(record.userId))
+        );
+      }
 
       const ministryCounts = {};
       members.forEach(member => {
@@ -121,7 +178,6 @@ const Analytics = () => {
         genderCounts[genderKey] = (genderCounts[genderKey] || 0) + 1;
       });
 
-      const attendanceRecords = attendanceRes.data || [];
       const attendeeSet = new Set();
       const eventAttendanceCounts = {};
 
@@ -191,6 +247,37 @@ const Analytics = () => {
         console.error("Live AI Generation fallback triggered:", aiErr);
         const growthTrend = newStats.totalMembers > 20 ? "rapidly expanding" : "consistently growing";
         setAiInsight(`System Analysis: The congregation is ${growthTrend}. Review current event timelines manually to ensure specialized growth.`);
+      }
+
+      try {
+        const [ageRes, genderRes, birthdayRes] = await Promise.allSettled([
+          api.analyzeMetrics({ focus: 'age', ageGroupDistribution: newStats.ageGroupDistribution, averageAge: newStats.averageAge }),
+          api.analyzeMetrics({ focus: 'gender', genderDistribution: newStats.genderDistribution }),
+          api.analyzeMetrics({ focus: 'birthday', nextBirthdays: newStats.nextBirthdays })
+        ]);
+
+        if (ageRes.status === 'fulfilled' && ageRes.value?.data?.insight) {
+          setAiAgeInsight(ageRes.value.data.insight);
+        } else {
+          setAiAgeInsight(buildAgeInsight(newStats));
+        }
+
+        if (genderRes.status === 'fulfilled' && genderRes.value?.data?.insight) {
+          setAiGenderInsight(genderRes.value.data.insight);
+        } else {
+          setAiGenderInsight(buildGenderInsight(newStats));
+        }
+
+        if (birthdayRes.status === 'fulfilled' && birthdayRes.value?.data?.insight) {
+          setAiBirthdayInsight(birthdayRes.value.data.insight);
+        } else {
+          setAiBirthdayInsight(buildBirthdayInsight(newStats));
+        }
+      } catch (aiSubErr) {
+        console.error("Secondary AI insights fallback triggered:", aiSubErr);
+        setAiAgeInsight(buildAgeInsight(newStats));
+        setAiGenderInsight(buildGenderInsight(newStats));
+        setAiBirthdayInsight(buildBirthdayInsight(newStats));
       }
 
     } catch (err) {
@@ -281,6 +368,17 @@ const Analytics = () => {
     return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(config))}`;
   };
 
+  const insightsBadge = {
+    background: 'linear-gradient(135deg, #f0fdfa 0%, #ffffff 100%)',
+    border: '1px solid #99f6e4',
+    borderRadius: '10px',
+    padding: '10px 12px',
+    marginTop: '14px',
+    fontSize: '12px',
+    color: '#0f172a',
+    lineHeight: '1.5'
+  };
+
   const exportExcel = () => {
     const rows = [
       { Metric: "Total Congregation", Value: dbStats.totalMembers },
@@ -343,13 +441,13 @@ const Analytics = () => {
         </div>
 
         <div style={styles.insightCard}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
             <h3 style={{ margin: 0, color: '#1e40af' }}>Live AI System Insights</h3>
           </div>
-          <p style={{ fontSize: '15px', color: '#334155', lineHeight: '1.7', fontStyle: 'italic' }}>
-            "{aiInsight}"
+          <p style={{ fontSize: '14px', color: '#334155', lineHeight: '1.5', margin: 0 }}>
+            {formatInsightText(aiInsight) || "Generating live machine learning overview..."}
           </p>
-          <div style={{ marginTop: '20px', fontSize: '11px', color: '#94a3b8', letterSpacing: '1px' }}>
+          <div style={{ marginTop: '14px', fontSize: '11px', color: '#94a3b8', letterSpacing: '1px' }}>
             REAL-TIME INTELLIGENCE DATA REFRESHED LIVE
           </div>
         </div>
@@ -381,6 +479,9 @@ const Analytics = () => {
               </div>
             ))}
           </div>
+          <div style={insightsBadge}>
+            <strong style={{ color: '#0d9488' }}>AI Insight:</strong> {formatInsightText(aiAgeInsight) || 'Analyzing age demographics...'}
+          </div>
         </div>
 
         <div style={styles.card}>
@@ -395,6 +496,9 @@ const Analytics = () => {
                   <strong style={{ color: '#0f172a' }}>{item.value}</strong>
                 </div>
               ))}
+              <div style={insightsBadge}>
+                <strong style={{ color: '#0d9488' }}>AI Insight:</strong> {formatInsightText(aiGenderInsight) || 'Analyzing gender profile...'}
+              </div>
             </div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px' }}>Next Birthdays</div>
@@ -408,6 +512,9 @@ const Analytics = () => {
               ) : (
                 <div style={{ color: '#64748b' }}>No upcoming birthdays found.</div>
               )}
+              <div style={insightsBadge}>
+                <strong style={{ color: '#0d9488' }}>AI Insight:</strong> {formatInsightText(aiBirthdayInsight) || 'Analyzing upcoming birthdays...'}
+              </div>
             </div>
           </div>
         </div>

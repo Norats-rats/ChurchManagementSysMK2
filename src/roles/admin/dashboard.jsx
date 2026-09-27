@@ -1080,7 +1080,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           {currentTab === 'prayers' && hasPermission(role, 'prayers') && <Prayers role={role} user={user} />}
           {currentTab === 'advising' && hasPermission(role, 'advising') && <Advising role={role} user={user} />}
           {currentTab === 'finances' && hasPermission(role, 'finances') && <Finances role={role} userId={user._id} user={user} />}
-          {currentTab === 'analytics' && canViewAnalytics(role) && <Analytics />}
+          {currentTab === 'analytics' && canViewAnalytics(role) && <Analytics role={role} user={user} />}
           {currentTab === 'inventory' && canViewInventory(role) && <InventoryForm user={user} role={role} />}
         </div>
       </div>
