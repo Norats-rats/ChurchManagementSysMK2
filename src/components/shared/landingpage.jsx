@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import bgMorning from '../../assets/bgpics/churchmorn.jpg';
+import bgNight from '../../assets/bgpics/churchnight.jpg';
+import bgNoon from '../../assets/bgpics/churchnoon.jpg';
 
 const galleryModules = import.meta.glob('../../assets/landingpvents/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}', {
   eager: true,
@@ -37,6 +40,12 @@ const SLIDE_LABELS = {
 const SLIDE_DEFAULT_LABEL = 'Church Event';
 const SLIDE_INTERVAL = 5000;
 
+const STOCK_IMAGES = {
+  morning: bgMorning,
+  afternoon: bgNoon,
+  evening: bgNight
+};
+
 const SERVICES = [
   { name: 'Worship Service', description: 'Our main gathering to worship God together through praise and the Word.' },
   { name: 'Jail Preaching', description: 'Sharing the gospel with those in prison and bringing hope and encouragement.' },
@@ -68,12 +77,6 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
   const [slideIndex, setSlideIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const touchStartX = useRef(null);
-
-  const STOCK_IMAGES = {
-    morning: 'https://images.unsplash.com/photo-1548625361-180a373be5c6?auto=format&fit=crop&w=1920&q=80',
-    afternoon: 'https://images.unsplash.com/photo-1438032005730-c779502df39b?auto=format&fit=crop&w=1920&q=80',
-    evening: 'https://images.unsplash.com/photo-1519817650390-64a93db51149?auto=format&fit=crop&w=1920&q=80'
-  };
 
   useEffect(() => {
     const updateTimeBasedTheme = () => {
