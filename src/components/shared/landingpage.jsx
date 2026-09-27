@@ -11,6 +11,7 @@ const GALLERY_IMAGES = Object.keys(galleryModules)
   .map((key) => galleryModules[key]);
 
 const SLIDE_INTERVAL = 5000;
+const SLIDE_LABEL = 'Church Event';
 
 const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
   const [bgImage, setBgImage] = useState('');
@@ -73,12 +74,7 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
   );
 
   const slides = useMemo(
-    () =>
-      GALLERY_IMAGES.map((src, index) => ({
-        src,
-        title: normalizedEvents[index]?.title || '',
-        date: normalizedEvents[index]?.date || ''
-      })),
+    () => GALLERY_IMAGES.map((src, index) => ({ src, label: normalizedEvents[index]?.title || SLIDE_LABEL })),
     [normalizedEvents]
   );
 
@@ -136,7 +132,7 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
       </header>
 
       <section id="events" style={styles.section}>
-        <h2 style={styles.sectionTitle}>Upcoming Events</h2>
+        <h2 style={styles.sectionTitle}>Our Previous Events</h2>
         {totalSlides > 0 ? (
           <div
             style={styles.carousel}
@@ -167,17 +163,12 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
                 >
                   <img
                     src={slide.src}
-                    alt={slide.title || `Event photo ${index + 1}`}
+                    alt={slide.label}
                     style={styles.slideImage}
                     loading={index === 0 ? 'eager' : 'lazy'}
                     decoding="async"
                   />
-                  {(slide.title || slide.date) && (
-                    <figcaption style={styles.slideCaption}>
-                      {slide.title && <strong style={styles.slideCaptionTitle}>{slide.title}</strong>}
-                      {slide.date && <span style={styles.slideCaptionDate}>{slide.date}</span>}
-                    </figcaption>
-                  )}
+                  <figcaption style={styles.slideCaption}>{slide.label}</figcaption>
                 </figure>
               ))}
             </div>
@@ -390,20 +381,12 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
     padding: '2.5rem 1.25rem 1.25rem',
     background: 'linear-gradient(transparent, rgba(0, 0, 0, 0.75))',
     color: '#fff',
+    fontSize: '1.15rem',
+    fontWeight: 700,
     textAlign: 'left'
-  },
-  slideCaptionTitle: {
-    fontSize: '1.15rem'
-  },
-  slideCaptionDate: {
-    fontSize: '0.9rem',
-    opacity: 0.85
   },
   carouselArrow: {
     position: 'absolute',
