@@ -28,6 +28,14 @@ const formatInsightText = (text) => {
   return String(text).replace(/\s+/g, ' ').trim().slice(0, 800);
 };
 
+const formatInsightSentences = (text) => {
+  if (!text) return [];
+  const cleaned = String(text).replace(/\s+/g, ' ').trim();
+  if (!cleaned) return [];
+  const sentences = cleaned.match(/[^.!?]+[.!?]|\S+/g) || [cleaned];
+  return sentences.map((s) => s.trim()).filter(Boolean);
+};
+
 const buildAgeInsight = (stats) => {
   const groups = stats.ageGroupDistribution || [];
   const top = groups.reduce((a, b) => (b.value > a.value ? b : a), { name: 'N/A', value: 0 });
@@ -444,9 +452,15 @@ const Analytics = ({ user, role }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
             <h3 style={{ margin: 0, color: '#1e40af' }}>Live AI System Insights</h3>
           </div>
-          <p style={{ fontSize: '14px', color: '#334155', lineHeight: '1.5', margin: 0 }}>
-            {formatInsightText(aiInsight) || "Generating live machine learning overview..."}
-          </p>
+          <div style={{ fontSize: '14px', color: '#334155', lineHeight: '1.6' }}>
+            {formatInsightSentences(formatInsightText(aiInsight)).length > 0
+              ? formatInsightSentences(formatInsightText(aiInsight)).map((sentence, idx) => (
+                  <div key={idx} style={{ marginBottom: idx === formatInsightSentences(formatInsightText(aiInsight)).length - 1 ? 0 : '6px' }}>
+                    {sentence}
+                  </div>
+                ))
+              : <div>Generating live machine learning overview...</div>}
+          </div>
           <div style={{ marginTop: '14px', fontSize: '11px', color: '#94a3b8', letterSpacing: '1px' }}>
             REAL-TIME INTELLIGENCE DATA REFRESHED LIVE
           </div>
