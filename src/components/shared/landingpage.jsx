@@ -152,7 +152,7 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
       >
         <div style={styles.heroContent}>
           <p style={styles.greeting}>{timeGreeting}</p>
-          <h1 style={styles.heroTitle}>A church for FBCFI</h1>
+          <h1 style={styles.heroTitle}>A Home for FBCFI</h1>
           <div style={styles.heroActionBtns}>
             <button style={styles.primaryHeroBtn} onClick={onOpenAuth}>Join Us Now</button>
             <button style={styles.secondaryHeroBtn} onClick={() => scrollToSection('events')}>View Events</button>
