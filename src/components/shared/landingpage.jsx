@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const galleryModules = import.meta.glob('../../assets/landingpvents/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}', {
   eager: true,
@@ -6,8 +6,7 @@ const galleryModules = import.meta.glob('../../assets/landingpvents/*.{jpg,jpeg,
   import: 'default'
 });
 
-// Keyed by file name (e.g. 'IMG_2567.JPG'). Add or edit a key to change that
-// slide's label; anything not listed falls back to SLIDE_DEFAULT_LABEL.
+
 const SLIDE_LABELS = {
   'IMG_2567.JPG': 'Church Event',
   'IMG_3198.JPG': 'Church Event',
@@ -48,7 +47,7 @@ const GALLERY_IMAGES = Object.keys(galleryModules)
     };
   });
 
-const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
+const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
   const [bgImage, setBgImage] = useState('');
   const [timeGreeting, setTimeGreeting] = useState('');
   const [slideIndex, setSlideIndex] = useState(0);
@@ -89,28 +88,7 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
     }
   };
 
-  const defaultEvents = [
-    { id: 1, title: 'Sunday Worship Service', image: 'https://images.unsplash.com/photo-1510519138161-58441082695c?auto=format&fit=crop&w=600&q=80', date: 'Every Sunday at 9:00 AM' },
-    { id: 2, title: 'Community Fellowship', image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=600&q=80', date: 'Wednesdays at 6:30 PM' },
-    { id: 3, title: 'Youth & Family Gathering', image: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?auto=format&fit=crop&w=600&q=80', date: 'Saturdays at 4:00 PM' }
-  ];
-
-  const displayEvents = eventsData.length > 0 ? eventsData : defaultEvents;
-
-  const normalizedEvents = useMemo(
-    () =>
-      displayEvents.map((event, index) => ({
-        key: event.id ?? event._id ?? `${event.title}-${index}`,
-        image: event.image || event.imageUrl || '',
-        title: event.title || 'Church Event',
-        date: event.date || event.description || ''
-      })),
-    [displayEvents]
-  );
-
-  const slides = GALLERY_IMAGES;
-
-  const totalSlides = slides.length;
+  const totalSlides = GALLERY_IMAGES.length;
 
   const goToSlide = useCallback(
     (index) => {
@@ -165,100 +143,86 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
 
       <section id="events" style={styles.section}>
         <h2 style={styles.sectionTitle}>Our Previous Events</h2>
-        {totalSlides > 0 ? (
-          <div
-            style={styles.carousel}
-            onMouseEnter={() => setIsPaused(true)}
-            onMouseLeave={() => setIsPaused(false)}
-            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
-            onTouchEnd={(e) => {
-              if (touchStartX.current === null) return;
-              const delta = e.changedTouches[0].clientX - touchStartX.current;
-              touchStartX.current = null;
-              if (delta > 50) prevSlide();
-              if (delta < -50) nextSlide();
-            }}
-            role="region"
-            aria-roledescription="carousel"
-            aria-label="Church events photo slideshow"
-          >
-            <div style={styles.carouselViewport}>
-              {slides.map((slide, index) => (
-                <figure
-                  key={slide.src}
-                  style={{
-                    ...styles.slide,
-                    opacity: index === slideIndex ? 1 : 0,
-                    zIndex: index === slideIndex ? 2 : 1
-                  }}
-                  aria-hidden={index !== slideIndex}
-                >
-                  <img
-                    src={slide.src}
-                    alt={slide.label}
-                    style={styles.slideImage}
-                    loading={index === 0 ? 'eager' : 'lazy'}
-                    decoding="async"
-                  />
-                  <figcaption style={styles.slideCaption}>{slide.label}</figcaption>
-                </figure>
-              ))}
-            </div>
-
-            {totalSlides > 1 && (
-              <>
-                <button
-                  type="button"
-                  style={{ ...styles.carouselArrow, ...styles.carouselArrowPrev }}
-                  onClick={prevSlide}
-                  aria-label="Previous slide"
-                >
-                  &#10094;
-                </button>
-                <button
-                  type="button"
-                  style={{ ...styles.carouselArrow, ...styles.carouselArrowNext }}
-                  onClick={nextSlide}
-                  aria-label="Next slide"
-                >
-                  &#10095;
-                </button>
-
-                <div style={styles.carouselDots}>
-                  {slides.map((slide, index) => (
-                    <button
-                      key={slide.src}
-                      type="button"
-                      style={{
-                        ...styles.carouselDot,
-                        ...(index === slideIndex ? styles.carouselDotActive : {})
-                      }}
-                      onClick={() => goToSlide(index)}
-                      aria-label={`Go to slide ${index + 1}`}
-                      aria-current={index === slideIndex}
-                    />
-                  ))}
-                </div>
-
-                <div style={styles.carouselCounter}>
-                  {slideIndex + 1} / {totalSlides}
-                </div>
-              </>
-            )}
-          </div>
-        ) : (
-          <div style={styles.eventsGrid}>
-            {normalizedEvents.map((event) => (
-              <div key={event.key} style={styles.eventCard}>
-                <img src={event.image} alt={event.title} style={styles.eventImage} />
-                <div style={styles.eventDetails}>
-                  <h3>{event.title}</h3>
-                  <p>{event.date}</p>
-                </div>
-              </div>
+        <div
+          style={styles.carousel}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            if (touchStartX.current === null) return;
+            const delta = e.changedTouches[0].clientX - touchStartX.current;
+            touchStartX.current = null;
+            if (delta > 50) prevSlide();
+            if (delta < -50) nextSlide();
+          }}
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Church events photo slideshow"
+        >
+          <div style={styles.carouselViewport}>
+            {GALLERY_IMAGES.map((slide, index) => (
+              <figure
+                key={slide.src}
+                style={{
+                  ...styles.slide,
+                  opacity: index === slideIndex ? 1 : 0,
+                  zIndex: index === slideIndex ? 2 : 1
+                }}
+                aria-hidden={index !== slideIndex}
+              >
+                <img
+                  src={slide.src}
+                  alt={slide.label}
+                  style={styles.slideImage}
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                />
+                <figcaption style={styles.slideCaption}>{slide.label}</figcaption>
+              </figure>
             ))}
           </div>
-        )}
+
+          {totalSlides > 1 && (
+            <>
+              <button
+                type="button"
+                style={{ ...styles.carouselArrow, ...styles.carouselArrowPrev }}
+                onClick={prevSlide}
+                aria-label="Previous slide"
+              >
+                &#10094;
+              </button>
+              <button
+                type="button"
+                style={{ ...styles.carouselArrow, ...styles.carouselArrowNext }}
+                onClick={nextSlide}
+                aria-label="Next slide"
+              >
+                &#10095;
+              </button>
+
+              <div style={styles.carouselDots}>
+                {GALLERY_IMAGES.map((slide, index) => (
+                  <button
+                    key={slide.src}
+                    type="button"
+                    style={{
+                      ...styles.carouselDot,
+                      ...(index === slideIndex ? styles.carouselDotActive : {})
+                    }}
+                    onClick={() => goToSlide(index)}
+                    aria-label={`Go to slide ${index + 1}`}
+                    aria-current={index === slideIndex}
+                  />
+                ))}
+              </div>
+
+              <div style={styles.carouselCounter}>
+                {slideIndex + 1} / {totalSlides}
+              </div>
+            </>
+          )}
+        </div>
       </section>
 
       <footer id="contact" style={styles.footer}>
@@ -379,11 +343,6 @@ const styles = {
     fontSize: '2rem',
     marginBottom: '2rem'
   },
-  eventsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '2rem'
-  },
   carousel: {
     position: 'relative',
     borderRadius: '12px',
@@ -482,20 +441,6 @@ const styles = {
     color: '#fff',
     fontSize: '0.8rem',
     letterSpacing: '0.5px'
-  },
-  eventCard: {
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-  },
-  eventImage: {
-    width: '100%',
-    height: '200px',
-    objectFit: 'cover'
-  },
-  eventDetails: {
-    padding: '1rem'
   },
   footer: {
     backgroundColor: '#1a1a1a',
