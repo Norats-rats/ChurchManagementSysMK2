@@ -10,7 +10,7 @@ const galleryModules = import.meta.glob('../../assets/landingpvents/*.{jpg,jpeg,
 const SLIDE_LABELS = {
   'IMG_2567.JPG': 'Music Ministry',
   'IMG_3198.JPG': 'Marshall Ministry',
-  'IMG_3201.JPG': 'Gathering Celebration',
+  'IMG_3201.JPG': 'Marshall Ministry',
   'IMG_3219.JPG': 'Multimedia Ministry',
   'IMG_3313.JPG': 'Kitchen Ministry Outdoor Cooking',
   'IMG_3325.JPG': 'Marshall Ministry Member',
@@ -30,7 +30,7 @@ const SLIDE_LABELS = {
   'IMG_8935.JPG': 'Multimedia Ministry Staff',
   'IMG_9227.JPG': 'Multimedia Ministry Staff',
   '825310055_1617566113141805_1993782545261584226_n.jpg': 'Anniversary Celebration',
-  'BG for Log In': 'Church Event',
+  'BG for Log In': 'Gathering for Worship',
   'Musc.jpg': 'Music Ministry'
 };
 
