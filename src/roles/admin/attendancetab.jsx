@@ -56,6 +56,12 @@ const AttendanceTab = ({ role, userId, user }) => {
     fetchInitialData();
   }, [role, userId, todayStr]);
 
+  useEffect(() => {
+    const handleAttendanceUpdated = () => fetchInitialData();
+    window.addEventListener('attendanceUpdated', handleAttendanceUpdated);
+    return () => window.removeEventListener('attendanceUpdated', handleAttendanceUpdated);
+  }, []);
+
   const fetchInitialData = async () => {
     setLoading(true);
     try {
@@ -134,8 +140,7 @@ const AttendanceTab = ({ role, userId, user }) => {
 
   const qrValueForEvent = (event) => {
     const eventId = event._id || event.id;
-    const eventTitle = getEventTitle(event);
-    return `${window.location.origin}?checkin=${encodeURIComponent(eventTitle)}&title=${encodeURIComponent(eventTitle)}&eventId=${encodeURIComponent(String(eventId))}`;
+    return `${window.location.origin}?checkin=${encodeURIComponent(getEventTitle(event))}&eventId=${encodeURIComponent(String(eventId))}`;
   };
 
   const selectedEventAttendees = selectedTodayEvent

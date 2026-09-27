@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import api from './api';
 import './App.css';
@@ -235,33 +235,46 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const { showFeedback, FeedbackModal } = useFeedbackModal();
 
-  useEffect(() => {
+  // Captured on the very first render, before any route navigation drops the query string,
+  // so a member can scan the QR first and log in afterwards.
+  const [pendingCheckIn] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const eventTitle = params.get('title') || params.get('checkin');
-    const eventId = params.get('eventId');
+    return {
+      eventTitle: params.get('title') || params.get('checkin') || '',
+      eventId: params.get('eventId') || ''
+    };
+  });
+  const handledCheckInRef = useRef('');
 
-    if (eventTitle && userData) {
-      const processQRCheckIn = async () => {
-        try {
-          await api.recordAttendance({
-            userId: userData._id,
-            eventId: eventId || undefined,
-            name: `${userData.firstName} ${userData.lastName}`,
-            service: eventTitle,
-            date: getPhDateString(),
-            time: getPhTimeString(),
-            status: 'Present'
-          });
-          showFeedback(`Check-in confirmed for: ${eventTitle}`);
-          window.history.replaceState({}, document.title, window.location.pathname);
-          window.dispatchEvent(new Event('attendanceUpdated'));
-        } catch (err) {
-          console.error("QR processing error:", err);
-        }
-      };
-      processQRCheckIn();
-    }
-  }, [userData]); 
+  useEffect(() => {
+    const { eventTitle, eventId } = pendingCheckIn;
+    if (!userData || (!eventTitle && !eventId)) return;
+    if (handledCheckInRef.current === `${eventId}|${userData._id}`) return;
+    handledCheckInRef.current = `${eventId}|${userData._id}`;
+
+    const processQRCheckIn = async () => {
+      try {
+        const response = await api.recordAttendance({
+          userId: userData._id,
+          eventId: eventId || undefined,
+          name: `${userData.firstName} ${userData.lastName}`,
+          service: eventTitle,
+          date: getPhDateString(),
+          time: getPhTimeString(),
+          status: 'Present'
+        });
+        const serverMessage = response.data?.message;
+        showFeedback(serverMessage ? `${serverMessage}${eventTitle ? ` (${eventTitle})` : ''}` : `Check-in confirmed for: ${eventTitle}`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        window.dispatchEvent(new Event('attendanceUpdated'));
+      } catch (err) {
+        console.error("QR processing error:", err);
+        const message = err.response?.data?.message || err.response?.data?.error || 'Check-in could not be recorded. Please inform the booth monitor.';
+        showFeedback(message);
+      }
+    };
+    processQRCheckIn();
+  }, [userData, pendingCheckIn, showFeedback]);
 
   useEffect(() => {
     const storedTheme = localStorage.getItem('theme');

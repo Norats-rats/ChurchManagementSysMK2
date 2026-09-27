@@ -193,9 +193,13 @@ const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
   }
 };
 
+let eventImageBucket = null;
+
 mongoose.connect(mongoURI)
   .then(async () => {
     console.log("✅ MongoDB Connected");
+    eventImageBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'eventimages' });
+    console.log("✅ Event image storage ready (GridFS)");
     await Member.updateMany({ otp: { $exists: true } }, { $unset: { otp: '' } });
     const locationCount = await Location.countDocuments();
     if (locationCount === 0) {
@@ -279,6 +283,17 @@ const Attendance = mongoose.model('attendance', new mongoose.Schema({
   date: String,
   time: String,
   status: { type: String, enum: ['Present', 'Late', 'Absent'], default: 'Present' }
+}, { timestamps: true }));
+
+const EventImage = mongoose.model('eventimages', new mongoose.Schema({
+  eventId: { type: mongoose.Schema.Types.ObjectId, ref: 'events', required: true, index: true },
+  fileId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  fileName: { type: String, default: '' },
+  contentType: { type: String, default: 'application/octet-stream' },
+  size: { type: Number, default: 0 },
+  uploadedBy: { type: String, default: '' },
+  uploadedByName: { type: String, default: '' },
+  uploadedAt: { type: Date, default: Date.now }
 }, { timestamps: true }));
 
 const Prayer = mongoose.model('prayers', new mongoose.Schema({
@@ -1290,6 +1305,15 @@ app.post('/api/attendance', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid or missing User ID sequence.' });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      return res.status(400).json({ success: false, message: 'That QR code does not point to a valid event. Please scan the current code.' });
+    }
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'This event is no longer available for check-in. Please ask the booth monitor.' });
+    }
+
     const alreadyLogged = await Attendance.findOne({ eventId, userId });
     if (alreadyLogged) {
       return res.status(200).json({ success: true, message: 'Attendance already recorded!' });
@@ -1315,7 +1339,13 @@ app.post('/api/attendance', async (req, res) => {
     });
 
     await newAttendance.save();
-    return res.status(201).json({ success: true, data: newAttendance });
+
+    if (!event.attendees.includes(userId)) {
+      event.attendees.push(userId);
+      await event.save();
+    }
+
+    return res.status(201).json({ success: true, message: 'Check-in recorded. Thank you!', data: newAttendance });
   } catch (error) {
     console.error("Attendance log creation error:", error);
     return res.status(500).json({ success: false, message: error.message });
@@ -1617,6 +1647,154 @@ app.post('/api/events/scan-qr', async (req, res) => {
   } catch (error) {
     console.error("❌ Scan QR Attendance Route Error:", error);
     return res.status(500).json({ success: false, message: 'Internal server schema configuration error.' });
+  }
+});
+
+// --- EVENT IMAGE GALLERY ROUTES ---
+const EVENT_IMAGE_TYPES = [
+  'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+  'image/avif', 'image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'
+];
+const EVENT_IMAGE_MAX_BYTES = 12 * 1024 * 1024;
+const EVENT_IMAGE_MAX_FILES = 60;
+
+const canManageEventMedia = (req) => {
+  const role = req.headers['x-user-role'];
+  return role === 'Admin' || role === 'Ministry Leader' || role === 'Staff';
+};
+
+const getValidEventId = (value) => (mongoose.Types.ObjectId.isValid(value) ? String(value) : null);
+
+app.get('/api/events/:id/images', async (req, res) => {
+  try {
+    if (!req.headers['x-user-id']) return res.status(401).json({ error: 'Unauthorized access: Missing identity headers.' });
+    const eventId = getValidEventId(req.params.id);
+    if (!eventId) return res.status(400).json({ error: 'Invalid event reference.' });
+    if (!eventImageBucket) return res.status(503).json({ error: 'Image storage is still starting. Please retry shortly.' });
+
+    const images = await EventImage.find({ eventId }).sort({ uploadedAt: 1 }).lean();
+    return res.json(images.map(image => ({
+      id: String(image._id),
+      eventId: String(image.eventId),
+      fileName: image.fileName,
+      contentType: image.contentType,
+      size: image.size,
+      uploadedByName: image.uploadedByName,
+      uploadedAt: image.uploadedAt
+    })));
+  } catch (err) {
+    console.error('Event image list error:', err);
+    return res.status(500).json({ error: 'Failed to load event images.' });
+  }
+});
+
+app.get('/api/events/:id/images/:imageId', async (req, res) => {
+  try {
+    if (!req.headers['x-user-id']) return res.status(401).json({ error: 'Unauthorized access: Missing identity headers.' });
+    const imageId = getValidEventId(req.params.imageId);
+    if (!imageId) return res.status(400).json({ error: 'Invalid image reference.' });
+    if (!eventImageBucket) return res.status(503).json({ error: 'Image storage is still starting. Please retry shortly.' });
+
+    const record = await EventImage.findById(imageId).lean();
+    if (!record) return res.status(404).json({ error: 'Image not found.' });
+
+    res.setHeader('Content-Type', record.contentType || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=86400');
+    const stream = eventImageBucket.openDownloadStream(new mongoose.Types.ObjectId(String(record.fileId)));
+    stream.on('error', () => res.end());
+    return stream.pipe(res);
+  } catch (err) {
+    console.error('Event image download error:', err);
+    return res.status(500).json({ error: 'Failed to stream event image.' });
+  }
+});
+
+app.post('/api/events/:id/images', async (req, res) => {
+  try {
+    if (!canManageEventMedia(req)) return res.status(403).json({ error: 'Only administrators, ministry leaders, and staff can upload event images.' });
+    const eventId = getValidEventId(req.params.id);
+    if (!eventId) return res.status(400).json({ error: 'Invalid event reference.' });
+    if (!eventImageBucket) return res.status(503).json({ error: 'Image storage is still starting. Please retry shortly.' });
+
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ error: 'Event record not found in database.' });
+
+    const { fileName, contentType, data } = req.body || {};
+    if (!EVENT_IMAGE_TYPES.includes(String(contentType || '').toLowerCase())) {
+      return res.status(400).json({ error: 'Unsupported image format. Use JPEG, PNG, WEBP, GIF, AVIF, or HEIC photos.' });
+    }
+    if (typeof data !== 'string' || !/^data:[^;,]+;base64,[a-zA-Z0-9+/=]+$/.test(data)) {
+      return res.status(400).json({ error: 'Invalid image payload.' });
+    }
+
+    const buffer = Buffer.from(data.split(',')[1], 'base64');
+    if (!buffer.length) return res.status(400).json({ error: 'The selected file appears to be empty.' });
+    if (buffer.length > EVENT_IMAGE_MAX_BYTES) {
+      return res.status(400).json({ error: 'Each photo must be under 12MB.' });
+    }
+
+    const existingCount = await EventImage.countDocuments({ eventId });
+    if (existingCount >= EVENT_IMAGE_MAX_FILES) {
+      return res.status(400).json({ error: 'This event already holds the maximum of 60 photos.' });
+    }
+
+    const safeName = String(fileName || 'event-photo').replace(/[^\w.\- ]+/g, '_').slice(0, 120);
+    const uploadStream = eventImageBucket.openUploadStream(safeName, {
+      contentType: String(contentType).toLowerCase(),
+      metadata: { eventId, uploadedBy: String(req.headers['x-user-id'] || '') }
+    });
+
+    const fileId = await new Promise((resolve, reject) => {
+      uploadStream.once('error', reject);
+      uploadStream.once('finish', () => resolve(uploadStream.id));
+      uploadStream.end(buffer);
+    });
+
+    const record = await EventImage.create({
+      eventId,
+      fileId,
+      fileName: safeName,
+      contentType: String(contentType).toLowerCase(),
+      size: buffer.length,
+      uploadedBy: String(req.headers['x-user-id'] || ''),
+      uploadedByName: String(req.headers['x-user-name'] || '')
+    });
+
+    return res.status(201).json({
+      id: String(record._id),
+      eventId,
+      fileName: record.fileName,
+      contentType: record.contentType,
+      size: record.size,
+      uploadedByName: record.uploadedByName,
+      uploadedAt: record.uploadedAt
+    });
+  } catch (err) {
+    console.error('Event image upload error:', err);
+    return res.status(500).json({ error: 'Failed to upload event image.' });
+  }
+});
+
+app.delete('/api/events/:id/images/:imageId', async (req, res) => {
+  try {
+    if (!canManageEventMedia(req)) return res.status(403).json({ error: 'Only administrators, ministry leaders, and staff can remove event images.' });
+    const eventId = getValidEventId(req.params.id);
+    const imageId = getValidEventId(req.params.imageId);
+    if (!eventId || !imageId) return res.status(400).json({ error: 'Invalid event or image reference.' });
+
+    const record = await EventImage.findOneAndDelete({ _id: imageId, eventId });
+    if (!record) return res.status(404).json({ error: 'Image not found.' });
+
+    try {
+      await eventImageBucket.delete(new mongoose.Types.ObjectId(String(record.fileId)));
+    } catch (storageErr) {
+      console.error('GridFS delete warning:', storageErr.message);
+    }
+
+    return res.json({ message: 'Image removed.' });
+  } catch (err) {
+    console.error('Event image delete error:', err);
+    return res.status(500).json({ error: 'Failed to remove event image.' });
   }
 });
 

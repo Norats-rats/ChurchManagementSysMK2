@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';
-import { canManageEvents } from '../../permissions';
+import { canManageEvents, canUploadEventImages } from '../../permissions';
 import {
   PH_TIMEZONE_LABEL,
   formatPhDateObject,
@@ -9,12 +9,16 @@ import {
   getPhTodayDateObject,
   normalizeDateString
 } from '../../utils/philippinesTime';
+import EventHistoryModal from './eventhistory';
 
-const EventTab = ({ role, userId }) => {
+const EventTab = ({ role, userId, user }) => {
   const [events, setEvents] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
+  const [hoveredEventId, setHoveredEventId] = useState(null);
+  const [historyTarget, setHistoryTarget] = useState(null);
+  const [historyPanel, setHistoryPanel] = useState('attendance');
 
   const [currentCalendarDate, setCurrentCalendarDate] = useState(() => getPhTodayDateObject());
   const [selectedDate, setSelectedDate] = useState(() => getPhTodayDateObject());
@@ -46,6 +50,7 @@ const EventTab = ({ role, userId }) => {
   });
 
   const canManage = canManageEvents(role);
+  const canUploadImages = canUploadEventImages(role);
   const { showFeedback, askConfirmation, FeedbackModal } = useFeedbackModal();
 
   const today = getPhTodayDateObject();
@@ -360,6 +365,11 @@ const EventTab = ({ role, userId }) => {
     });
   };
 
+  const openHistory = (event, panel) => {
+    setHistoryPanel(panel);
+    setHistoryTarget(event);
+  };
+
   const styles = {
     container: { padding: '20px', backgroundColor: '#f7fafc', minHeight: '100vh', display: 'flex', gap: '25px', alignItems: 'flex-start', flexWrap: 'wrap' },
     
@@ -393,6 +403,11 @@ const EventTab = ({ role, userId }) => {
       display: 'flex', flexDirection: 'column', borderLeft: isArchived ? '4px solid #94a3b8' : '4px solid #4f46e5',
       opacity: isArchived ? 0.6 : 1, filter: isArchived ? 'grayscale(0.5)' : 'none'
     }),
+    cardFrame: { position: 'relative' },
+    historyOverlay: { position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.9)', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', zIndex: 3 },
+    historyOverlayTitle: { color: '#ffffff', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' },
+    historyOverlayBtn: { width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.12)', color: '#ffffff', fontSize: '12px', fontWeight: '700', cursor: 'pointer' },
+    historyFooterBtn: { width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#334155', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' },
     badge: (cat, isArchived) => ({
       padding: '4px 10px', borderRadius: '15px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase',
       backgroundColor: isArchived ? '#e2e8f0' : (cat === 'Worship' ? '#e0e7ff' : '#fef3c7'),
@@ -638,9 +653,16 @@ const EventTab = ({ role, userId }) => {
               const eventDateObj = new Date(event.date + 'T00:00:00');
               const isPastEvent = eventDateObj < today;
               const isArchived = event.status === 'archived' || isPastEvent;
-              
+              const isHovered = hoveredEventId === event._id;
+
               return (
-                <div key={event._id} style={styles.card(isArchived)}>
+                <div
+                  key={event._id}
+                  style={styles.cardFrame}
+                  onMouseEnter={() => setHoveredEventId(event._id)}
+                  onMouseLeave={() => setHoveredEventId(prev => (prev === event._id ? null : prev))}
+                >
+                  <div style={styles.card(isArchived)}>
                   <div style={{ flex: 1 }}>
                     <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <span style={styles.badge(event.category, isArchived)}>
@@ -661,7 +683,9 @@ const EventTab = ({ role, userId }) => {
 
                   <div style={styles.footer}>
                     {isArchived ? (
-                       <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Archived Record</span>
+                      <button type="button" onClick={() => openHistory(event, canManage ? 'attendance' : (canUploadImages ? 'upload' : 'gallery'))} style={styles.historyFooterBtn}>
+                        📂 View Event History
+                      </button>
                     ) : (
                       canManage ? (
                         <>
@@ -684,11 +708,41 @@ const EventTab = ({ role, userId }) => {
                     )}
                   </div>
                 </div>
+                  {isArchived && isHovered && (
+                    <div style={styles.historyOverlay}>
+                      <span style={styles.historyOverlayTitle}>Event History</span>
+                      {canManage && (
+                        <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'attendance')}>
+                          👥 View Event Attendance
+                        </button>
+                      )}
+                      {canUploadImages && (
+                        <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'upload')}>
+                          📤 Upload Event Images
+                        </button>
+                      )}
+                      <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'gallery')}>
+                        🖼️ View Images
+                      </button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {historyTarget && (
+        <EventHistoryModal
+          event={historyTarget}
+          userId={userId}
+          role={role}
+          userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || ''}
+          initialPanel={historyPanel}
+          onClose={() => setHistoryTarget(null)}
+        />
+      )}
       <FeedbackModal />
     </div>
   );

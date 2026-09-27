@@ -7,6 +7,8 @@ const API_BASE = API_BASE_RAW && /^https?:\/\//i.test(API_BASE_RAW)
     ? `https://${API_BASE_RAW}`
     : API_BASE_RAW;
 
+const toHeaderSafeText = (value) => String(value || '').replace(/[^\x20-\x7E]/g, '').trim();
+
 const apiClient = axios.create({
   baseURL: API_BASE,
   headers: {
@@ -94,6 +96,28 @@ export const api = {
 
   // Attendance
   getAttendance: () => apiClient.get('/api/attendance'),
+
+  // Event image gallery
+  getEventImages: (eventId, userId) => apiClient.get(`/api/events/${eventId}/images`, {
+    headers: { 'x-user-id': userId }
+  }),
+  getEventImageFile: (eventId, imageId, userId) => apiClient.get(`/api/events/${eventId}/images/${imageId}`, {
+    headers: { 'x-user-id': userId },
+    responseType: 'blob'
+  }),
+  uploadEventImage: (eventId, payload, userId, role, userName) => apiClient.post(`/api/events/${eventId}/images`, payload, {
+    headers: {
+      'x-user-id': userId,
+      'x-user-role': role,
+      'x-user-name': toHeaderSafeText(userName)
+    }
+  }),
+  deleteEventImage: (eventId, imageId, userId, role) => apiClient.delete(`/api/events/${eventId}/images/${imageId}`, {
+    headers: {
+      'x-user-id': userId,
+      'x-user-role': role
+    }
+  }),
 
   // Finances
   getFinances: (userId, role) => apiClient.get('/api/finances', {

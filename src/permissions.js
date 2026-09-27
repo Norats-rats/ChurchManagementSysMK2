@@ -36,6 +36,7 @@ export const hasPermission = (role, permissionKey) => {
 };
 
 export const canManageEvents = (role) => [ROLE_NAMES.ADMIN, ROLE_NAMES.MINISTRY_LEADER].includes(normalizeRole(role));
+export const canUploadEventImages = (role) => [ROLE_NAMES.ADMIN, ROLE_NAMES.MINISTRY_LEADER, ROLE_NAMES.STAFF].includes(normalizeRole(role));
 export const canManageAttendance = (role) => [ROLE_NAMES.ADMIN, ROLE_NAMES.MINISTRY_LEADER, ROLE_NAMES.STAFF].includes(normalizeRole(role));
 export const canManageMinistries = (role) => [ROLE_NAMES.ADMIN, ROLE_NAMES.MINISTRY_LEADER].includes(normalizeRole(role));
 export const canSubmitAdvising = (role) => [ROLE_NAMES.STAFF, ROLE_NAMES.MEMBER].includes(normalizeRole(role));
