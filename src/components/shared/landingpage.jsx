@@ -1,8 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+const galleryModules = import.meta.glob('../../assets/landingpvents/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}', {
+  eager: true,
+  query: '?url',
+  import: 'default'
+});
+
+const GALLERY_IMAGES = Object.keys(galleryModules)
+  .sort()
+  .map((key) => galleryModules[key]);
+
+const SLIDE_INTERVAL = 5000;
 
 const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
   const [bgImage, setBgImage] = useState('');
   const [timeGreeting, setTimeGreeting] = useState('');
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const touchStartX = useRef(null);
 
   const STOCK_IMAGES = {
     morning: 'https://images.unsplash.com/photo-1548625361-180a373be5c6?auto=format&fit=crop&w=1920&q=80',
@@ -57,6 +72,42 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
     [displayEvents]
   );
 
+  const slides = useMemo(
+    () =>
+      GALLERY_IMAGES.map((src, index) => ({
+        src,
+        title: normalizedEvents[index]?.title || '',
+        date: normalizedEvents[index]?.date || ''
+      })),
+    [normalizedEvents]
+  );
+
+  const totalSlides = slides.length;
+
+  const goToSlide = useCallback(
+    (index) => {
+      if (totalSlides === 0) return;
+      setSlideIndex(((index % totalSlides) + totalSlides) % totalSlides);
+    },
+    [totalSlides]
+  );
+
+  const nextSlide = useCallback(
+    () => setSlideIndex((current) => (current + 1) % Math.max(totalSlides, 1)),
+    [totalSlides]
+  );
+
+  const prevSlide = useCallback(
+    () => setSlideIndex((current) => (current - 1 + Math.max(totalSlides, 1)) % Math.max(totalSlides, 1)),
+    [totalSlides]
+  );
+
+  useEffect(() => {
+    if (isPaused || totalSlides < 2) return undefined;
+    const timer = setInterval(nextSlide, SLIDE_INTERVAL);
+    return () => clearInterval(timer);
+  }, [isPaused, nextSlide, totalSlides]);
+
   return (
     <div className="landing-page">
       <nav className="landing-nav" style={styles.nav}>
@@ -86,17 +137,105 @@ const LandingPage = ({ onOpenAuth, eventsData = [], contactInfo = {} }) => {
 
       <section id="events" style={styles.section}>
         <h2 style={styles.sectionTitle}>Upcoming Events</h2>
-        <div style={styles.eventsGrid}>
-          {normalizedEvents.map((event) => (
-            <div key={event.key} style={styles.eventCard}>
-              <img src={event.image} alt={event.title} style={styles.eventImage} />
-              <div style={styles.eventDetails}>
-                <h3>{event.title}</h3>
-                <p>{event.date}</p>
-              </div>
+        {totalSlides > 0 ? (
+          <div
+            style={styles.carousel}
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current === null) return;
+              const delta = e.changedTouches[0].clientX - touchStartX.current;
+              touchStartX.current = null;
+              if (delta > 50) prevSlide();
+              if (delta < -50) nextSlide();
+            }}
+            role="region"
+            aria-roledescription="carousel"
+            aria-label="Church events photo slideshow"
+          >
+            <div style={styles.carouselViewport}>
+              {slides.map((slide, index) => (
+                <figure
+                  key={slide.src}
+                  style={{
+                    ...styles.slide,
+                    opacity: index === slideIndex ? 1 : 0,
+                    zIndex: index === slideIndex ? 2 : 1
+                  }}
+                  aria-hidden={index !== slideIndex}
+                >
+                  <img
+                    src={slide.src}
+                    alt={slide.title || `Event photo ${index + 1}`}
+                    style={styles.slideImage}
+                    loading={index === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
+                  />
+                  {(slide.title || slide.date) && (
+                    <figcaption style={styles.slideCaption}>
+                      {slide.title && <strong style={styles.slideCaptionTitle}>{slide.title}</strong>}
+                      {slide.date && <span style={styles.slideCaptionDate}>{slide.date}</span>}
+                    </figcaption>
+                  )}
+                </figure>
+              ))}
             </div>
-          ))}
-        </div>
+
+            {totalSlides > 1 && (
+              <>
+                <button
+                  type="button"
+                  style={{ ...styles.carouselArrow, ...styles.carouselArrowPrev }}
+                  onClick={prevSlide}
+                  aria-label="Previous slide"
+                >
+                  &#10094;
+                </button>
+                <button
+                  type="button"
+                  style={{ ...styles.carouselArrow, ...styles.carouselArrowNext }}
+                  onClick={nextSlide}
+                  aria-label="Next slide"
+                >
+                  &#10095;
+                </button>
+
+                <div style={styles.carouselDots}>
+                  {slides.map((slide, index) => (
+                    <button
+                      key={slide.src}
+                      type="button"
+                      style={{
+                        ...styles.carouselDot,
+                        ...(index === slideIndex ? styles.carouselDotActive : {})
+                      }}
+                      onClick={() => goToSlide(index)}
+                      aria-label={`Go to slide ${index + 1}`}
+                      aria-current={index === slideIndex}
+                    />
+                  ))}
+                </div>
+
+                <div style={styles.carouselCounter}>
+                  {slideIndex + 1} / {totalSlides}
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div style={styles.eventsGrid}>
+            {normalizedEvents.map((event) => (
+              <div key={event.key} style={styles.eventCard}>
+                <img src={event.image} alt={event.title} style={styles.eventImage} />
+                <div style={styles.eventDetails}>
+                  <h3>{event.title}</h3>
+                  <p>{event.date}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <footer id="contact" style={styles.footer}>
@@ -221,6 +360,113 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
     gap: '2rem'
+  },
+  carousel: {
+    position: 'relative',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    boxShadow: '0 6px 24px rgba(0,0,0,0.18)',
+    backgroundColor: '#0f172a'
+  },
+  carouselViewport: {
+    position: 'relative',
+    width: '100%',
+    height: 'clamp(240px, 45vw, 520px)'
+  },
+  slide: {
+    position: 'absolute',
+    inset: 0,
+    margin: 0,
+    transition: 'opacity 0.6s ease-in-out'
+  },
+  slideImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    display: 'block'
+  },
+  slideCaption: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+    padding: '2.5rem 1.25rem 1.25rem',
+    background: 'linear-gradient(transparent, rgba(0, 0, 0, 0.75))',
+    color: '#fff',
+    textAlign: 'left'
+  },
+  slideCaptionTitle: {
+    fontSize: '1.15rem'
+  },
+  slideCaptionDate: {
+    fontSize: '0.9rem',
+    opacity: 0.85
+  },
+  carouselArrow: {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    zIndex: 3,
+    width: '44px',
+    height: '44px',
+    borderRadius: '50%',
+    border: 'none',
+    background: 'rgba(0, 0, 0, 0.55)',
+    color: '#fff',
+    fontSize: '1.1rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s ease'
+  },
+  carouselArrowPrev: {
+    left: '12px'
+  },
+  carouselArrowNext: {
+    right: '12px'
+  },
+  carouselDots: {
+    position: 'absolute',
+    bottom: '12px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 3,
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    maxWidth: '80%',
+    padding: '0 2.5rem'
+  },
+  carouselDot: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    border: 'none',
+    padding: 0,
+    background: 'rgba(255, 255, 255, 0.55)',
+    cursor: 'pointer',
+    transition: 'background 0.2s ease, transform 0.2s ease'
+  },
+  carouselDotActive: {
+    background: '#ffffff',
+    transform: 'scale(1.25)'
+  },
+  carouselCounter: {
+    position: 'absolute',
+    top: '12px',
+    right: '14px',
+    zIndex: 3,
+    padding: '0.3rem 0.6rem',
+    borderRadius: '999px',
+    background: 'rgba(0, 0, 0, 0.5)',
+    color: '#fff',
+    fontSize: '0.8rem',
+    letterSpacing: '0.5px'
   },
   eventCard: {
     border: '1px solid #ddd',
