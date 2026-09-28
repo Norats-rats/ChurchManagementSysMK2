@@ -218,21 +218,32 @@ const Ministries = ({ role, user }) => {
         return;
       }
 
-      const bodyData = new FormData();
-      bodyData.append('announcementText', announcementText.trim());
-      bodyData.append('author', userName);
+      let res;
       if (announcementFile) {
+        const bodyData = new FormData();
+        bodyData.append('announcementText', announcementText.trim());
+        bodyData.append('author', userName);
         bodyData.append('attachment', announcementFile);
-      }
 
-      const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}/announcement`, {
-        method: 'POST',
-        headers: {
-          'x-user-role': role,
-          'x-user-name': userName
-        },
-        body: bodyData
-      });
+        res = await fetch(`${API_BASE}/api/ministries/${ministry._id}/announcement`, {
+          method: 'POST',
+          headers: {
+            'x-user-role': role,
+            'x-user-name': userName
+          },
+          body: bodyData
+        });
+      } else {
+        res = await fetch(`${API_BASE}/api/ministries/${ministry._id}/announcement`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-role': role,
+            'x-user-name': userName
+          },
+          body: JSON.stringify({ announcementText: announcementText.trim(), author: userName })
+        });
+      }
 
       if (!res.ok) throw new Error('Announcement save failed');
       setAnnouncementText('');
@@ -301,7 +312,6 @@ const Ministries = ({ role, user }) => {
 
   if (loading) return <div style={{ padding: '40px' }}>Loading ministry workspace...</div>;
 
-
   if (selectedMinistry) {
     const m = selectedMinistry;
     const ministryMembers = allMembers.filter(member => {
@@ -314,7 +324,7 @@ const Ministries = ({ role, user }) => {
     const canEditMinistry = role === 'Admin' || isMyMinistryLeader;
     const pendingRequests = Array.isArray(m.joinRequests) ? m.joinRequests.filter(req => req.status === 'Pending') : [];
 
-    const announcementsList = Array.isArray(m.announcements) 
+    const announcementsList = Array.isArray(m.announcements) && m.announcements.length > 0
       ? m.announcements 
       : (m.announcementText ? [{ _id: '1', text: m.announcementText, createdAt: m.updatedAt || new Date() }] : []);
 
@@ -374,7 +384,7 @@ const Ministries = ({ role, user }) => {
           )}
         </div>
 
-        {/* Tab 1: Stream & Announcements (With History & Media Support) */}
+        {/* Tab 1: Stream & Announcements */}
         {activeTab === 'feed' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px' }}>
             {isMyMinistryLeader && (
@@ -408,7 +418,7 @@ const Ministries = ({ role, user }) => {
 
                 <button
                   onClick={() => submitAnnouncement(m)}
-                  style={{ marginTop: '14px', padding: '10px 18px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+                  style={{ marginTop: '14px', padding: '10px 18px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-primary, #2563eb)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   Publish Announcement
                 </button>
@@ -423,40 +433,48 @@ const Ministries = ({ role, user }) => {
                 <p style={{ color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>No announcements posted yet.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {announcementsList.map((ann, idx) => (
-                    <div key={ann._id || idx} style={{ padding: '16px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', borderLeft: `4px solid ${m.color || '#2563eb'}` }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', color: '#64748b' }}>
-                        <strong>{ann.author || m.leader || 'Ministry Leader'}</strong>
-                        <span>{ann.createdAt ? new Date(ann.createdAt).toLocaleDateString() : 'Recent'}</span>
-                      </div>
-                      
-                      <p style={{ margin: 0, color: '#334155', fontSize: '14px', lineHeight: '1.6', whitespace: 'pre-wrap' }}>
-                        {ann.text || ann.announcementText || ann}
-                      </p>
+                  {announcementsList.map((ann, idx) => {
+                    const text = ann.text || ann.announcementText || (typeof ann === 'string' ? ann : '');
+                    const fileUrl = ann.fileUrl || ann.imageUrl;
+                    const isImage = fileUrl && (fileUrl.startsWith('data:image/') || fileUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i));
 
-                      {/* Display Attachment if Present */}
-                      {(ann.fileUrl || ann.imageUrl) && (
-                        <div style={{ marginTop: '12px' }}>
-                          {(ann.fileUrl || ann.imageUrl).match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                            <img 
-                              src={ann.fileUrl || ann.imageUrl} 
-                              alt="Announcement attachment" 
-                              style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', border: '1px solid #e2e8f0' }} 
-                            />
-                          ) : (
-                            <a 
-                              href={ann.fileUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontSize: '13px', fontWeight: 'bold' }}
-                            >
-                              📎 View Attached File
-                            </a>
-                          )}
+                    return (
+                      <div key={ann._id || idx} style={{ padding: '16px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', borderLeft: `4px solid ${m.color || '#2563eb'}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', color: '#64748b' }}>
+                          <strong>{ann.author || m.leader || 'Ministry Leader'}</strong>
+                          <span>{ann.createdAt ? new Date(ann.createdAt).toLocaleDateString() : 'Recent'}</span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        
+                        {text && (
+                          <p style={{ margin: 0, color: '#334155', fontSize: '14px', lineHeight: '1.6', whitespace: 'pre-wrap' }}>
+                            {text}
+                          </p>
+                        )}
+
+                        {/* Display Attachment */}
+                        {fileUrl && (
+                          <div style={{ marginTop: '12px' }}>
+                            {isImage ? (
+                              <img 
+                                src={fileUrl} 
+                                alt="Announcement attachment" 
+                                style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', border: '1px solid #e2e8f0' }} 
+                              />
+                            ) : (
+                              <a 
+                                href={fileUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontSize: '13px', fontWeight: 'bold' }}
+                              >
+                                📎 View Attached File
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -490,7 +508,7 @@ const Ministries = ({ role, user }) => {
                   <button 
                     type="button"
                     onClick={() => handleAddMember(selectedMemberId, m.name)}
-                    style={{ padding: '10px 18px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                    style={{ padding: '10px 18px', backgroundColor: 'var(--color-primary, #2563eb)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
                     disabled={!selectedMemberId}
                   >
                     Add
@@ -527,7 +545,7 @@ const Ministries = ({ role, user }) => {
           </div>
         )}
 
-        {/* Tab 3: Join Requests (Restricted to Ministry Leader / Admin) */}
+        {/* Tab 3: Join Requests */}
         {activeTab === 'requests' && canApproveRequests && (
           <div style={{ maxWidth: '800px' }}>
             <div style={cardStyle}>
@@ -585,7 +603,7 @@ const Ministries = ({ role, user }) => {
                     </select>
                     <button 
                       onClick={() => handleUpdateLeader(m._id)}
-                      style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                      style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary, #2563eb)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
                     >
                       Save Leader
                     </button>
@@ -621,7 +639,6 @@ const Ministries = ({ role, user }) => {
     );
   }
 
-
   return (
     <div style={{ padding: '30px', backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', alignItems: 'center' }}>
@@ -635,7 +652,7 @@ const Ministries = ({ role, user }) => {
         </div>
         {canManage && (
           <button 
-            style={{ padding: '10px 20px', backgroundColor: 'var(--color-primary)', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ padding: '10px 20px', backgroundColor: 'var(--color-primary, #2563eb)', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
             onClick={() => setShowCreateForm(!showCreateForm)}
           >
             {showCreateForm ? '✕ Close' : '+ Create Ministry'}
@@ -734,7 +751,7 @@ const Ministries = ({ role, user }) => {
                     <button
                       onClick={() => applyToJoin(m)}
                       disabled={requestInProgress || !!userExistingRequest?.status}
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--color-primary, #2563eb)', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
                     >
                       {userExistingRequest ? (userExistingRequest.status === 'Pending' ? 'Request Pending' : 'Request Sent') : 'Apply to Join'}
                     </button>

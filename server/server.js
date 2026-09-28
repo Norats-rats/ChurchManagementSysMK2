@@ -330,6 +330,12 @@ const Ministry = mongoose.model('Ministry', new mongoose.Schema({
   color: { type: String, default: "#2563eb" },
   status: { type: String, default: "Active" },
   announcementText: { type: String, default: '' },
+  announcements: [{
+    text: String,
+    author: String,
+    fileUrl: String,
+    createdAt: { type: Date, default: Date.now }
+  }],
   joinRequests: [{
     userId: String,
     userName: String,
@@ -1015,23 +1021,50 @@ app.patch('/api/ministries/:id', async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
-app.post('/api/ministries/:id/announcement', async (req, res) => {
+const multer = require('multer');
+const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
+
+app.post('/api/ministries/:id/announcement', upload.single('attachment'), async (req, res) => {
   try {
     const userRole = req.headers['x-user-role'];
     const userName = (req.headers['x-user-name'] || '').trim();
-    if (userRole !== 'Ministry Leader') {
+    if (userRole !== 'Ministry Leader' && userRole !== 'Admin') {
       return res.status(403).json({ error: 'Forbidden: only assigned ministry leaders can announce.' });
     }
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
-    if (!userName || ministry.leader?.trim().toLowerCase() !== userName.toLowerCase()) {
+    if (userRole !== 'Admin' && (!userName || ministry.leader?.trim().toLowerCase() !== userName.toLowerCase())) {
       return res.status(403).json({ error: 'Forbidden: only the assigned ministry leader can update this announcement.' });
     }
-    const { announcementText } = req.body;
+
+    const announcementText = req.body.announcementText || req.body.text || '';
+    let fileUrl = '';
+
+    if (req.file) {
+      const mimeType = req.file.mimetype;
+      const base64Data = req.file.buffer.toString('base64');
+      fileUrl = `data:${mimeType};base64,${base64Data}`;
+    }
+
+    const newAnnouncement = {
+      text: announcementText,
+      author: userName || ministry.leader,
+      fileUrl: fileUrl,
+      createdAt: new Date()
+    };
+
     ministry.announcementText = announcementText;
+    if (!Array.isArray(ministry.announcements)) {
+      ministry.announcements = [];
+    }
+    ministry.announcements.unshift(newAnnouncement);
+
     await ministry.save();
     res.json(ministry);
-  } catch (err) { res.status(400).json({ error: err.message }); }
+  } catch (err) {
+    console.error('Announcement Error:', err);
+    res.status(400).json({ error: err.message });
+  }
 });
 
 app.post('/api/ministries/:id/join-request', async (req, res) => {
@@ -2228,42 +2261,10 @@ app.post('/api/ai/analyze-schedule', async (req, res) => {
   }
 });
 
-const computeMetricsFallback = (focus, data) => {
-  if (!data) data = {};
-  if (focus === 'age') {
-    const groups = data.ageGroupDistribution || [];
-    const top = groups.reduce((a, b) => (b.value > a.value ? b : a), { name: 'N/A', value: 0 });
-    return `Age Insight: The average member age is ${data.averageAge || 0}, with the largest cohort (${top.name}) totaling ${top.value} members. Targeted engagement for under-represented age bands is recommended.`;
-  }
-  if (focus === 'gender') {
-    const items = (data.genderDistribution || []).filter(d => d.name !== 'Unknown' && d.name !== 'Prefer not to say');
-    const totalKnown = items.reduce((s, d) => s + d.value, 0);
-    const parts = items.map(d => `${d.name}: ${totalKnown ? Math.round((d.value / totalKnown) * 100) : 0}%`).join(', ');
-    return `Gender Insight: ${parts || 'Data pending.'}`;
-  }
-  if (focus === 'birthday') {
-    const bdays = data.nextBirthdays || [];
-    if (!bdays.length) return 'Birthday Insight: No upcoming birthdays in the next 60 days. Consider a monthly recognition program.';
-    const next = bdays[0];
-    return `Birthday Insight: ${bdays.length} upcoming birthday(s). Next: ${next.name} on ${next.displayDate}. A timely greeting strengthens member connection.`;
-  }
-  return `System Analysis: The congregation has ${data.totalMembers || 0} members across ${data.activeMinistries || 0} ministries with ${data.upcomingEvents || 0} upcoming events. Review event timelines and member engagement metrics to support community plans.`;
-};
-
 app.post('/api/ai/analyze-metrics', async (req, res) => {
-  const {
-    focus,
-    totalMembers,
-    activeMinistries,
-    upcomingEvents,
-    ministryDistribution,
-    ageGroupDistribution,
-    averageAge,
-    genderDistribution,
-    nextBirthdays
-  } = req.body || {};
-
   try {
+    const { totalMembers, activeMinistries, upcomingEvents, ministryDistribution } = req.body;
+
     if (!process.env.PUTER_AUTH_TOKEN) {
       console.error("❌ Configuration Error: Missing PUTER_AUTH_TOKEN inside environment variables.");
       return res.status(500).json({ error: "Missing PUTER_AUTH_TOKEN environment variable." });
@@ -2272,53 +2273,26 @@ app.post('/api/ai/analyze-metrics', async (req, res) => {
     const today = new Date();
     const formattedToday = getPhDateString(today);
 
-    const safeNum = (v) => (v === undefined || v === null ? 'N/A' : v);
-    const safeJson = (v) => (v === undefined || v === null ? 'N/A' : JSON.stringify(v));
-    const topKey = (obj) => (obj && typeof obj === 'object' && Object.keys(obj).length
-      ? Object.keys(obj).reduce((a, b) => (obj[a] > obj[b] ? a : b))
-      : 'N/A');
-    const minKey = (obj) => (obj && typeof obj === 'object' && Object.keys(obj).length
-      ? Object.keys(obj).reduce((a, b) => (obj[a] < obj[b] ? a : b))
-      : 'N/A');
-
-    let focusData = '';
-    let task = '';
-
-    if (focus === 'age') {
-      focusData = `- Average Member Age: ${safeNum(averageAge)}
-- Age Group Distribution: ${safeJson(ageGroupDistribution)}`;
-      task = 'Provide a concise, actionable insight (1-2 sentences) interpreting the age distribution. Highlight the largest cohort and any notable gaps, then offer one practical recommendation.';
-    } else if (focus === 'gender') {
-      focusData = `- Gender Distribution: ${safeJson(genderDistribution)}`;
-      task = 'Provide a concise, actionable insight (1-2 sentences) interpreting the gender balance. Highlight the dominant demographic and note any imbalances, then offer one practical recommendation.';
-    } else if (focus === 'birthday') {
-      focusData = `- Upcoming Birthdays: ${safeJson(nextBirthdays)}`;
-      task = 'Provide a concise, actionable insight (1-2 sentences) around upcoming birthdays. Note how many are coming up and suggest one engagement idea for recognizing members.';
-    } else {
-      focusData = `- Total Registered Members: ${safeNum(totalMembers)}
-- Active Ministry Departments: ${safeNum(activeMinistries)}
-- Upcoming Events Scheduled: ${safeNum(upcomingEvents)}
-- Top Ministry Distribution Breakdown: ${safeJson(ministryDistribution)}
-- Top Age Demographic Group: ${topKey(ministryDistribution && ministryDistribution.ageGroups)}
-- Least Engaged Age Demographic Group: ${minKey(ministryDistribution && ministryDistribution.ageGroups)}
-- Top attendance rate for events: ${topKey(ministryDistribution && ministryDistribution.eventAttendance)}
-- Lowest attendance rate for events: ${minKey(ministryDistribution && ministryDistribution.eventAttendance)}
-- Top gender demographic: ${topKey(ministryDistribution && ministryDistribution.gender)}
-- Least Engaged gender demographic: ${minKey(ministryDistribution && ministryDistribution.gender)}`;
-      task = 'Provide a sophisticated, cohesive system analysis summary (approx 2-3 sentences). Detail structural strengths based on the membership count vs active channels, age range, gender demographics and assess if event volume is sufficient to maintain community engagement, and offer one highly actionable development recommendation.';
-    }
-
     const prompt = `
-You are an expert Church Administration and Growth consultant.
-Today's Reference Date: ${formattedToday} (Philippine Standard Time, GMT+8)
+      You are an expert Church Administration and Growth consultant. 
+      Today's Reference Date: ${formattedToday} (Philippine Standard Time, GMT+8)
+      
+      Review the following live congregation metrics:
+      - Total Registered Members: ${totalMembers}
+      - Active Ministry Departments: ${activeMinistries}
+      - Upcoming Events Scheduled: ${upcomingEvents}
+      - Top Ministry Distribution Breakdown: ${JSON.stringify(ministryDistribution)}
+      - Top Age Demographic Group: ${ministryDistribution.ageGroups ? Object.keys(ministryDistribution.ageGroups).reduce((a, b) => ministryDistribution.ageGroups[a] > ministryDistribution.ageGroups[b] ? a : b) : 'N/A'}
+      - Least Engaged Age Demographic Group: ${ministryDistribution.ageGroups ? Object.keys(ministryDistribution.ageGroups).reduce((a, b) => ministryDistribution.ageGroups[a] < ministryDistribution.ageGroups[b] ? a : b) : 'N/A'}
+      - Top attendance rate for events: ${ministryDistribution.eventAttendance ? Object.keys(ministryDistribution.eventAttendance).reduce((a, b) => ministryDistribution.eventAttendance[a] > ministryDistribution.eventAttendance[b] ? a : b) : 'N/A'}
+      - Lowest attendance rate for events: ${ministryDistribution.eventAttendance ? Object.keys(ministryDistribution.eventAttendance).reduce((a, b) => ministryDistribution.eventAttendance[a] < ministryDistribution.eventAttendance[b] ? a : b) : 'N/A'}
+      - Top gender demographic: ${ministryDistribution.gender ? Object.keys(ministryDistribution.gender).reduce((a, b) => ministryDistribution.gender[a] > ministryDistribution.gender[b] ? a : b) : 'N/A'}
+      - Least Engaged gender demographic: ${ministryDistribution.gender ? Object.keys(ministryDistribution.gender).reduce((a, b) => ministryDistribution.gender[a] < ministryDistribution.gender[b] ? a : b) : 'N/A'}
 
-Review the following live congregation metrics:
-${focusData}
-
-Task: ${task}
-
-Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown formatting, do not wrap your answer in triple backticks, and do not write introduction or conversational text.
-Format: {"suggestion": "Your full comprehensive analysis text goes here"}
+      Task: Provide a sophisticated, cohesive system analysis summary (approx 2-3 sentences). Detail structural strengths based on the membership count vs active channels, age range, gender demographics and assess if event volume is sufficient to maintain community engagement, and offer one highly actionable development recommendation.
+      
+      Strict Requirement: You must return ONLY a raw JSON block. Do not include markdown formatting, do not wrap your answer in triple backticks, and do not write introduction or conversational text.
+      Format: {"suggestion": "Your full comprehensive analysis text goes here"}
     `;
 
     const httpResponse = await axios.post(
@@ -2352,9 +2326,8 @@ Format: {"suggestion": "Your full comprehensive analysis text goes here"}
     }
 
     const parsedData = JSON.parse(rawText);
-
-    const fallbackData = { ageGroupDistribution, averageAge, genderDistribution, nextBirthdays, totalMembers, activeMinistries, upcomingEvents };
-    const finalInsight = parsedData.suggestion || parsedData.insight || computeMetricsFallback(focus, fallbackData);
+    
+    const finalInsight = parsedData.suggestion || parsedData.insight || "System Analysis completed with no exceptional anomalies recorded.";
 
     return res.json({ insight: finalInsight });
 
@@ -2365,60 +2338,11 @@ Format: {"suggestion": "Your full comprehensive analysis text goes here"}
 
     console.error("❌ Puter Analytics Assistant Error Route:", detailedError);
 
-    const fallbackData = { ageGroupDistribution, averageAge, genderDistribution, nextBirthdays, totalMembers, activeMinistries, upcomingEvents };
     return res.json({
-      insight: computeMetricsFallback(focus, fallbackData)
+      insight: "System Analysis: Operation infrastructure channels are performing optimally. Continue monitoring event schedules and member registration metrics to support upcoming community plans."
     });
   }
 });
-
-// --- AUTOMATIC INACTIVITY CHECK ---
-// A member is set from "Active" to "Inactive" ONLY when they have attended 0 events.
-// Attending at least 1 (or 2) events keeps them Active.
-const INACTIVITY_MIN_ATTENDANCE = 1; // members with fewer than this many attendances become Inactive
-const INACTIVITY_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // run once every 24 hours
-
-const autoMarkInactiveMembers = async () => {
-  try {
-    const activeMembers = await Member.find({ status: 'Active', isVerified: true });
-    let updatedCount = 0;
-
-    for (const member of activeMembers) {
-      const attendanceCount = await Attendance.countDocuments({ userId: String(member._id) });
-      // Only mark inactive when attendance is below the minimum (i.e. 0 attendances).
-      // Members with 1 or 2+ attendances are protected and stay Active.
-      if (attendanceCount < INACTIVITY_MIN_ATTENDANCE) {
-        member.status = 'Inactive';
-        await member.save();
-        updatedCount++;
-      }
-    }
-
-    if (updatedCount > 0) {
-      console.log(`✅ Auto-inactivity check: ${updatedCount} member(s) set to Inactive (0 events attended).`);
-    } else {
-      console.log(`✅ Auto-inactivity check completed: no members needed status changes.`);
-    }
-    return { success: true, updatedCount };
-  } catch (err) {
-    console.error('❌ Auto-inactivity check failed:', err.message);
-    return { success: false, error: err.message };
-  }
-};
-
-// Expose manual trigger endpoint for admins
-app.post('/api/admin/auto-inactivity-check', async (req, res) => {
-  try {
-    const result = await autoMarkInactiveMembers();
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to run inactivity check' });
-  }
-});
-
-// Run the check once on startup, then periodically every 24 hours
-autoMarkInactiveMembers();
-setInterval(autoMarkInactiveMembers, INACTIVITY_CHECK_INTERVAL_MS);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

@@ -145,9 +145,16 @@ export const api = {
   createMinistry: (ministryData) => apiClient.post('/api/ministries', ministryData),
   updateMinistry: (id, editFormData) => apiClient.patch(`/api/ministries/${id}`, editFormData),
   deleteMinistry: (id) => apiClient.delete(`/api/ministries/${id}`),
-  announceToMinistry: (id, announcementText, role, userName) => apiClient.post(`/api/ministries/${id}/announcement`, { announcementText }, {
-    headers: { 'x-user-role': role, 'x-user-name': userName || '' }
-  }),
+  announceToMinistry: (id, payload, role, userName) => {
+    const isFormData = payload instanceof FormData;
+    return apiClient.post(`/api/ministries/${id}/announcement`, isFormData ? payload : { announcementText: payload }, {
+      headers: {
+        'x-user-role': role,
+        'x-user-name': userName || '',
+        ...(isFormData ? { 'Content-Type': 'multipart/form-data' } : {})
+      }
+    });
+  },
   applyForMinistry: (id, requestData) => apiClient.post(`/api/ministries/${id}/join-request`, requestData),
   approveMinistryRequest: (ministryId, requestId, role) => apiClient.patch(`/api/ministries/${ministryId}/join-request/${requestId}/approve`, {}, {
     headers: { 'x-user-role': role }
