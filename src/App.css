@@ -5,10 +5,26 @@
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  background-image: url('./assets/landingpvents/BG for Log In.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   padding: 20px;
   box-sizing: border-box;
   width: 100%;
+  position: relative;
+}
+.main-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.55);
+  z-index: 0;
+}
+.main-container > * {
+  position: relative;
+  z-index: 1;
 }
 
 .feedback-modal-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 23, 42, .55); }
@@ -181,7 +197,7 @@ background: #e2e8f0;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
+  padding: 8px 20px;
   background: #fff;
   border-bottom: 1px solid #e2e8f0;
   gap: 10px;
@@ -407,9 +423,16 @@ background: #e2e8f0;
     padding: 8px;
     border-radius: 4px;
 }
-.header-section {
+.main-container h1, .main-container h2, .main-container h3 {
+  color: #ffffff !important;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+.main-container .subtitle, .main-container .instruction-text, .main-container .footer-text {
+  color: #e6eef8 !important;
+}
+.main-container .header-section {
   text-align: center;
-  color: white;
+  color: #ffffff;
   margin-bottom: 30px;
   width: 100%;
 }
@@ -769,11 +792,11 @@ body, .App {
 .notif-title { color: var(--color-primary); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 .notif-message { color: #0f172a; font-size: 13px; line-height: 1.4; }
 
-.top-nav .church-logo { height: 70px; width: auto; object-fit: contain; border-radius: 4px; }
-.top-nav .church-title .church-name { color: #0f172a; font-weight: 700; }
-.top-nav .church-title .church-meta { color: var(--color-muted); font-size: 13px; }
-.admin-info .user-name { color: #0f172a; }
-.admin-info .user-role { color: #60a5fa; font-size: 11px; display: block; }
+.top-nav .church-logo { height: 52px; width: auto; object-fit: contain; border-radius: 4px; }
+.top-nav .church-title .church-name { color: #0f172a; font-weight: 700; font-size: 17px; }
+.top-nav .church-title .church-meta { color: var(--color-muted); font-size: 12px; }
+.admin-info .user-name { color: #0f172a; font-size: 15px; }
+.admin-info .user-role { color: #60a5fa; font-size: 10px; display: block; }
 .theme-toggle { padding: 8px 10px; border-radius: 8px; }
 
 /* Dark-mode top area overrides */
@@ -1032,7 +1055,7 @@ body, .App {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 12px 20px;
+  padding: 7px 20px;
   border-bottom: 1px solid #e5e7eb;
 }
 
