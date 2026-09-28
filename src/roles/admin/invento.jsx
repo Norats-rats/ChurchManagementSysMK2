@@ -422,7 +422,7 @@ const InventoryForm = ({ user, role }) => {
                     <button
                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         disabled={safePage === 1}
-                        style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', cursor: safePage === 1 ? 'not-allowed' : 'pointer', opacity: safePage === 1 ? 0.6 : 1 }}
+                        style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: safePage === 1 ? '#f1f5f9' : '#fff', color: safePage === 1 ? '#94a3b8' : '#2563eb', cursor: safePage === 1 ? 'not-allowed' : 'pointer', fontWeight: 600 }}
                     >
                         Previous
                     </button>
@@ -446,7 +446,7 @@ const InventoryForm = ({ user, role }) => {
                     <button
                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                         disabled={safePage === totalPages}
-                        style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', cursor: safePage === totalPages ? 'not-allowed' : 'pointer', opacity: safePage === totalPages ? 0.6 : 1 }}
+                        style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: safePage === totalPages ? '#f1f5f9' : '#fff', color: safePage === totalPages ? '#94a3b8' : '#2563eb', cursor: safePage === totalPages ? 'not-allowed' : 'pointer', fontWeight: 600 }}
                     >
                         Next
                     </button>
