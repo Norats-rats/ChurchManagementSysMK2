@@ -69,8 +69,14 @@
   }
 }
 .directory-header h2 {
-    color: #1a1a1a !important;
-    margin-bottom: 4px;
+  color: #ffffff !important;
+  text-shadow: 0 0 1px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.55);
+  margin-bottom: 4px;
+}
+.directory-header p {
+  color: #e6eef8 !important;
+  text-shadow: 0 0 1px rgba(0,0,0,0.85), 0 0 5px rgba(0,0,0,0.5);
+  font-size: 0.9rem;
 }
 .attend-btn-active {
   background-color: #10b981 !important; 
@@ -92,13 +98,8 @@
   border-radius: 4px;
   text-transform: uppercase;
   font-weight: bold;
-  background: #e2e8f0;
+background: #e2e8f0;
   color: #475569;
-}
-
-.directory-header p {
-    color: #666 !important;
-    font-size: 0.9rem;
 }
 
 .stats-container {

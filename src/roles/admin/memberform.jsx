@@ -390,8 +390,8 @@ const MemberForm = () => {
     <div className="member-directory-container">
       <div className="directory-header">
         <div>
-          <h2 style={{ color: '#fff', marginBottom: 4, background: 'rgba(0,0,0,0.68)', display: 'inline-block', padding: '7px 16px', borderRadius: 10, textShadow: '0 0 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.6)' }}>System User Management</h2>
-          <p style={{ color: '#e6eef8', margin: 0, background: 'rgba(0,0,0,0.68)', display: 'inline-block', padding: '5px 14px', borderRadius: 10, textShadow: '0 0 2px rgba(0,0,0,0.9)' }}>Register members and assign administrative roles</p>
+          <h2>System User Management</h2>
+          <p>Register members and assign administrative roles</p>
         </div>
         <button className="add-btn-primary" onClick={() => { setForm(emptyForm); setShowCreate(true); }}>+ Create Account</button>
       </div>

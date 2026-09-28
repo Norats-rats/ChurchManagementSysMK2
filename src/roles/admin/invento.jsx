@@ -42,6 +42,8 @@ const InventoryForm = ({ user, role }) => {
     const [showArchived, setShowArchived] = useState(false);
     const [archivedCount, setArchivedCount] = useState(0);
     const [confirmModal, setConfirmModal] = useState({ visible: false, mode: '', id: null });
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
     const { showFeedback, FeedbackModal } = useFeedbackModal();
 
     useEffect(() => {
@@ -100,6 +102,10 @@ const InventoryForm = ({ user, role }) => {
             console.error("Failed to fetch archived inventory count:", err);
         }
     };
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, filterCategory, filterBrand, filterRepairStatus, showArchived]);
 
     const handleAction = async () => {
         if (!item || !quantity) {
@@ -228,6 +234,10 @@ const InventoryForm = ({ user, role }) => {
 
         return matchesSearch && matchesCategory && matchesBrand && matchesRepairStatus;
     });
+
+    const totalPages = Math.max(1, Math.ceil(filteredInventory.length / ITEMS_PER_PAGE));
+    const safePage = Math.min(currentPage, totalPages);
+    const paginatedInventory = filteredInventory.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
     return (
         <div className="member-directory-container">
@@ -366,9 +376,9 @@ const InventoryForm = ({ user, role }) => {
                     <tbody>
                         {loading ? (
                             <tr><td colSpan="14" style={{ textAlign: 'center', padding: '20px' }}>Loading Inventory Data...</td></tr>
-                        ) : filteredInventory.length === 0 ? (
+                        ) : paginatedInventory.length === 0 ? (
                             <tr><td colSpan="14" style={{ textAlign: 'center', padding: '20px' }}>No inventory items found.</td></tr>
-                        ) : filteredInventory.map((m) => (
+                        ) : paginatedInventory.map((m) => (
                             <tr key={m._id}>
                                 <td>{m.categoryId || '—'}</td>
                                 <td><strong>{m.itemName || m.item}</strong></td>
@@ -406,6 +416,42 @@ const InventoryForm = ({ user, role }) => {
                     </tbody>
                 </table>
             </div>
+
+            {filteredInventory.length > ITEMS_PER_PAGE && (
+                <div className="pagination-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={safePage === 1}
+                        style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', cursor: safePage === 1 ? 'not-allowed' : 'pointer', opacity: safePage === 1 ? 0.6 : 1 }}
+                    >
+                        Previous
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            style={{
+                                padding: '8px 14px',
+                                borderRadius: '8px',
+                                border: '1px solid #ddd',
+                                background: safePage === page ? '#2563eb' : '#fff',
+                                color: safePage === page ? '#fff' : '#111',
+                                cursor: 'pointer',
+                                fontWeight: safePage === page ? 600 : 400
+                            }}
+                        >
+                            {page}
+                        </button>
+                    ))}
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={safePage === totalPages}
+                        style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', cursor: safePage === totalPages ? 'not-allowed' : 'pointer', opacity: safePage === totalPages ? 0.6 : 1 }}
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
 
             {confirmModal.visible && (
                 <div
