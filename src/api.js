@@ -162,6 +162,9 @@ export const api = {
   rejectMinistryRequest: (ministryId, requestId, role) => apiClient.patch(`/api/ministries/${ministryId}/join-request/${requestId}/reject`, {}, {
     headers: { 'x-user-role': role }
   }),
+  manageMinistryAssistant: (ministryId, payload, role, userName) => apiClient.post(`/api/ministries/${ministryId}/assistants`, payload, {
+    headers: { 'x-user-role': role, 'x-user-name': userName || '' }
+  }),
 
   // Prayers
   getPrayers: (userId, role) => apiClient.get('/api/prayers', {
