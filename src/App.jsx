@@ -4,6 +4,7 @@ import api from './api';
 import './App.css';
 import churchLogo from './assets/churchlogo.jpg';
 import { useFeedbackModal } from './components/shared/feedbackmodal';
+import { BackgroundProvider } from './components/shared/backgroundcontext';
 import LandingPage from './components/shared/landingpage';
 import Signup from './components/shared/signup';
 import { normalizeRole } from './permissions';
@@ -320,6 +321,7 @@ export default function App() {
     setTheme(next);
     localStorage.setItem('theme', next);
     document.documentElement.classList.toggle('theme-dark', next === 'dark');
+    window.dispatchEvent(new Event('theme:change'));
   };
 
   const handleLogout = () => {
@@ -336,13 +338,19 @@ export default function App() {
   }
 
   const dashboardElement = userData ? (
-    <Dashboard
+    <BackgroundProvider
+      userId={userData._id}
       role={userRole}
-      user={userData}
-      theme={theme}
-      onToggleTheme={toggleTheme}
-      onLogout={handleLogout}
-    />
+      userName={`${userData.firstName || ''} ${userData.lastName || ''}`.trim()}
+    >
+      <Dashboard
+        role={userRole}
+        user={userData}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onLogout={handleLogout}
+      />
+    </BackgroundProvider>
   ) : <Navigate to="/login" replace />;
 
   return (

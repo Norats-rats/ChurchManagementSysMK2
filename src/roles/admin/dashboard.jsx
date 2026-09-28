@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import churchLogo from '../../assets/churchlogo.jpg';
 import Advising from '../../components/shared/advisinglist';
 import Chat from '../../components/shared/chat';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';
+import BackgroundCustomizer from '../../components/shared/backgroundcustomizer';
+import { BackgroundContext } from '../../components/shared/backgroundcontext';
 import Profile from '../../components/shared/profile';
 import {
   canManageAttendance,
@@ -82,6 +84,8 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       return next;
     });
   };
+
+  const { setCustomizerOpen } = useContext(BackgroundContext);
 
   const navigationConfig = [
     { id: 'dashboard', label: ['Member', 'Staff'].includes(role) ? 'Home' : 'Dashboard', permission: 'dashboard' },
@@ -906,18 +910,28 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
               )}
             </button>
           </div>
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className="logout-btn theme-toggle"
-              title="Toggle theme"
-            >
-              {theme === 'dark' ? '🌙 Dark' : '☀️ Light'}
-            </button>
+          <button
+            type="button"
+            onClick={() => setCustomizerOpen(true)}
+            className="logout-btn theme-toggle"
+            title="Customize background"
+          >
+            🎨 Background
+          </button>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="logout-btn theme-toggle"
+            title="Toggle theme"
+          >
+            {theme === 'dark' ? '🌙 Dark' : '☀️ Light'}
+          </button>
 
           <button className="logout-btn" onClick={onLogout}>Logout</button>
         </div>
       </nav>
+
+      <BackgroundCustomizer />
 
       <div className="dashboard-content">
         {!sidebarExpanded && (

@@ -222,6 +222,16 @@ const Member = mongoose.model('members', new mongoose.Schema({
   birthdate: { type: Date },
   gender: { type: String, enum: ['Male', 'Female', 'Prefer not to say'], default: null },
   profilePicture: { type: String },
+  backgroundPreference: {
+    type: {
+      mode: { type: String, default: 'daynoonnight' },
+      customImage: { type: String, default: null },
+      customUrl: { type: String, default: null },
+      solidColor: { type: String, default: null },
+      dim: { type: Boolean, default: true }
+    },
+    default: () => ({ mode: 'daynoonnight' })
+  },
   notifications: [{
     message: String,
     type: { type: String, default: 'info' },
@@ -1341,6 +1351,75 @@ app.delete('/api/members/:id', async (req, res) => {
     res.json({ message: "Deleted successfully" });
   } catch (err) { res.status(500).json({ error: "Failed to delete" }); }
 });
+
+// --- USER BACKGROUND PREFERENCE ROUTES ---
+const BG_PREF_ALLOWED = ['mode', 'customImage', 'customUrl', 'solidColor', 'dim'];
+const sanitizeBackgroundPref = (data) => {
+  const clean = {};
+  if (data && typeof data === 'object') {
+    for (const key of BG_PREF_ALLOWED) {
+      if (key in data) clean[key] = data[key];
+    }
+  }
+  const validModes = ['daynoonnight', 'logo', 'solid', 'custom'];
+  if (clean.mode && !validModes.includes(clean.mode)) clean.mode = 'daynoonnight';
+  if (clean.mode !== 'custom') {
+    clean.customImage = null;
+    clean.customUrl = null;
+  }
+  if (clean.mode !== 'solid') clean.solidColor = null;
+  return clean;
+};
+
+app.get('/api/users/:id/background', async (req, res) => {
+  try {
+    if (!req.headers['x-user-id'] && !req.headers['x-member-id']) {
+      return res.status(401).json({ error: 'Unauthorized access: Missing identity headers.' });
+    }
+    const member = await Member.findById(req.params.id).select('backgroundPreference');
+    if (!member) return res.status(404).json({ error: 'Member not found.' });
+    const pref = member.backgroundPreference && Object.keys(member.backgroundPreference).length
+      ? member.backgroundPreference
+      : { mode: 'daynoonnight', customImage: null, customUrl: null, solidColor: null, dim: true };
+    res.json(pref);
+  } catch (err) {
+    console.error('Get background preference error:', err);
+    res.status(500).json({ error: 'Failed to fetch background preference.' });
+  }
+});
+
+app.put('/api/users/:id/background', async (req, res) => {
+  try {
+    if (!req.headers['x-user-id'] && !req.headers['x-member-id']) {
+      return res.status(401).json({ error: 'Unauthorized access: Missing identity headers.' });
+    }
+    const existing = await Member.findById(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Member not found.' });
+
+    const callerId = String(req.headers['x-user-id'] || req.headers['x-member-id'] || '');
+    if (callerId !== String(req.params.id) && (req.headers['x-user-role'] !== 'Admin' && req.headers['x-user-role'] !== 'Ministry Leader' && req.headers['x-user-role'] !== 'Staff')) {
+      return res.status(403).json({ error: 'Forbidden: you can only customize your own background.' });
+    }
+
+    const clean = sanitizeBackgroundPref(req.body);
+    if (clean.mode === 'custom' && ((!clean.customImage && !clean.customUrl) || (clean.customImage && !/^data:image\/[a-zA-Z]+;base64,[a-zA-Z0-9+/=]+$/.test(clean.customImage)) || (clean.customUrl && !/^https?:\/\/.+/i.test(clean.customUrl)))) {
+      return res.status(400).json({ error: 'Invalid custom background. Provide a valid image upload or URL.' });
+    }
+
+    const updated = await Member.findByIdAndUpdate(
+      req.params.id,
+      { $set: { 'backgroundPreference.mode': clean.mode || 'daynoonnight', 'backgroundPreference.customImage': clean.customImage, 'backgroundPreference.customUrl': String((clean.customUrl || '')).trim() || null, 'backgroundPreference.solidColor': clean.solidColor, 'backgroundPreference.dim': clean.dim !== false } },
+      { new: true, runValidators: false }
+    ).select('backgroundPreference');
+
+    const obj = updated ? updated.toObject() : {};
+    res.json(obj.backgroundPreference || { mode: 'daynoonnight' });
+  } catch (err) {
+    console.error('Update background preference error:', err);
+    res.status(400).json({ error: 'Failed to update background preference.' });
+  }
+});
+
 
 // --- ATTENDANCE & EVENTS ---
 app.get('/api/attendance', async (req, res) => {

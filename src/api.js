@@ -215,6 +215,18 @@ export const api = {
     headers: {
       'x-user-role': role
     }
+  }),
+
+  // Background preference (per-user)
+  getBackgroundPreference: (userId) => apiClient.get(`/api/users/${userId}/background`, {
+    headers: { 'x-user-id': userId }
+  }),
+  updateBackgroundPreference: (userId, pref, role, userName) => apiClient.put(`/api/users/${userId}/background`, pref, {
+    headers: {
+      'x-user-id': userId,
+      'x-user-role': role,
+      'x-user-name': toHeaderSafeText(userName)
+    }
   })
 };
 
