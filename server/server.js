@@ -2373,8 +2373,9 @@ Format: {"suggestion": "Your full comprehensive analysis text goes here"}
 });
 
 // --- AUTOMATIC INACTIVITY CHECK ---
-// If a member has attended fewer than 5 events, their status is automatically set from "Active" to "Inactive".
-const INACTIVITY_THRESHOLD = 5;
+// A member is set from "Active" to "Inactive" ONLY when they have attended 0 events.
+// Attending at least 1 (or 2) events keeps them Active.
+const INACTIVITY_MIN_ATTENDANCE = 1; // members with fewer than this many attendances become Inactive
 const INACTIVITY_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // run once every 24 hours
 
 const autoMarkInactiveMembers = async () => {
@@ -2384,7 +2385,9 @@ const autoMarkInactiveMembers = async () => {
 
     for (const member of activeMembers) {
       const attendanceCount = await Attendance.countDocuments({ userId: String(member._id) });
-      if (attendanceCount < INACTIVITY_THRESHOLD) {
+      // Only mark inactive when attendance is below the minimum (i.e. 0 attendances).
+      // Members with 1 or 2+ attendances are protected and stay Active.
+      if (attendanceCount < INACTIVITY_MIN_ATTENDANCE) {
         member.status = 'Inactive';
         await member.save();
         updatedCount++;
@@ -2392,7 +2395,7 @@ const autoMarkInactiveMembers = async () => {
     }
 
     if (updatedCount > 0) {
-      console.log(`✅ Auto-inactivity check: ${updatedCount} member(s) set to Inactive (fewer than ${INACTIVITY_THRESHOLD} events attended).`);
+      console.log(`✅ Auto-inactivity check: ${updatedCount} member(s) set to Inactive (0 events attended).`);
     } else {
       console.log(`✅ Auto-inactivity check completed: no members needed status changes.`);
     }
