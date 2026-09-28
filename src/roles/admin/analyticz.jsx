@@ -99,13 +99,17 @@ const Analytics = ({ user, role }) => {
 
       let members = allMembers;
       let attendanceRecords = attendanceRes.data || [];
+      let leaderMinistries = [];
+      let leaderMinistryNames = [];
+      const leaderFullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+      let leaderEvents = [];
 
       if (isMinistryLeader) {
         const leaderUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim().toLowerCase();
-        const leaderMinistries = ministries.filter(
+        leaderMinistries = ministries.filter(
           m => m.leader?.trim().toLowerCase() === leaderUserName
         );
-        const leaderMinistryNames = leaderMinistries.map(m => m.name);
+        leaderMinistryNames = leaderMinistries.map(m => m.name);
 
         members = allMembers.filter(member => {
           const memberMinistries = Array.isArray(member?.ministries)
@@ -118,6 +122,11 @@ const Analytics = ({ user, role }) => {
         attendanceRecords = (attendanceRes.data || []).filter(
           record => record.userId && memberIdSet.has(String(record.userId))
         );
+
+        leaderEvents = events.filter(evt => {
+          const leadPeople = Array.isArray(evt.leadPeople) ? evt.leadPeople : (evt.role ? [evt.role] : []);
+          return leadPeople.some(name => name && String(name).trim().toLowerCase() === leaderFullName.toLowerCase());
+        });
       }
 
       const ministryCounts = {};
@@ -132,7 +141,7 @@ const Analytics = ({ user, role }) => {
         });
       });
 
-      const distribution = ministries.slice(0, 5).map(m => {
+      const distribution = (isMinistryLeader ? leaderMinistries : ministries.slice(0, 5)).map(m => {
         const realCount = ministryCounts[m.name] || 0;
         return {
           name: m.name,
@@ -227,8 +236,8 @@ const Analytics = ({ user, role }) => {
 
       const newStats = {
         totalMembers: members.length,
-        activeMinistries: ministries.length,
-        upcomingEvents: events.length,
+        activeMinistries: isMinistryLeader ? leaderMinistries.length : ministries.length,
+        upcomingEvents: isMinistryLeader ? leaderEvents.length : events.length,
         totalAttendance: attendanceRecords.length,
         uniqueAttendees: attendeeSet.size,
         eventsWithAttendance,
