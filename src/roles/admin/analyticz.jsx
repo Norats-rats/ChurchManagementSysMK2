@@ -141,7 +141,7 @@ const Analytics = ({ user, role }) => {
         });
       });
 
-      const distribution = (isMinistryLeader ? leaderMinistries : ministries.slice(0, 5)).map(m => {
+      const distribution = (isMinistryLeader ? leaderMinistries : ministries).map(m => {
         const realCount = ministryCounts[m.name] || 0;
         return {
           name: m.name,
