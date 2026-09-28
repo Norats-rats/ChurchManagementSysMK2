@@ -2372,5 +2372,50 @@ Format: {"suggestion": "Your full comprehensive analysis text goes here"}
   }
 });
 
+// --- AUTOMATIC INACTIVITY CHECK ---
+// If a member has attended fewer than 5 events, their status is automatically set from "Active" to "Inactive".
+const INACTIVITY_THRESHOLD = 5;
+const INACTIVITY_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // run once every 24 hours
+
+const autoMarkInactiveMembers = async () => {
+  try {
+    const activeMembers = await Member.find({ status: 'Active', isVerified: true });
+    let updatedCount = 0;
+
+    for (const member of activeMembers) {
+      const attendanceCount = await Attendance.countDocuments({ userId: String(member._id) });
+      if (attendanceCount < INACTIVITY_THRESHOLD) {
+        member.status = 'Inactive';
+        await member.save();
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount > 0) {
+      console.log(`✅ Auto-inactivity check: ${updatedCount} member(s) set to Inactive (fewer than ${INACTIVITY_THRESHOLD} events attended).`);
+    } else {
+      console.log(`✅ Auto-inactivity check completed: no members needed status changes.`);
+    }
+    return { success: true, updatedCount };
+  } catch (err) {
+    console.error('❌ Auto-inactivity check failed:', err.message);
+    return { success: false, error: err.message };
+  }
+};
+
+// Expose manual trigger endpoint for admins
+app.post('/api/admin/auto-inactivity-check', async (req, res) => {
+  try {
+    const result = await autoMarkInactiveMembers();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to run inactivity check' });
+  }
+});
+
+// Run the check once on startup, then periodically every 24 hours
+autoMarkInactiveMembers();
+setInterval(autoMarkInactiveMembers, INACTIVITY_CHECK_INTERVAL_MS);
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
