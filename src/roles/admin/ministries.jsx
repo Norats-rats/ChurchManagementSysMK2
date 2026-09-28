@@ -14,13 +14,13 @@ const Ministries = ({ role, user }) => {
   const [ministryList, setMinistryList] = useState([]);
   const [leaderOptions, setLeaderOptions] = useState([]);
   const [allMembers, setAllMembers] = useState([]); 
-  const [expandedId, setExpandedId] = useState(null); 
+  const [selectedMinistry, setSelectedMinistry] = useState(null); // Active "Classroom / Team" view
+  const [activeTab, setActiveTab] = useState('feed'); // Sub-tabs: 'feed' | 'members' | 'requests' | 'settings'
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [announcementDraft, setAnnouncementDraft] = useState({});
+  const [announcementText, setAnnouncementText] = useState('');
   const [requestInProgress, setRequestInProgress] = useState(false);
   
-  const [editingId, setEditingId] = useState(null);
   const [editLeaderData, setEditLeaderData] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const { showFeedback, askConfirmation, FeedbackModal } = useFeedbackModal();
@@ -34,6 +34,7 @@ const Ministries = ({ role, user }) => {
   const canManage = canManageMinistries(role);
   const userFullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim().toLowerCase();
   const userName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+
   const normalizeMemberMinistries = (member) => {
     if (Array.isArray(member?.ministries)) return member.ministries;
     if (member?.ministry) return [member.ministry];
@@ -57,7 +58,9 @@ const Ministries = ({ role, user }) => {
       });
       if (!minRes.ok) throw new Error("Failed to fetch ministries");
       const minData = await minRes.json();
-      setMinistryList(Array.isArray(minData) ? minData : []);
+      const rawList = Array.isArray(minData) ? minData : [];
+      
+      setMinistryList(rawList);
 
       const userRes = await fetch(`${API_BASE}/api/members`);
       if (!userRes.ok) throw new Error("Failed to fetch members");
@@ -71,6 +74,12 @@ const Ministries = ({ role, user }) => {
       );
       setLeaderOptions(filteredLeaders);
 
+      // Keep active ministry detail view updated if currently viewing one
+      if (selectedMinistry) {
+        const updatedCurrent = rawList.find(m => m._id === selectedMinistry._id);
+        if (updatedCurrent) setSelectedMinistry(updatedCurrent);
+      }
+
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -78,20 +87,10 @@ const Ministries = ({ role, user }) => {
     }
   };
 
-  const toggleDropdown = (id) => {
-    setExpandedId(expandedId === id ? null : id);
-    setSelectedMemberId('');
-  };
-
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      const submissionData = {
-        ...formData,
-        members: 0,
-        status: 'Active'
-      };
-
+      const submissionData = { ...formData, members: 0, status: 'Active' };
       const res = await fetch(`${API_BASE}/api/ministries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -121,7 +120,6 @@ const Ministries = ({ role, user }) => {
         body: JSON.stringify({ leader: editLeaderData }) 
       });
       if (res.ok) {
-        setEditingId(null); 
         fetchInitialData(); 
         showFeedback('Ministry leader updated successfully.');
       }
@@ -143,7 +141,10 @@ const Ministries = ({ role, user }) => {
           },
           body: JSON.stringify({ status: nextStatus })
         });
-        if (res.ok) { await fetchInitialData(); showFeedback(`Ministry ${actionText === 'archive' ? 'archived' : 'restored'} successfully.`); }
+        if (res.ok) { 
+          await fetchInitialData(); 
+          showFeedback(`Ministry ${actionText === 'archive' ? 'archived' : 'restored'} successfully.`); 
+        }
       } catch (err) { showFeedback("Failed to modify ministry status"); }
     });
   };
@@ -176,31 +177,29 @@ const Ministries = ({ role, user }) => {
   const handleRemoveMember = async (memberId, ministryName) => {
     askConfirmation("Are you sure you want to remove this member from the ministry?", async () => {
       try {
-      const member = allMembers.find(m => m._id === memberId);
-      const currentMinistries = normalizeMemberMinistries(member);
-      const nextMinistries = currentMinistries.filter(name => name !== ministryName);
-      const res = await fetch(`${API_BASE}/api/members/${memberId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': role,
-          'x-user-name': userName
-        },
-        body: JSON.stringify({ ministries: nextMinistries, ministry: nextMinistries[0] || 'None' })
-      });
-      if (res.ok) { await fetchInitialData(); showFeedback('Member removed from ministry successfully.'); }
+        const member = allMembers.find(m => m._id === memberId);
+        const currentMinistries = normalizeMemberMinistries(member);
+        const nextMinistries = currentMinistries.filter(name => name !== ministryName);
+        const res = await fetch(`${API_BASE}/api/members/${memberId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-role': role,
+            'x-user-name': userName
+          },
+          body: JSON.stringify({ ministries: nextMinistries, ministry: nextMinistries[0] || 'None' })
+        });
+        if (res.ok) { 
+          await fetchInitialData(); 
+          showFeedback('Member removed from ministry successfully.'); 
+        }
       } catch (err) { showFeedback("Failed to remove member"); }
     });
   };
 
-  const handleAnnouncementChange = (ministryId, value) => {
-    setAnnouncementDraft(prev => ({ ...prev, [ministryId]: value }));
-  };
-
   const submitAnnouncement = async (ministry) => {
     try {
-      const text = (announcementDraft[ministry._id] ?? ministry.announcementText ?? '').trim();
-      if (!text) {
+      if (!announcementText.trim()) {
         showFeedback('Please enter an announcement.');
         return;
       }
@@ -211,11 +210,12 @@ const Ministries = ({ role, user }) => {
           'x-user-role': role,
           'x-user-name': userName
         },
-        body: JSON.stringify({ announcementText: text })
+        body: JSON.stringify({ announcementText: announcementText.trim() })
       });
       if (!res.ok) throw new Error('Announcement save failed');
+      setAnnouncementText('');
       await fetchInitialData();
-      showFeedback('Announcement sent to this ministry.');
+      showFeedback('Announcement posted to this ministry space.');
     } catch (err) {
       console.error(err);
       showFeedback('Failed to post ministry announcement.');
@@ -233,11 +233,7 @@ const Ministries = ({ role, user }) => {
           'x-user-role': role,
           'x-user-name': userName
         },
-        body: JSON.stringify({
-          userId: user._id,
-          userName,
-          userRole: role
-        })
+        body: JSON.stringify({ userId: user._id, userName, userRole: role })
       });
       if (!res.ok) {
         const data = await res.json();
@@ -272,14 +268,290 @@ const Ministries = ({ role, user }) => {
     }
   };
 
-  if (loading) return <div style={{padding: '40px'}}>Connecting to database...</div>;
+  // Filter list: Ministry leaders only see their led ministries; Admin/Staff see all
+  const visibleMinistries = ministryList.filter(m => {
+    if (role === 'Ministry Leader') {
+      return m.leader?.trim().toLowerCase() === userFullName;
+    }
+    return true;
+  });
 
+  if (loading) return <div style={{ padding: '40px' }}>Loading ministry workspace...</div>;
+
+  // ==========================================
+  // VIEW B: TEAM / CLASSROOM DETAILED VIEW
+  // ==========================================
+  if (selectedMinistry) {
+    const m = selectedMinistry;
+    const ministryMembers = allMembers.filter(member => {
+      const memberMinistries = normalizeMemberMinistries(member);
+      return memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
+    });
+    const isMyMinistryLeader = role === 'Ministry Leader' && userFullName && m.leader?.trim().toLowerCase() === userFullName;
+    const canEditMinistry = role === 'Admin' || isMyMinistryLeader;
+    const pendingRequests = Array.isArray(m.joinRequests) ? m.joinRequests.filter(req => req.status === 'Pending') : [];
+
+    return (
+      <div style={{ padding: '24px', backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+        <button 
+          onClick={() => { setSelectedMinistry(null); setAnnouncementText(''); }}
+          style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          ← Back to All Ministries
+        </button>
+
+        {/* Banner Header */}
+        <div style={{
+          backgroundColor: m.color || '#2563eb',
+          color: '#fff',
+          padding: '32px 28px',
+          borderRadius: '16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          marginBottom: '20px'
+        }}>
+          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>{m.name}</h1>
+          <p style={{ margin: '8px 0 0 0', opacity: 0.9, fontSize: '15px' }}>
+            Led by <strong>{m.leader || 'No Assigned Leader'}</strong> • {ministryMembers.length} Members
+          </p>
+        </div>
+
+        {/* Sub-Navigation Bar */}
+        <div style={{ display: 'flex', gap: '12px', borderBottom: '2px solid #e2e8f0', marginBottom: '24px' }}>
+          <button 
+            onClick={() => setActiveTab('feed')} 
+            style={activeTab === 'feed' ? activeTabStyle : tabStyle}
+          >
+            📢 Stream & Updates
+          </button>
+          <button 
+            onClick={() => setActiveTab('members')} 
+            style={activeTab === 'members' ? activeTabStyle : tabStyle}
+          >
+            👥 Members ({ministryMembers.length})
+          </button>
+          {canEditMinistry && (
+            <button 
+              onClick={() => setActiveTab('requests')} 
+              style={activeTab === 'requests' ? activeTabStyle : tabStyle}
+            >
+              📥 Join Requests {pendingRequests.length > 0 && `(${pendingRequests.length})`}
+            </button>
+          )}
+          {canEditMinistry && (
+            <button 
+              onClick={() => setActiveTab('settings')} 
+              style={activeTab === 'settings' ? activeTabStyle : tabStyle}
+            >
+              ⚙️ Management
+            </button>
+          )}
+        </div>
+
+        {/* Tab 1: Stream / Announcements */}
+        {activeTab === 'feed' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px' }}>
+            {isMyMinistryLeader && (
+              <div style={cardStyle}>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#1e293b' }}>Post an Announcement</h3>
+                <textarea
+                  value={announcementText}
+                  onChange={(e) => setAnnouncementText(e.target.value)}
+                  rows={3}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', resize: 'vertical', boxSizing: 'border-box' }}
+                  placeholder="Share updates, prayer items, or schedules with this ministry..."
+                />
+                <button
+                  onClick={() => submitAnnouncement(m)}
+                  style={{ marginTop: '10px', padding: '10px 18px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  Publish Announcement
+                </button>
+              </div>
+            )}
+
+            <div style={cardStyle}>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>Latest Announcement</h3>
+              <div style={{ padding: '16px', backgroundColor: '#f1f5f9', borderRadius: '8px', borderLeft: `4px solid ${m.color || '#2563eb'}` }}>
+                <p style={{ margin: 0, color: '#334155', fontSize: '14px', lineHeight: '1.6' }}>
+                  {m.announcementText || 'No announcements posted yet.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: Members List */}
+        {activeTab === 'members' && (
+          <div style={{ maxWidth: '800px' }}>
+            {canEditMinistry && (
+              <div style={{ ...cardStyle, marginBottom: '20px' }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#475569' }}>ADD NEW MEMBER</h4>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <select 
+                    style={{ ...selectStyle, flex: 1 }}
+                    value={selectedMemberId}
+                    onChange={e => setSelectedMemberId(e.target.value)}
+                  >
+                    <option value="">Select a member to add...</option>
+                    {allMembers
+                      .filter(mem => {
+                        const memberMinistries = normalizeMemberMinistries(mem);
+                        return !memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
+                      })
+                      .map(mem => (
+                        <option key={mem._id} value={mem._id}>
+                          {mem.firstName} {mem.lastName} ({mem.role || 'Member'})
+                        </option>
+                      ))}
+                  </select>
+                  <button 
+                    type="button"
+                    onClick={() => handleAddMember(selectedMemberId, m.name)}
+                    style={{ padding: '10px 18px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                    disabled={!selectedMemberId}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={cardStyle}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1e293b' }}>Ministry Roster</h3>
+              {ministryMembers.length === 0 ? (
+                <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>No members added to this ministry yet.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {ministryMembers.map(member => (
+                    <div key={member._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <div>
+                        <strong>{member.firstName} {member.lastName}</strong>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>{member.role || 'Member'}</div>
+                      </div>
+                      {canEditMinistry && (
+                        <button 
+                          onClick={() => handleRemoveMember(member._id, m.name)} 
+                          style={removeMemberLink}
+                        >
+                          ✕ Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Join Requests */}
+        {activeTab === 'requests' && canEditMinistry && (
+          <div style={{ maxWidth: '800px' }}>
+            <div style={cardStyle}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1e293b' }}>Pending Join Applications</h3>
+              {pendingRequests.length === 0 ? (
+                <p style={{ color: '#64748b', margin: 0 }}>No pending join requests.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {pendingRequests.map(req => (
+                    <div key={req._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                      <span><strong>{req.userName}</strong> ({req.userRole || 'Member'})</span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => updateJoinRequest(m._id, req._id, 'approve')}
+                          style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', backgroundColor: '#10b981', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => updateJoinRequest(m._id, req._id, 'reject')}
+                          style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', backgroundColor: '#ef4444', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Settings */}
+        {activeTab === 'settings' && canEditMinistry && (
+          <div style={{ maxWidth: '800px' }}>
+            <div style={cardStyle}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1e293b' }}>Ministry Settings</h3>
+              
+              {canManage && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={labelStyle}>Update Leader</label>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                    <select 
+                      style={selectStyle} 
+                      value={editLeaderData || m.leader || ''} 
+                      onChange={e => setEditLeaderData(e.target.value)}
+                    >
+                      <option value="">Select a Leader</option>
+                      {leaderOptions.map(leader => (
+                        <option key={leader._id} value={`${leader.firstName} ${leader.lastName}`}>
+                          {leader.firstName} {leader.lastName}
+                        </option>
+                      ))}
+                    </select>
+                    <button 
+                      onClick={() => handleUpdateLeader(m._id)}
+                      style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      Save Leader
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label style={labelStyle}>Ministry Status</label>
+                <div style={{ marginTop: '8px' }}>
+                  <button 
+                    onClick={() => handleToggleStatus(m)} 
+                    style={{
+                      padding: '10px 18px',
+                      borderRadius: '8px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      border: '1px solid',
+                      backgroundColor: m.status === 'Archived' ? '#ecfdf5' : '#fef2f2',
+                      color: m.status === 'Archived' ? '#059669' : '#dc2626',
+                      borderColor: m.status === 'Archived' ? '#a7f3d0' : '#fecaca'
+                    }}
+                  >
+                    {m.status === 'Archived' ? 'Restore Ministry' : 'Archive Ministry'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        <FeedbackModal />
+      </div>
+    );
+  }
+
+  // ==========================================
+  // VIEW A: CARD GRID VIEW (TEAMS OVERVIEW)
+  // ==========================================
   return (
     <div style={{ padding: '30px', backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px' }}>
-        <h2 style={{ margin: 0, color: '#1e293b' }}>
-            {canManage ? "Ministry Management" : "Available Ministries"}
-        </h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ margin: 0, color: '#1e293b' }}>
+            {role === 'Ministry Leader' ? "My Led Ministries" : canManage ? "Ministry Management" : "Available Ministries"}
+          </h2>
+          <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '14px' }}>
+            Click on any ministry card to enter its workspace.
+          </p>
+        </div>
         {canManage && (
           <button 
             style={{ padding: '10px 20px', backgroundColor: 'var(--color-primary)', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
@@ -291,7 +563,7 @@ const Ministries = ({ role, user }) => {
       </div>
 
       {canManage && showCreateForm && (
-        <form onSubmit={(e) => { e.stopPropagation(); handleCreate(e); }} style={formStyle}>
+        <form onSubmit={handleCreate} style={formStyle}>
           <h3 style={{ marginTop: 0, marginBottom: '20px' }}>New Ministry Details</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
             <div style={inputGroup}>
@@ -302,7 +574,7 @@ const Ministries = ({ role, user }) => {
             <div style={inputGroup}>
               <label style={labelStyle}>Ministry Leader</label>
               <select 
-                style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#fff' }} 
+                style={selectStyle} 
                 value={formData.leader} 
                 onChange={e => setFormData({...formData, leader: e.target.value})} 
                 required
@@ -328,285 +600,98 @@ const Ministries = ({ role, user }) => {
           </div>
 
           <div style={{ marginTop: '25px', display: 'flex', gap: '10px' }}>
-            <button type="button" onClick={(e) => { e.stopPropagation(); handleCreate(e); }} style={btnSubmit}>Save Ministry</button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); setShowCreateForm(false); }} style={btnCancel}>Cancel</button>
+            <button type="submit" style={btnSubmit}>Save Ministry</button>
+            <button type="button" onClick={() => setShowCreateForm(false)} style={btnCancel}>Cancel</button>
           </div>
         </form>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-        {ministryList.map((m) => {
-          const ministryMembers = allMembers.filter(member => {
-            const memberMinistries = normalizeMemberMinistries(member);
-            return memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
-          });
-          const userMinistries = normalizeMemberMinistries(user);
-          const normalizedUserMinistries = userMinistries.map(min => min.trim().toLowerCase());
-          const isMemberOfThisMinistry = normalizedUserMinistries.includes(m.name?.trim().toLowerCase());
-          const isMyMinistryLeader = role === 'Ministry Leader' && userFullName && m.leader?.trim().toLowerCase() === userFullName;
-          const pendingRequests = Array.isArray(m.joinRequests) ? m.joinRequests.filter(req => req.status === 'Pending') : [];
-          const userExistingRequest = Array.isArray(m.joinRequests) ? m.joinRequests.find(req => req.userId === user?._id) : null;
-          const canEditMinistry = role === 'Admin' || isMyMinistryLeader;
-          const isExpanded = expandedId === m._id;
+      {visibleMinistries.length === 0 ? (
+        <div style={{ padding: '40px', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center', color: '#64748b' }}>
+          No ministries found.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+          {visibleMinistries.map((m) => {
+            const ministryMembers = allMembers.filter(member => {
+              const memberMinistries = normalizeMemberMinistries(member);
+              return memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
+            });
+            const userMinistries = normalizeMemberMinistries(user);
+            const normalizedUserMinistries = userMinistries.map(min => min.trim().toLowerCase());
+            const isMemberOfThisMinistry = normalizedUserMinistries.includes(m.name?.trim().toLowerCase());
+            const userExistingRequest = Array.isArray(m.joinRequests) ? m.joinRequests.find(req => req.userId === user?._id) : null;
 
-          return (
-            <div key={m._id} style={{ ...cardStyle, borderLeft: `6px solid ${m.color || '#2563eb'}`, paddingLeft: '20px' }}>
+            return (
               <div 
-                onClick={() => toggleDropdown(m._id)} 
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', cursor: 'pointer', userSelect: 'none' }}
+                key={m._id} 
+                onClick={() => setSelectedMinistry(m)}
+                style={{
+                  ...classroomCardStyle,
+                  borderTop: `8px solid ${m.color || '#2563eb'}`
+                }}
               >
-                <h3 style={{ margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '12px', color: '#94a3b8', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease', display: 'inline-block' }}>
-                    ▼
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: m.color || '#2563eb', border: '1px solid #cbd5e1', boxShadow: '0 0 0 1px rgba(0,0,0,0.05)' }} />
-                    {m.name}
-                  </span>
-                </h3>
-                {m.status === 'Archived' && <span style={inactivePill}>ARCHIVED</span>}
-              </div>
-              
-              {canManage && editingId === m._id ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginLeft: '20px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>UPDATE LEADER</label>
-                  <select 
-                    style={{ ...inputStyle, width: '100%', minWidth: '0', color: '#111', backgroundColor: '#fff', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' }} 
-                    value={editLeaderData} 
-                    onChange={e => setEditLeaderData(e.target.value)}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <h3 style={{ margin: 0, color: '#1e293b', fontSize: '18px' }}>{m.name}</h3>
+                  {m.status === 'Archived' && <span style={inactivePill}>ARCHIVED</span>}
+                </div>
+
+                <p style={{ color: '#64748b', fontSize: '14px', margin: '8px 0 20px 0' }}>
+                  Led by {m.leader || 'No Assigned Leader'}
+                </p>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '12px', fontSize: '13px', color: '#475569' }}>
+                  <span>👥 {ministryMembers.length} Members</span>
+                  <span style={{ color: '#2563eb', fontWeight: 'bold' }}>Open Space →</span>
+                </div>
+
+                {user && !isMemberOfThisMinistry && (role === 'Member' || role === 'Staff') && (
+                  <div 
+                    onClick={(e) => e.stopPropagation()} 
+                    style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}
                   >
-                    <option value="">Select a Leader</option>
-                    {leaderOptions.map(leader => (
-                      <option key={leader._id} value={`${leader.firstName} ${leader.lastName}`}>
-                        {leader.firstName} {leader.lastName}
-                      </option>
-                    ))}
-                  </select>
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                    <button 
-                      onClick={() => handleUpdateLeader(m._id)} 
-                      style={{ padding: '6px 14px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                    <button
+                      onClick={() => applyToJoin(m)}
+                      disabled={requestInProgress || !!userExistingRequest?.status}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
                     >
-                      Save
-                    </button>
-                    <button 
-                      onClick={() => setEditingId(null)} 
-                      style={{ padding: '6px 14px', backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      Cancel
+                      {userExistingRequest ? (userExistingRequest.status === 'Pending' ? 'Request Pending' : 'Request Sent') : 'Apply to Join'}
                     </button>
                   </div>
-                </div>
-              ) : (
-                <p style={{ color: '#64748b', fontSize: '14px', margin: '6px 0 15px 20px' }}>Led by {m.leader || 'No Assigned Leader'}</p>
-              )}
-              
-              <div style={cardFooter}>
-                <span>Members: <strong>{ministryMembers.length}</strong></span>
+                )}
               </div>
-
-              {isExpanded && (
-                <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    ASSIGNED ({ministryMembers.length})
-                  </h4>
-                  
-                  {ministryMembers.length === 0 ? (
-                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>No members added yet.</p>
-                  ) : (
-                    <ul style={{ margin: '0 0 12px 0', paddingLeft: '18px', fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
-                      {ministryMembers.map(member => (
-                        <li key={member._id} style={{ marginBottom: '6px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span><strong>{member.firstName} {member.lastName}</strong></span>
-                            {canEditMinistry && (
-                              <button 
-                                onClick={() => handleRemoveMember(member._id, m.name)} 
-                                style={removeMemberLink}
-                                title="Remove member from ministry"
-                              >
-                                ✕ Remove
-                              </button>
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {canEditMinistry && (
-                    <div style={{ display: 'flex', gap: '6px', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', marginTop: '4px' }}>
-                        <select 
-                        style={{ ...selectStyle, padding: '6px', fontSize: '12px', flex: 1 }}
-                        value={selectedMemberId}
-                        onChange={e => setSelectedMemberId(e.target.value)}
-                      >
-                        <option style={{ color: '#111', backgroundColor: '#fff' }} value="">+ Add Member</option>
-                        {allMembers
-                          .filter(mem => {
-                            const memberMinistries = normalizeMemberMinistries(mem);
-                            return !memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
-                          })
-                          .map(mem => (
-                            <option key={mem._id} value={mem._id}>
-                              {mem.firstName} {mem.lastName}
-                            </option>
-                          ))}
-                      </select>
-                      <button 
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleAddMember(selectedMemberId, m.name);
-                        }}
-                        style={{ padding: '6px 12px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                        disabled={!selectedMemberId}
-                      >
-                        Add
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {user && !isMemberOfThisMinistry && (role === 'Member' || role === 'Staff') && (
-                <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid #dbeafe', background: '#eff6ff', marginTop: '12px' }}>
-                  <p style={{ margin: 0, color: '#1e3a8a', fontSize: '13px' }}>
-                    Want to join <strong>{m.name}</strong>? Submit a request and ministry leaders will review it.
-                  </p>
-                  <button
-                    onClick={() => applyToJoin(m)}
-                    disabled={requestInProgress || !!userExistingRequest?.status}
-                    style={{ marginTop: '10px', padding: '10px 16px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', cursor: 'pointer' }}
-                  >
-                    {userExistingRequest ? (userExistingRequest.status === 'Pending' ? 'Request Pending' : 'Request Sent') : 'Apply to Join'}
-                  </button>
-                </div>
-              )}
-
-              {(canManage || userExistingRequest?.status) && (
-                <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', marginTop: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                    <h4 style={{ margin: 0, fontSize: '13px', color: '#334155' }}>Ministry Announcement</h4>
-                    {isMyMinistryLeader && (
-                      <button
-                        onClick={() => submitAnnouncement(m)}
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', cursor: 'pointer', fontSize: '12px' }}
-                      >
-                        Announce
-                      </button>
-                    )}
-                  </div>
-                  {isMyMinistryLeader ? (
-                    <textarea
-                      value={announcementDraft[m._id] ?? m.announcementText ?? ''}
-                      onChange={(e) => handleAnnouncementChange(m._id, e.target.value)}
-                      rows={3}
-                      style={{ width: '100%', minHeight: '90px', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e1', resize: 'vertical' }}
-                      placeholder="Write your ministry announcement here"
-                    />
-                  ) : (
-                    <p style={{ margin: 0, color: '#475569', fontSize: '13px' }}>{m.announcementText || 'No announcement yet.'}</p>
-                  )}
-
-                  {isMyMinistryLeader && pendingRequests.length > 0 && (
-                    <div style={{ marginTop: '14px' }}>
-                      <h5 style={{ margin: '0 0 8px 0', fontSize: '12px', textTransform: 'uppercase', color: '#64748b' }}>Pending Join Requests</h5>
-                      <ul style={{ margin: 0, paddingLeft: '18px', color: '#334155' }}>
-                        {pendingRequests.map(req => (
-                          <li key={req._id} style={{ marginBottom: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
-                              <span>{req.userName} ({req.userRole || 'Member'})</span>
-                              <div style={{ display: 'flex', gap: '6px' }}>
-                                <button
-                                  onClick={() => updateJoinRequest(m._id, req._id, 'approve')}
-                                  style={{ padding: '6px 10px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-accent)', color: 'white', cursor: 'pointer', fontSize: '12px' }}
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => updateJoinRequest(m._id, req._id, 'reject')}
-                                  style={{ padding: '6px 10px', borderRadius: '8px', border: 'none', backgroundColor: '#ef4444', color: 'white', cursor: 'pointer', fontSize: '12px' }}
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {canEditMinistry && (
-                <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                  {editingId === m._id ? (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingId(null);
-                      }}
-                      style={{ padding: '8px 16px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
-                    >
-                      Cancel Edit
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingId(m._id); 
-                        setEditLeaderData(m.leader || '');
-                      }}
-                      style={{ padding: '8px 16px', backgroundColor: '#ffffff', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
-                    >
-                      Edit
-                    </button>
-                  )}
-                  
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleStatus(m);
-                    }} 
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '6px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      border: '1px solid',
-                      backgroundColor: m.status === 'Archived' ? '#ecfdf5' : '#fef2f2',
-                      color: m.status === 'Archived' ? '#059669' : '#dc2626',
-                      borderColor: m.status === 'Archived' ? '#a7f3d0' : '#fecaca'
-                    }}
-                  >
-                    {m.status === 'Archived' ? 'Restore' : 'Archive'}
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
       <FeedbackModal />
     </div>
   );
 };
 
+// Layout & UI Component Styles
 const formStyle = { background: 'white', padding: '24px', borderRadius: '12px', marginBottom: '30px', border: '1px solid #e2e8f0' };
 const cardStyle = { background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
+const classroomCardStyle = { 
+  background: 'white', 
+  padding: '20px', 
+  borderRadius: '12px', 
+  border: '1px solid #e2e8f0', 
+  boxShadow: '0 2px 4px rgba(0,0,0,0.04)', 
+  cursor: 'pointer', 
+  transition: 'transform 0.15s ease, box-shadow 0.15s ease' 
+};
+
+const tabStyle = { padding: '10px 16px', background: 'none', border: 'none', borderBottom: '3px solid transparent', cursor: 'pointer', fontWeight: 'bold', color: '#64748b' };
+const activeTabStyle = { ...tabStyle, borderBottom: '3px solid #2563eb', color: '#2563eb' };
+
 const inputGroup = { display: 'flex', flexDirection: 'column', gap: '5px' };
 const labelStyle = { fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' };
-const inputStyle = { width: '100%', minWidth: 0, boxSizing: 'border-box', padding: '10px', borderRadius: '8px', border: '1px solid #085dc3', backgroundColor: '#fff', color: '#111', outline: 'none', position: 'relative', zIndex: 1 };
-const selectStyle = { ...inputStyle, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#fff', cursor: 'pointer' };
-const colorInputStyle = { height: '44px', width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', padding: '0', cursor: 'pointer' };
+const inputStyle = { width: '100%', minWidth: 0, boxSizing: 'border-box', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#111' };
+const selectStyle = { ...inputStyle, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', cursor: 'pointer' };
 const btnSubmit = { padding: '12px 30px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
 const btnCancel = { padding: '12px 20px', backgroundColor: '#d20700', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' };
-
-const removeMemberLink = { background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', padding: 0 };
+const removeMemberLink = { background: 'none', border: 'none', color: '#ef4444', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' };
 const inactivePill = { fontSize: '10px', backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' };
-const cardFooter = { display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '10px 0', borderTop: '1px solid #f1f5f9', marginTop: '10px' };
 
 export default Ministries;
