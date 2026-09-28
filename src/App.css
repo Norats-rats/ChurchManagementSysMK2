@@ -260,12 +260,12 @@
   -webkit-overflow-scrolling: touch;
   width: 100%;
   min-height: 0;
-  background: rgba(248, 250, 252, 0.82);
+  background: rgba(248, 250, 252, 0.62);
   border-radius: 12px;
   backdrop-filter: none;
 }
 
-.theme-dark .view-container { background: rgba(15, 23, 42, 0.86) !important; }
+.theme-dark .view-container { background: rgba(15, 23, 42, 0.68) !important; }
 
 @media (max-width: 768px) {
   .view-container {

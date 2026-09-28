@@ -297,7 +297,7 @@ const EBible = ({ userId }) => {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h2 className="ebible-title" style={{ margin: 0 }}>eBible</h2>
+        <h2 className="ebible-title" style={{ margin: 0, textShadow: '0 0 7px rgba(255,255,255,0.95), 0 0 16px rgba(255,255,255,0.55), 0 2px 3px rgba(0,0,0,0.35)' }}>eBible</h2>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {view === 'reading' && <button onClick={resetToTOC} style={{ padding: '8px 16px', cursor: 'pointer' }}>Back to Books</button>}
           <button type="button" className="ebible-reader-menu-button" onClick={() => setReaderMenuOpen(previous => !previous)} aria-expanded={readerMenuOpen}>
@@ -333,7 +333,7 @@ const EBible = ({ userId }) => {
       {view === 'toc' && (
         <div>
           <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: '600' }}>Bible Version:</span>
+            <span style={{ fontWeight: '600', textShadow: '0 0 5px rgba(255,255,255,0.95), 0 0 12px rgba(255,255,255,0.5)' }}>Bible Version:</span>
             <span style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc' }}>
               {versionLabel}
             </span>
@@ -341,7 +341,7 @@ const EBible = ({ userId }) => {
 
           {!selectedBook ? (
             <>
-              <h3>Select a Book</h3>
+              <h3 style={{ margin: 0, textShadow: '0 0 5px rgba(255,255,255,0.95), 0 0 14px rgba(255,255,255,0.5)' }}>Select a Book</h3>
               <div className="ebible-book-spread">
                 <section className="ebible-testament-panel">
                   <h4>Old Testament</h4>
