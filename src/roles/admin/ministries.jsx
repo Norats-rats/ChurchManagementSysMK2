@@ -199,6 +199,52 @@ const Ministries = ({ role, user }) => {
     });
   };
 
+  const handleAddAssistant = async (ministryId, memberId) => {
+    if (!memberId) return;
+    try {
+      const member = allMembers.find(m => m._id === memberId);
+      const assistantName = `${member?.firstName || ''} ${member?.lastName || ''}`.trim();
+      const res = await fetch(`${API_BASE}/api/ministries/${ministryId}/assistants`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': role,
+          'x-user-name': userName
+        },
+        body: JSON.stringify({ assistantId: memberId, assistantName, action: 'add' })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Failed to invite assistant');
+      }
+      setSelectedMemberId('');
+      fetchInitialData();
+      showFeedback('Assistant invited successfully.');
+    } catch (err) { showFeedback(err.message || "Failed to invite assistant"); }
+  };
+
+  const handleRemoveAssistant = async (ministryId, memberId) => {
+    askConfirmation("Are you sure you want to remove this assistant?", async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/ministries/${ministryId}/assistants`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-role': role,
+            'x-user-name': userName
+          },
+          body: JSON.stringify({ assistantId: memberId, action: 'remove' })
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || 'Failed to remove assistant');
+        }
+        await fetchInitialData();
+        showFeedback('Assistant removed successfully.');
+      } catch (err) { showFeedback(err.message || "Failed to remove assistant"); }
+    });
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -320,8 +366,10 @@ const Ministries = ({ role, user }) => {
     });
 
     const isMyMinistryLeader = m.leader?.trim().toLowerCase() === userFullName;
-    const canApproveRequests = isMyMinistryLeader;
-    const canEditMinistry = isMyMinistryLeader;
+    const isMyMinistryAssistant = Array.isArray(m.assistants)
+      && m.assistants.some(a => a?.name?.trim().toLowerCase() === userFullName);
+    const canApproveRequests = isMyMinistryLeader || isMyMinistryAssistant;
+    const canEditMinistry = isMyMinistryLeader || isMyMinistryAssistant;
     const pendingRequests = Array.isArray(m.joinRequests) ? m.joinRequests.filter(req => req.status === 'Pending') : [];
 
     const announcementsList = Array.isArray(m.announcements) && m.announcements.length > 0
@@ -608,6 +656,62 @@ const Ministries = ({ role, user }) => {
                       Save Leader
                     </button>
                   </div>
+                </div>
+              )}
+
+              {isMyMinistryLeader && (
+                <div style={{ marginTop: '24px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#475569' }}>Assign Assistant</h4>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#64748b' }}>
+                    Invite a ministry member to help approve join requests and manage members.
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select 
+                      style={{ ...selectStyle, flex: 1 }}
+                      value={selectedMemberId}
+                      onChange={e => setSelectedMemberId(e.target.value)}
+                    >
+                      <option value="">Select a ministry member to invite...</option>
+                      {allMembers
+                        .filter(mem => {
+                          const memberMinistries = normalizeMemberMinistries(mem);
+                          const isMember = memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
+                          const isAlreadyAssistant = (m.assistants || []).some(a => a.userId === mem._id);
+                          return isMember && !isAlreadyAssistant;
+                        })
+                        .map(mem => (
+                          <option key={mem._id} value={mem._id}>
+                            {mem.firstName} {mem.lastName} ({mem.role || 'Member'})
+                          </option>
+                        ))}
+                    </select>
+                    <button 
+                      onClick={() => handleAddAssistant(m._id, selectedMemberId)}
+                      style={{ padding: '10px 18px', backgroundColor: 'var(--color-primary, #2563eb)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                      disabled={!selectedMemberId}
+                    >
+                      Invite
+                    </button>
+                  </div>
+
+                  {(m.assistants || []).length > 0 && (
+                    <div style={{ marginTop: '16px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>Current Assistants:</span>
+                      <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {(m.assistants || []).map(a => (
+                          <div key={a.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                            <span><strong>{a.name}</strong></span>
+                            <button
+                              onClick={() => handleRemoveAssistant(m._id, a.userId)}
+                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
