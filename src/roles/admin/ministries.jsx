@@ -14,13 +14,16 @@ const Ministries = ({ role, user }) => {
   const [ministryList, setMinistryList] = useState([]);
   const [leaderOptions, setLeaderOptions] = useState([]);
   const [allMembers, setAllMembers] = useState([]); 
-  const [selectedMinistry, setSelectedMinistry] = useState(null); // Active "Classroom / Team" view
-  const [activeTab, setActiveTab] = useState('feed'); // Sub-tabs: 'feed' | 'members' | 'requests' | 'settings'
+  const [selectedMinistry, setSelectedMinistry] = useState(null); 
+  const [activeTab, setActiveTab] = useState('feed'); 
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [announcementText, setAnnouncementText] = useState('');
-  const [requestInProgress, setRequestInProgress] = useState(false);
   
+  const [announcementText, setAnnouncementText] = useState('');
+  const [announcementFile, setAnnouncementFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  
+  const [requestInProgress, setRequestInProgress] = useState(false);
   const [editLeaderData, setEditLeaderData] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const { showFeedback, askConfirmation, FeedbackModal } = useFeedbackModal();
@@ -74,7 +77,6 @@ const Ministries = ({ role, user }) => {
       );
       setLeaderOptions(filteredLeaders);
 
-      // Keep active ministry detail view updated if currently viewing one
       if (selectedMinistry) {
         const updatedCurrent = rawList.find(m => m._id === selectedMinistry._id);
         if (updatedCurrent) setSelectedMinistry(updatedCurrent);
@@ -197,23 +199,45 @@ const Ministries = ({ role, user }) => {
     });
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAnnouncementFile(file);
+      if (file.type.startsWith('image/')) {
+        setFilePreview(URL.createObjectURL(file));
+      } else {
+        setFilePreview(null);
+      }
+    }
+  };
+
   const submitAnnouncement = async (ministry) => {
     try {
-      if (!announcementText.trim()) {
-        showFeedback('Please enter an announcement.');
+      if (!announcementText.trim() && !announcementFile) {
+        showFeedback('Please enter text or upload a file for the announcement.');
         return;
       }
+
+      const bodyData = new FormData();
+      bodyData.append('announcementText', announcementText.trim());
+      bodyData.append('author', userName);
+      if (announcementFile) {
+        bodyData.append('attachment', announcementFile);
+      }
+
       const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}/announcement`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'x-user-role': role,
           'x-user-name': userName
         },
-        body: JSON.stringify({ announcementText: announcementText.trim() })
+        body: bodyData
       });
+
       if (!res.ok) throw new Error('Announcement save failed');
       setAnnouncementText('');
+      setAnnouncementFile(null);
+      setFilePreview(null);
       await fetchInitialData();
       showFeedback('Announcement posted to this ministry space.');
     } catch (err) {
@@ -268,7 +292,6 @@ const Ministries = ({ role, user }) => {
     }
   };
 
-  // Filter list: Ministry leaders only see their led ministries; Admin/Staff see all
   const visibleMinistries = ministryList.filter(m => {
     if (role === 'Ministry Leader') {
       return m.leader?.trim().toLowerCase() === userFullName;
@@ -278,23 +301,27 @@ const Ministries = ({ role, user }) => {
 
   if (loading) return <div style={{ padding: '40px' }}>Loading ministry workspace...</div>;
 
-  // ==========================================
-  // VIEW B: TEAM / CLASSROOM DETAILED VIEW
-  // ==========================================
+
   if (selectedMinistry) {
     const m = selectedMinistry;
     const ministryMembers = allMembers.filter(member => {
       const memberMinistries = normalizeMemberMinistries(member);
       return memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
     });
-    const isMyMinistryLeader = role === 'Ministry Leader' && userFullName && m.leader?.trim().toLowerCase() === userFullName;
+
+    const isMyMinistryLeader = m.leader?.trim().toLowerCase() === userFullName;
+    const canApproveRequests = role === 'Admin' || isMyMinistryLeader; 
     const canEditMinistry = role === 'Admin' || isMyMinistryLeader;
     const pendingRequests = Array.isArray(m.joinRequests) ? m.joinRequests.filter(req => req.status === 'Pending') : [];
+
+    const announcementsList = Array.isArray(m.announcements) 
+      ? m.announcements 
+      : (m.announcementText ? [{ _id: '1', text: m.announcementText, createdAt: m.updatedAt || new Date() }] : []);
 
     return (
       <div style={{ padding: '24px', backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif' }}>
         <button 
-          onClick={() => { setSelectedMinistry(null); setAnnouncementText(''); }}
+          onClick={() => { setSelectedMinistry(null); setAnnouncementText(''); setAnnouncementFile(null); setFilePreview(null); }}
           style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}
         >
           ← Back to All Ministries
@@ -329,7 +356,7 @@ const Ministries = ({ role, user }) => {
           >
             👥 Members ({ministryMembers.length})
           </button>
-          {canEditMinistry && (
+          {canApproveRequests && (
             <button 
               onClick={() => setActiveTab('requests')} 
               style={activeTab === 'requests' ? activeTabStyle : tabStyle}
@@ -347,7 +374,7 @@ const Ministries = ({ role, user }) => {
           )}
         </div>
 
-        {/* Tab 1: Stream / Announcements */}
+        {/* Tab 1: Stream & Announcements (With History & Media Support) */}
         {activeTab === 'feed' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px' }}>
             {isMyMinistryLeader && (
@@ -360,22 +387,78 @@ const Ministries = ({ role, user }) => {
                   style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', resize: 'vertical', boxSizing: 'border-box' }}
                   placeholder="Share updates, prayer items, or schedules with this ministry..."
                 />
+
+                {/* File/Image Upload Section */}
+                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>
+                    Attach Image or File
+                  </label>
+                  <input 
+                    type="file" 
+                    onChange={handleFileChange}
+                    accept="image/*,.pdf,.doc,.docx"
+                    style={{ fontSize: '13px' }}
+                  />
+                  {filePreview && (
+                    <div style={{ marginTop: '8px' }}>
+                      <img src={filePreview} alt="Preview" style={{ maxHeight: '150px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={() => submitAnnouncement(m)}
-                  style={{ marginTop: '10px', padding: '10px 18px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+                  style={{ marginTop: '14px', padding: '10px 18px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   Publish Announcement
                 </button>
               </div>
             )}
 
+            {/* Announcement History List */}
             <div style={cardStyle}>
-              <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>Latest Announcement</h3>
-              <div style={{ padding: '16px', backgroundColor: '#f1f5f9', borderRadius: '8px', borderLeft: `4px solid ${m.color || '#2563eb'}` }}>
-                <p style={{ margin: 0, color: '#334155', fontSize: '14px', lineHeight: '1.6' }}>
-                  {m.announcementText || 'No announcements posted yet.'}
-                </p>
-              </div>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1e293b' }}>Announcement Stream</h3>
+              
+              {announcementsList.length === 0 ? (
+                <p style={{ color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>No announcements posted yet.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {announcementsList.map((ann, idx) => (
+                    <div key={ann._id || idx} style={{ padding: '16px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', borderLeft: `4px solid ${m.color || '#2563eb'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', color: '#64748b' }}>
+                        <strong>{ann.author || m.leader || 'Ministry Leader'}</strong>
+                        <span>{ann.createdAt ? new Date(ann.createdAt).toLocaleDateString() : 'Recent'}</span>
+                      </div>
+                      
+                      <p style={{ margin: 0, color: '#334155', fontSize: '14px', lineHeight: '1.6', whitespace: 'pre-wrap' }}>
+                        {ann.text || ann.announcementText || ann}
+                      </p>
+
+                      {/* Display Attachment if Present */}
+                      {(ann.fileUrl || ann.imageUrl) && (
+                        <div style={{ marginTop: '12px' }}>
+                          {(ann.fileUrl || ann.imageUrl).match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                            <img 
+                              src={ann.fileUrl || ann.imageUrl} 
+                              alt="Announcement attachment" 
+                              style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', border: '1px solid #e2e8f0' }} 
+                            />
+                          ) : (
+                            <a 
+                              href={ann.fileUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontSize: '13px', fontWeight: 'bold' }}
+                            >
+                              📎 View Attached File
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -444,8 +527,8 @@ const Ministries = ({ role, user }) => {
           </div>
         )}
 
-        {/* Tab 3: Join Requests */}
-        {activeTab === 'requests' && canEditMinistry && (
+        {/* Tab 3: Join Requests (Restricted to Ministry Leader / Admin) */}
+        {activeTab === 'requests' && canApproveRequests && (
           <div style={{ maxWidth: '800px' }}>
             <div style={cardStyle}>
               <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1e293b' }}>Pending Join Applications</h3>
@@ -538,9 +621,7 @@ const Ministries = ({ role, user }) => {
     );
   }
 
-  // ==========================================
-  // VIEW A: CARD GRID VIEW (TEAMS OVERVIEW)
-  // ==========================================
+
   return (
     <div style={{ padding: '30px', backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', alignItems: 'center' }}>
@@ -669,7 +750,6 @@ const Ministries = ({ role, user }) => {
   );
 };
 
-// Layout & UI Component Styles
 const formStyle = { background: 'white', padding: '24px', borderRadius: '12px', marginBottom: '30px', border: '1px solid #e2e8f0' };
 const cardStyle = { background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
 const classroomCardStyle = { 
