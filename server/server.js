@@ -1097,13 +1097,16 @@ app.patch('/api/ministries/:id/join-request/:requestId/approve', async (req, res
   try {
     const userRole = req.headers['x-user-role'];
     const userName = (req.headers['x-user-name'] || '').trim();
-    if (!['Admin', 'Ministry Leader'].includes(userRole)) {
-      return res.status(403).json({ error: 'Forbidden: only ministry leaders and admin can approve requests.' });
+
+    if (userRole !== 'Ministry Leader') {
+      return res.status(403).json({ error: 'Forbidden: Only Ministry Leaders can approve join requests.' });
     }
+    
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
-    if (userRole !== 'Admin' && (!userName || ministry.leader?.trim().toLowerCase() !== userName.toLowerCase())) {
-      return res.status(403).json({ error: 'Forbidden: only the assigned ministry leader or admin can approve requests.' });
+
+    if (!userName || ministry.leader?.trim().toLowerCase() !== userName.toLowerCase()) {
+      return res.status(403).json({ error: 'Forbidden: Only the assigned ministry leader can approve requests.' });
     }
     const request = ministry.joinRequests.id(req.params.requestId);
     if (!request) return res.status(404).json({ error: 'Request not found' });
@@ -1132,13 +1135,14 @@ app.patch('/api/ministries/:id/join-request/:requestId/reject', async (req, res)
   try {
     const userRole = req.headers['x-user-role'];
     const userName = (req.headers['x-user-name'] || '').trim();
-    if (!['Admin', 'Ministry Leader'].includes(userRole)) {
-      return res.status(403).json({ error: 'Forbidden: only ministry leaders and admin can reject requests.' });
+    if (userRole !== 'Ministry Leader') {
+      return res.status(403).json({ error: 'Forbidden: Only Ministry Leaders can reject join requests.' });
     }
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
-    if (userRole !== 'Admin' && (!userName || ministry.leader?.trim().toLowerCase() !== userName.toLowerCase())) {
-      return res.status(403).json({ error: 'Forbidden: only the assigned ministry leader or admin can reject requests.' });
+
+    if (!userName || ministry.leader?.trim().toLowerCase() !== userName.toLowerCase()) {
+      return res.status(403).json({ error: 'Forbidden: Only the assigned ministry leader can reject requests.' });
     }
     const request = ministry.joinRequests.id(req.params.requestId);
     if (!request) return res.status(404).json({ error: 'Request not found' });
@@ -1173,7 +1177,12 @@ app.get('/api/members/:id', async (req, res) => {
 });
 
 app.post('/api/members', async (req, res) => {
-  try {
+try {
+    const userRole = req.headers['x-user-role'];
+    if (userRole === 'Admin') {
+      return res.status(403).json({ error: 'Forbidden: Admins cannot create member records.' });
+    }
+
     const data = { ...req.body };
     delete data.otp;
     delete data.otpHash;
@@ -1270,6 +1279,8 @@ app.patch('/api/members/:id', async (req, res) => {
           return res.status(403).json({ error: 'Forbidden: you can only manage members of your own ministry.' });
         }
       }
+    } else if (userRole !== 'Ministry Leader' && ('ministries' in data || 'ministry' in data)) {
+      return res.status(403).json({ error: 'Forbidden: only the assigned ministry leader can add or remove members.' });
     }
 
     if (!data.birthdate) delete data.birthdate;

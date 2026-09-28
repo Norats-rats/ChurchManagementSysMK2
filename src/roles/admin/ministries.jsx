@@ -320,8 +320,8 @@ const Ministries = ({ role, user }) => {
     });
 
     const isMyMinistryLeader = m.leader?.trim().toLowerCase() === userFullName;
-    const canApproveRequests = role === 'Admin' || isMyMinistryLeader; 
-    const canEditMinistry = role === 'Admin' || isMyMinistryLeader;
+    const canApproveRequests = isMyMinistryLeader;
+    const canEditMinistry = isMyMinistryLeader;
     const pendingRequests = Array.isArray(m.joinRequests) ? m.joinRequests.filter(req => req.status === 'Pending') : [];
 
     const announcementsList = Array.isArray(m.announcements) && m.announcements.length > 0
