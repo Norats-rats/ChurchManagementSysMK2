@@ -260,7 +260,12 @@
   -webkit-overflow-scrolling: touch;
   width: 100%;
   min-height: 0;
+  background: rgba(248, 250, 252, 0.82);
+  border-radius: 12px;
+  backdrop-filter: none;
 }
+
+.theme-dark .view-container { background: rgba(15, 23, 42, 0.86) !important; }
 
 @media (max-width: 768px) {
   .view-container {
@@ -574,7 +579,7 @@ body, .App {
 /* More comprehensive dark-mode overrides to counter inline styles where needed */
 .theme-dark .top-nav { background: #071029 !important; border-bottom-color: rgba(255,255,255,0.04) !important; }
 .theme-dark .menu-bar { background: #071029 !important; border-right-color: rgba(255,255,255,0.03) !important; }
-.theme-dark .view-container { background: transparent !important; }
+
 .theme-dark .bulletin-card { background: #07112a !important; color: #e6eef8 !important; border-color: rgba(255,255,255,0.03) !important; }
 .theme-dark .bulletin-card-accent { background: linear-gradient(180deg,#08121e,#041018) !important; color: #e6eef8 !important; }
 .theme-dark .notifications-panel { background: linear-gradient(180deg, rgba(10,15,25,0.6), rgba(8,12,20,0.6)) !important; border-color: rgba(255,255,255,0.04) !important; }

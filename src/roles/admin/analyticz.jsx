@@ -32,8 +32,11 @@ const formatInsightSentences = (text) => {
   if (!text) return [];
   const cleaned = String(text).replace(/\s+/g, ' ').trim();
   if (!cleaned) return [];
-  const sentences = cleaned.match(/[^.!?]+[.!?]|\S+/g) || [cleaned];
-  return sentences.map((s) => s.trim()).filter(Boolean);
+  const sentences = cleaned.match(/[^.!?]+[.!?]+/g);
+  if (sentences) {
+    return sentences.map((s) => s.trim()).filter(Boolean);
+  }
+  return [cleaned];
 };
 
 const buildAgeInsight = (stats) => {
