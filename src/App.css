@@ -785,6 +785,15 @@ body, .App {
 .theme-dark .daily-verse p, .theme-dark .announcement-box p { color: #dbeafe !important; }
 .theme-dark .services-card li { background: rgba(255,255,255,0.03) !important; color: #e6eef8 !important; border-color: rgba(255,255,255,0.03) !important; }
 
+/* Background customizer zoom slider */
+.bg-zoom-row { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.bg-zoom-label { font-size: 13px; font-weight: 700; color: #334155; }
+.bg-zoom-slider { width: 100%; accent-color: var(--color-primary); cursor: pointer; }
+.bg-zoom-ticks { display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; }
+.bg-zoom-hint { margin: 0; font-size: 11px; color: #64748b; }
+.theme-dark .bg-zoom-label { color: #e6eef8; }
+.theme-dark .bg-zoom-ticks, .theme-dark .bg-zoom-hint { color: #94a3b8; }
+
 /* Top header and notifications styling */
 .notif-title { color: var(--color-primary); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 .notif-message { color: #0f172a; font-size: 13px; line-height: 1.4; }

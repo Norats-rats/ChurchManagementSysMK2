@@ -20,12 +20,17 @@ export const BG_MODES = {
   custom: 'custom'
 };
 
+export const DEFAULT_ZOOM = 85;
+export const ZOOM_MIN = 50;
+export const ZOOM_MAX = 200;
+
 export const DEFAULT_BACKGROUND_PREFERENCE = {
   mode: BG_MODES.cycle,
   customImage: null,
   customUrl: null,
   solidColor: null,
-  dim: true
+  dim: true,
+  zoom: DEFAULT_ZOOM
 };
 
 export const pickCycleImage = (hour) => {

@@ -5,7 +5,10 @@ import {
   CYCLE_IMAGES,
   LOGO_IMAGE,
   DEFAULT_BACKGROUND_PREFERENCE,
-  describeMode
+  describeMode,
+  ZOOM_MIN,
+  ZOOM_MAX,
+  DEFAULT_ZOOM
 } from '../../utils/backgroundPresets';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
@@ -43,7 +46,8 @@ const BackgroundCustomizer = () => {
       customImage: p.customImage || null,
       customUrl: p.customUrl || '',
       solidColor: p.solidColor || '#0f172a',
-      dim: p.dim !== false
+      dim: p.dim !== false,
+      zoom: Number.isFinite(p.zoom) ? p.zoom : DEFAULT_ZOOM
     };
   });
 
@@ -96,7 +100,8 @@ const BackgroundCustomizer = () => {
       customImage: localPref.customImage || null,
       customUrl: localPref.customUrl ? String(localPref.customUrl).trim() : null,
       solidColor: localPref.mode === BG_MODES.solid ? localPref.solidColor : null,
-      dim: localPref.dim
+      dim: localPref.dim,
+      zoom: Number.isFinite(localPref.zoom) ? localPref.zoom : DEFAULT_ZOOM
     };
     if (next.mode === BG_MODES.custom && !next.customImage && !next.customUrl) {
       alert('Please upload an image or enter a URL for the custom background.');
@@ -113,7 +118,8 @@ const BackgroundCustomizer = () => {
       customImage: next.customImage,
       customUrl: next.customUrl,
       solidColor: '#0f172a',
-      dim: next.dim
+      dim: next.dim,
+      zoom: next.zoom
     });
     resetPreference();
     onClose();
@@ -152,8 +158,9 @@ const BackgroundCustomizer = () => {
             style={{
               backgroundImage: previewImage ? `url(${previewImage})` : 'none',
               backgroundColor: !previewImage ? localPref.solidColor : 'transparent',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
+              backgroundSize: localPref.zoom === 100 ? 'cover' : `${localPref.zoom}%`,
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
             }}
           />
           <div className="bg-preview-label">{describeMode(localPref)}</div>
@@ -251,6 +258,26 @@ const BackgroundCustomizer = () => {
             />
             <span>Dim overlay for readability</span>
           </label>
+        </div>
+
+        <div className="bg-zoom-row">
+          <label className="bg-zoom-label">Background zoom: {localPref.zoom}%</label>
+          <input
+            type="range"
+            className="bg-zoom-slider"
+            min={ZOOM_MIN}
+            max={ZOOM_MAX}
+            step={5}
+            value={localPref.zoom}
+            onChange={(e) => setLocalPref((p) => ({ ...p, zoom: Number(e.target.value) }))}
+            disabled={isSaving}
+          />
+          <div className="bg-zoom-ticks">
+            <span>{ZOOM_MIN}%</span>
+            <span>100%</span>
+            <span>{ZOOM_MAX}%</span>
+          </div>
+          <small className="bg-zoom-hint">Lower zooms shrink the image (good for the logo); higher zooms enlarge it.</small>
         </div>
 
         <div className="bg-customizer-actions">

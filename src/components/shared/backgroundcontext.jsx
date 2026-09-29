@@ -21,7 +21,8 @@ const safeMerge = (base, incoming) => ({
   customImage: incoming?.customImage ?? base?.customImage ?? DEFAULT_BACKGROUND_PREFERENCE.customImage,
   customUrl: incoming?.customUrl ?? base?.customUrl ?? DEFAULT_BACKGROUND_PREFERENCE.customUrl,
   solidColor: incoming?.solidColor ?? base?.solidColor ?? DEFAULT_BACKGROUND_PREFERENCE.solidColor,
-  dim: incoming?.dim ?? base?.dim ?? DEFAULT_BACKGROUND_PREFERENCE.dim
+  dim: incoming?.dim ?? base?.dim ?? DEFAULT_BACKGROUND_PREFERENCE.dim,
+  zoom: Number.isFinite(incoming?.zoom) ? incoming.zoom : (Number.isFinite(base?.zoom) ? base.zoom : DEFAULT_BACKGROUND_PREFERENCE.zoom)
 });
 
 const loadFromStorage = () => {
@@ -64,21 +65,28 @@ const computeBackground = (pref, phHour, theme) => {
   const color = resolveColor(pref);
   const dim = pref?.dim !== false;
   const overlay = dim ? getOverlay(theme, true) : null;
+  const zoom = Number.isFinite(pref?.zoom) ? pref.zoom : DEFAULT_BACKGROUND_PREFERENCE.zoom;
 
   const backgroundStyle = {};
   if (color) {
     backgroundStyle.backgroundColor = color;
   } else if (image) {
     backgroundStyle.backgroundImage = `url(${image})`;
-    backgroundStyle.backgroundSize = 'cover';
-    backgroundStyle.backgroundPosition = 'center';
     backgroundStyle.backgroundRepeat = 'no-repeat';
     backgroundStyle.backgroundAttachment = 'scroll';
+    if (zoom === 100) {
+      backgroundStyle.backgroundSize = 'cover';
+      backgroundStyle.backgroundPosition = 'center';
+    } else {
+      // Zoom < 100 = zoom out (smaller image), zoom > 100 = zoom in.
+      backgroundStyle.backgroundSize = `${zoom}%`;
+      backgroundStyle.backgroundPosition = 'center';
+    }
   } else {
     backgroundStyle.backgroundColor = theme === 'dark' ? '#0f172a' : '#f8fafc';
   }
 
-  return { image, color, dim, overlay, theme, backgroundStyle };
+  return { image, color, dim, overlay, theme, zoom, backgroundStyle };
 };
 
 export const BackgroundProvider = ({ userId, role, userName, children }) => {
