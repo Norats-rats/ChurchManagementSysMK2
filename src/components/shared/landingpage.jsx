@@ -260,9 +260,9 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
         <div style={styles.footerContent}>
           <div style={styles.footerCol}>
             <h3>Contact Us</h3>
-            <p><strong>Address:</strong> {contactInfo.address || '123 Faith Street, Cityville'}</p>
-            <p><strong>Phone:</strong> {contactInfo.phone || '(555) 019-2834'}</p>
-            <p><strong>Email:</strong> {contactInfo.email || 'info@gracechurch.org'}</p>
+            <p><strong>Address:</strong> {contactInfo.address || 'Baguio'}</p>
+            <p><strong>Phone:</strong> {contactInfo.phone || '(+63)0945 132 4344'}</p>
+            <p><strong>Email:</strong> {contactInfo.email || 'church@fbcfi.org'}</p>
           </div>
         </div>
         <div style={styles.copyright}>
