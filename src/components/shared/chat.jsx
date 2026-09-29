@@ -325,7 +325,7 @@ const Chat = ({ user }) => {
   return (
     <section className="chat-shell">
       <header className="chat-header">
-        <span className="chat-status">{members.length || 'All'} members connected</span>
+        <span className="chat-status">{members.length || 'All'} members available</span>
       </header>
 
       {error && <div className="chat-error" role="alert">{error}</div>}
