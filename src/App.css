@@ -14,13 +14,14 @@
   box-sizing: border-box;
   width: 100%;
   position: relative;
+  overflow: visible;
 }
 .main-container::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(2, 6, 23, 0.55);
-  z-index: 0;
+  background: rgba(2, 6, 23, 0.42);
+  z-index: -1;
   pointer-events: none;
 }
 
