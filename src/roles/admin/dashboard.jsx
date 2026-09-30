@@ -141,6 +141,12 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
   const { setCustomizerOpen } = useContext(BackgroundContext);
 
+  const handleRecordCardKeyDown = (panel, event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    setRecordPanel(panel);
+  };
+
   const navigationConfig = [
     { id: 'dashboard', label: ['Member', 'Staff'].includes(role) ? 'Home' : 'Dashboard', permission: 'dashboard' },
     { id: 'chat', label: 'Community Chat', permission: 'chat' },
@@ -1148,10 +1154,10 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                       )}
                     </div>
                     {isLeader && <div className="dashboard-chart-grid">
-                      <div className="dashboard-chart-card"><span>Attendance Rate</span><strong>{dashboardMetrics.attendanceRate}%</strong><div className="dashboard-progress"><i style={{ width: `${dashboardMetrics.attendanceRate}%` }} /></div></div>
-                      <div className="dashboard-chart-card"><span>Monthly Inventory Activity</span><strong>{dashboardMetrics.inventoryUsed + dashboardMetrics.inventoryAdded}</strong><div className="dashboard-inventory-breakdown"><small>Used {dashboardMetrics.inventoryUsed}</small><small>Added {dashboardMetrics.inventoryAdded}</small></div><div className="dashboard-progress inventory"><i style={{ width: `${dashboardMetrics.inventoryUsage}%` }} /></div></div>
-                      <div className="dashboard-chart-card dashboard-chart-wide"><span>Attendance by Event Category</span>{dashboardMetrics.attendanceByCategory.length ? dashboardMetrics.attendanceByCategory.slice(0, 4).map(item => <div className="dashboard-bar-row" key={item.name}><small>{item.name}</small><div><i style={{ width: `${Math.max(8, Math.round((item.value / dashboardMetrics.attendanceByCategory[0].value) * 100))}%` }} /></div><b>{item.value}</b></div>) : <small className="dashboard-muted">No attendance data yet.</small>}</div>
-                      <div className="dashboard-chart-card dashboard-chart-wide"><span>Recent User Activity</span>{dashboardMetrics.recentUsers.length ? dashboardMetrics.recentUsers.map(item => <div className="dashboard-user-row" key={`${item.name}-${item.role}`}><span>{item.name}</span><small>{item.role}</small></div>) : <small className="dashboard-muted">No recent user activity.</small>}</div>
+                      <div className="dashboard-chart-card dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('attendance')} onKeyDown={(event) => handleRecordCardKeyDown('attendance', event)}><span>Attendance Rate</span><strong>{dashboardMetrics.attendanceRate}%</strong><div className="dashboard-progress"><i style={{ width: `${dashboardMetrics.attendanceRate}%` }} /></div></div>
+                      <div className="dashboard-chart-card dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('inventory')} onKeyDown={(event) => handleRecordCardKeyDown('inventory', event)}><span>Monthly Inventory Activity</span><strong>{dashboardMetrics.inventoryUsed + dashboardMetrics.inventoryAdded}</strong><div className="dashboard-inventory-breakdown"><small>Used {dashboardMetrics.inventoryUsed}</small><small>Added {dashboardMetrics.inventoryAdded}</small></div><div className="dashboard-progress inventory"><i style={{ width: `${dashboardMetrics.inventoryUsage}%` }} /></div></div>
+                      <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('attendance')} onKeyDown={(event) => handleRecordCardKeyDown('attendance', event)}><span>Attendance by Event Category</span>{dashboardMetrics.attendanceByCategory.length ? dashboardMetrics.attendanceByCategory.slice(0, 4).map(item => <div className="dashboard-bar-row" key={item.name}><small>{item.name}</small><div><i style={{ width: `${Math.max(8, Math.round((item.value / dashboardMetrics.attendanceByCategory[0].value) * 100))}%` }} /></div><b>{item.value}</b></div>) : <small className="dashboard-muted">No attendance data yet.</small>}</div>
+                      <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('members')} onKeyDown={(event) => handleRecordCardKeyDown('members', event)}><span>Recent User Activity</span>{dashboardMetrics.recentUsers.length ? dashboardMetrics.recentUsers.map(item => <div className="dashboard-user-row" key={`${item.name}-${item.role}`}><span>{item.name}</span><small>{item.role}</small></div>) : <small className="dashboard-muted">No recent user activity yet.</small>}</div>
                     </div>}
                   </div>
                 </div>
