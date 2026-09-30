@@ -445,7 +445,7 @@ const Ministries = ({ role, user }) => {
 
                 <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>
-                    Attach Image or File
+                    Attach an Image or File
                   </label>
                   <input 
                     type="file" 
