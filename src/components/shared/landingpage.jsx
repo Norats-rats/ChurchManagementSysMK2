@@ -266,7 +266,7 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
           </div>
         </div>
         <div style={styles.copyright}>
-          <p>&copy; {new Date().getFullYear()} Free Believers in ChristFellowship Inc.</p>
+          <p>&copy; {new Date().getFullYear()} Free Believers in Christ Fellowship Inc.</p>
         </div>
       </footer>
     </div>
