@@ -260,13 +260,13 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
         <div style={styles.footerContent}>
           <div style={styles.footerCol}>
             <h3>Contact Us</h3>
-            <p><strong>Address:</strong> {contactInfo.address || '123 Faith Street, Cityville'}</p>
-            <p><strong>Phone:</strong> {contactInfo.phone || '(555) 019-2834'}</p>
-            <p><strong>Email:</strong> {contactInfo.email || 'info@gracechurch.org'}</p>
+            <p><strong>Address:</strong> {contactInfo.address || 'Taguig City '}</p>
+            <p><strong>Phone:</strong> {contactInfo.phone || '09498405383'}</p>
+            <p><strong>Email:</strong> {contactInfo.email || 'taguigfbcfi@gmail.com'}</p>
           </div>
         </div>
         <div style={styles.copyright}>
-          <p>&copy; {new Date().getFullYear()} Free Believers in Christ Fellowship Taguig. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Free Believers in ChristFellowship Inc.</p>
         </div>
       </footer>
     </div>
