@@ -1,13 +1,12 @@
 import { createContext, useEffect, useMemo, useState } from 'react';
 import api from '../../api';
-import { getPhDateParts, usePhClock } from '../../utils/philippinesTime';
 import {
-  BG_MODES,
-  CYCLE_IMAGES,
-  LOGO_IMAGE,
-  DEFAULT_BACKGROUND_PREFERENCE,
-  pickCycleImage
+    BG_MODES,
+    DEFAULT_BACKGROUND_PREFERENCE,
+    LOGO_IMAGE,
+    pickCycleImage
 } from '../../utils/backgroundPresets';
+import { getPhDateParts, usePhClock } from '../../utils/philippinesTime';
 
 const STORAGE_KEY = 'churchBgPref';
 const THEME_STORAGE_KEY = 'theme';
@@ -131,7 +130,11 @@ export const BackgroundProvider = ({ userId, role, userName, children }) => {
       .then((res) => {
         if (cancelled) return;
         const serverPref = res?.data;
-        const merged = safeMerge(DEFAULT_BACKGROUND_PREFERENCE, serverPref);
+        const cachedPref = safeMerge(DEFAULT_BACKGROUND_PREFERENCE, loadFromStorage());
+        const validServerPref = serverPref && typeof serverPref === 'object' && !Array.isArray(serverPref)
+          ? serverPref
+          : null;
+        const merged = safeMerge(cachedPref, validServerPref);
         setPreference(merged);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
         setLoadedFromBackend(true);
@@ -150,23 +153,19 @@ export const BackgroundProvider = ({ userId, role, userName, children }) => {
   };
 
   const saveToServer = async (next, onSuccess) => {
+    persist(next);
+    setPreference(next);
     if (!userId) {
-      persist(next);
-      setPreference(next);
       onSuccess?.(next);
       return;
     }
     setSaving(true);
     try {
       await api.updateBackgroundPreference(userId, next, role, userName);
-      persist(next);
-      setPreference(next);
       onSuccess?.(next);
       window.dispatchEvent(new Event('church:background:updated'));
     } catch (err) {
       console.error('Background preference save failed:', err?.message || err);
-      persist(next);
-      setPreference(next);
       onSuccess?.(next);
     } finally {
       setSaving(false);

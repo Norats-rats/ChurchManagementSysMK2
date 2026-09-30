@@ -3,19 +3,19 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import churchLogo from '../../assets/churchlogo.jpg';
 import Advising from '../../components/shared/advisinglist';
+import { BackgroundContext } from '../../components/shared/backgroundcontext';
+import BackgroundCustomizer from '../../components/shared/backgroundcustomizer';
 import Chat from '../../components/shared/chat';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';
-import BackgroundCustomizer from '../../components/shared/backgroundcustomizer';
-import { BackgroundContext } from '../../components/shared/backgroundcontext';
 import Profile from '../../components/shared/profile';
 import {
-  canManageAttendance,
-  canManageEvents,
-  canManageMinistries,
-  canViewAnalytics,
-  canViewInventory,
-  hasPermission,
-  normalizeRole
+    canManageAttendance,
+    canManageEvents,
+    canManageMinistries,
+    canViewAnalytics,
+    canViewInventory,
+    hasPermission,
+    normalizeRole
 } from '../../permissions';
 import Analytics from './analyticz';
 import AttendanceTab from './attendancetab';
@@ -26,6 +26,58 @@ import InventoryForm from './invento';
 import MemberForm from './memberform';
 import Ministries from './ministries';
 import Prayers from './prayers';
+
+const DASHBOARD_RECORD_TABS = [
+  { id: 'members', label: 'Members' },
+  { id: 'ministries', label: 'Ministries' },
+  { id: 'events', label: 'Events' },
+  { id: 'calendar', label: 'Calendar' },
+  { id: 'attendance', label: 'Attendance' },
+  { id: 'inventory', label: 'Inventory' }
+];
+
+const formatRecordTimestamp = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+};
+
+const getDashboardRecordText = (panel, record) => {
+  if (panel === 'members') {
+    return {
+      title: `${record.firstName || ''} ${record.lastName || ''}`.trim() || record.email || 'Member',
+      detail: [record.role || 'Member', record.email].filter(Boolean).join(' · '),
+      timestamp: formatRecordTimestamp(record.updatedAt || record.createdAt)
+    };
+  }
+  if (panel === 'ministries') {
+    return {
+      title: record.name || record.ministryName || 'Ministry',
+      detail: [record.leader ? `Leader: ${record.leader}` : '', record.status || 'Active'].filter(Boolean).join(' · '),
+      timestamp: formatRecordTimestamp(record.updatedAt || record.createdAt)
+    };
+  }
+  if (panel === 'attendance') {
+    return {
+      title: record.userName || 'Attendance record',
+      detail: [record.service || 'Service', record.status || 'Present', record.date, record.time].filter(Boolean).join(' · '),
+      timestamp: formatRecordTimestamp(record.createdAt || record.updatedAt)
+    };
+  }
+  if (panel === 'inventory') {
+    return {
+      title: record.itemName || 'Inventory item',
+      detail: [record.action, `Quantity: ${record.quantity ?? 0}`, record.changedBy ? `By ${record.changedBy}` : ''].filter(Boolean).join(' · '),
+      timestamp: formatRecordTimestamp(record.createdAt)
+    };
+  }
+  const eventTitle = record.title || record.titleSelection || record.reservationName || 'Church Event';
+  return {
+    title: eventTitle,
+    detail: [record.date, record.time || `${record.timeStart || ''}${record.timeEnd ? ` - ${record.timeEnd}` : ''}`, record.room].filter(Boolean).join(' · '),
+    timestamp: formatRecordTimestamp(record.updatedAt || record.createdAt)
+  };
+};
 
 const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const location = useLocation();
@@ -53,7 +105,9 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const tabToRoute = Object.fromEntries(Object.entries(routeToTab).map(([path, tab]) => [tab, path]));
   const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
   const currentTab = routeToTab[normalizedPath] || 'dashboard';
-  const [stats, setStats] = useState({ memberCount: 0, attendanceCount: 0, eventCount: 0, ministryCount: 0 });
+  const [stats, setStats] = useState({ memberCount: 0, attendanceCount: 0, eventCount: 0, ministryCount: 0, calendarCount: 0, inventoryActivityCount: 0 });
+  const [dashboardRecords, setDashboardRecords] = useState({ members: [], ministries: [], events: [], calendar: [], attendance: [], inventory: [] });
+  const [recordPanel, setRecordPanel] = useState(null);
   const [dashboardMetrics, setDashboardMetrics] = useState({
     attendanceRate: 0,
     inventoryUsage: 0,
@@ -324,12 +378,13 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
         isLeader ? api.getInventoryActivity().catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
       ]);
 
-      const allEvents = eventsRes.data || [];
+      const allEvents = Array.isArray(eventsRes.data) ? eventsRes.data : [];
       const now = new Date();
       now.setHours(0, 0, 0, 0);
       
       const futureEvents = allEvents
         .filter(e => {
+          if (e.status === 'archived') return false;
           const eventDate = new Date(e.date);
           return eventDate >= now;
         })
@@ -339,6 +394,9 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       const members = Array.isArray(membersRes.data) ? membersRes.data : [];
       const attendance = Array.isArray(attendanceRes.data) ? attendanceRes.data : [];
       const inventoryActivity = Array.isArray(inventoryActivityRes.data) ? inventoryActivityRes.data : [];
+      const recentEvents = [...allEvents].sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+      const recentAttendance = [...attendance].sort((a, b) => new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0));
+      const recentInventoryActivity = [...inventoryActivity].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       const inventoryAdded = inventoryActivity.filter(item => item.action === 'added').length;
       const inventoryUsed = inventoryActivity.filter(item => item.action === 'used').length;
       const attendanceByCategory = {};
@@ -359,7 +417,17 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
         memberCount: members.length,
         attendanceCount: attendance.length,
         eventCount: allEvents.length,
-        ministryCount: activeMinistries
+        ministryCount: activeMinistries,
+        calendarCount: futureEvents.length,
+        inventoryActivityCount: inventoryActivity.length
+      });
+      setDashboardRecords({
+        members: [...members].sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0)),
+        ministries: Array.isArray(ministriesRes.data) ? [...ministriesRes.data].sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0)) : [],
+        events: recentEvents,
+        calendar: futureEvents,
+        attendance: recentAttendance,
+        inventory: recentInventoryActivity
       });
       setDashboardMetrics({
         attendanceRate: members.length ? Math.min(100, Math.round((new Set(attendance.map(item => item.userId).filter(Boolean)).size / members.length) * 100)) : 0,
@@ -976,22 +1044,30 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                 {isLeader && (
                   <>
                     <div className="responsive-kpi-grid">
-                      <div className="kpi-card" style={kpiCardStyle}>
+                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('members')} aria-label="Open member records">
                         <div style={kpiLabelStyle}>TOTAL MEMBERS</div>
                         <div style={kpiValueStyle}>{stats.memberCount}</div>
-                      </div>
-                      <div className="kpi-card" style={kpiCardStyle}>
+                      </button>
+                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('ministries')} aria-label="Open ministry records">
                         <div style={kpiLabelStyle}>ACTIVE MINISTRIES</div>
                         <div style={kpiValueStyle}>{stats.ministryCount}</div>
-                      </div>
-                      <div className="kpi-card" style={kpiCardStyle}>
+                      </button>
+                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('events')} aria-label="Open event records">
                         <div style={kpiLabelStyle}>TOTAL EVENTS</div>
                         <div style={kpiValueStyle}>{stats.eventCount}</div>
-                      </div>
-                      <div className="kpi-card" style={kpiCardStyle}>
+                      </button>
+                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('calendar')} aria-label="Open upcoming calendar events">
+                        <div style={kpiLabelStyle}>UPCOMING CALENDAR</div>
+                        <div style={kpiValueStyle}>{stats.calendarCount}</div>
+                      </button>
+                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('attendance')} aria-label="Open attendance records">
                         <div style={kpiLabelStyle}>TOTAL ATTENDANCE</div>
                         <div style={kpiValueStyle}>{stats.attendanceCount}</div>
-                      </div>
+                      </button>
+                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('inventory')} aria-label="Open inventory activity">
+                        <div style={kpiLabelStyle}>INVENTORY UPDATES</div>
+                        <div style={kpiValueStyle}>{stats.inventoryActivityCount}</div>
+                      </button>
                     </div>
                   
                     <div className="leader-input-card" style={leaderInputCard}>
@@ -1098,6 +1174,55 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           {currentTab === 'inventory' && canViewInventory(role) && <InventoryForm user={user} role={role} />}
         </div>
       </div>
+      {recordPanel && (
+        <div style={recordOverlayStyle} onClick={() => setRecordPanel(null)}>
+          <section
+            style={recordDialogStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dashboard-record-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header style={recordDialogHeaderStyle}>
+              <div>
+                <h2 id="dashboard-record-title" style={recordDialogTitleStyle}>Recent Records</h2>
+                <p style={recordDialogSubtitleStyle}>View scheduled items and recent updates.</p>
+              </div>
+              <button type="button" style={recordCloseStyle} onClick={() => setRecordPanel(null)} aria-label="Close records">×</button>
+            </header>
+            <div style={recordTabsStyle} role="tablist" aria-label="Record categories">
+              {DASHBOARD_RECORD_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={recordPanel === tab.id}
+                  onClick={() => setRecordPanel(tab.id)}
+                  style={{ ...recordTabStyle, ...(recordPanel === tab.id ? recordTabActiveStyle : {}) }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div style={recordListStyle}>
+              {(dashboardRecords[recordPanel] || []).length === 0 ? (
+                <p style={recordEmptyStyle}>No records available.</p>
+              ) : (dashboardRecords[recordPanel] || []).map((record, index) => {
+                const item = getDashboardRecordText(recordPanel, record);
+                return (
+                  <article key={record._id || `${recordPanel}-${index}`} style={recordItemStyle}>
+                    <div>
+                      <strong style={recordItemTitleStyle}>{item.title}</strong>
+                      <p style={recordItemDetailStyle}>{item.detail || 'No additional details.'}</p>
+                    </div>
+                    {item.timestamp && <time style={recordItemTimeStyle}>{item.timestamp}</time>}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      )}
       <FeedbackModal />
     </div>
   );
@@ -1105,16 +1230,31 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
 const bulletinCardStyle = { background: '#fff', padding: '30px', borderRadius: '24px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' };
 const announcementBoxStyle = { background: '#f8fafc', padding: '25px', borderRadius: '16px', borderLeft: '5px solid var(--color-accent)', fontSize: '19px', color: '#1e293b', margin: '20px 0' };
-const historyBtnStyle = { ...postBtnStyle, background: '#1e40af' };
 const announcementHistoryStyle = { marginTop: '14px', padding: '16px', background: '#fff', border: '1px solid #dbeafe', borderRadius: '12px', maxHeight: '260px', overflowY: 'auto' };
 const historyItemStyle = { padding: '10px 0', borderBottom: '1px solid #e2e8f0', lineHeight: '1.45' };
 const triviaBoxStyle = { marginTop: '20px', padding: '15px', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fef3c7' };
 const leaderInputCard = { background: '#f0fdf4', padding: '20px', borderRadius: '16px', border: '2px solid rgba(34,197,94,0.12)', marginBottom: '20px' };
-const kpiCardStyle = { background: '#fff', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center' };
+const kpiCardStyle = { background: '#fff', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center', fontFamily: 'inherit', cursor: 'pointer' };
 const kpiLabelStyle = { fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' };
 const kpiValueStyle = { fontSize: '24px', fontWeight: '800', marginTop: '8px', color: '#0f172a' };
 const inputStyle = { flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '15px' };
 const postBtnStyle = { background: 'var(--color-primary)', color: '#fff', border: 'none', padding: '0 25px', borderRadius: '10px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' };
+const historyBtnStyle = { ...postBtnStyle, background: '#1e40af' };
+const recordOverlayStyle = { position: 'fixed', inset: 0, zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', background: 'rgba(2, 6, 23, 0.68)' };
+const recordDialogStyle = { width: 'min(780px, 100%)', maxHeight: 'min(82vh, 760px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #dbe3ee', borderRadius: '12px', background: '#fff', color: '#0f172a', boxShadow: '0 24px 72px rgba(0, 0, 0, 0.3)' };
+const recordDialogHeaderStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', padding: '20px 22px 14px', borderBottom: '1px solid #e2e8f0' };
+const recordDialogTitleStyle = { margin: 0, color: '#0f172a', fontSize: '20px' };
+const recordDialogSubtitleStyle = { margin: '4px 0 0', color: '#64748b', fontSize: '13px' };
+const recordCloseStyle = { width: '36px', height: '36px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', color: '#334155', fontSize: '24px', lineHeight: 1, cursor: 'pointer' };
+const recordTabsStyle = { display: 'flex', gap: '6px', overflowX: 'auto', padding: '12px 20px', borderBottom: '1px solid #e2e8f0' };
+const recordTabStyle = { flex: '0 0 auto', padding: '8px 12px', border: '1px solid transparent', borderRadius: '6px', background: 'transparent', color: '#475569', cursor: 'pointer', font: 'inherit', fontSize: '13px', fontWeight: 600 };
+const recordTabActiveStyle = { borderColor: '#bbf7d0', background: '#f0fdf4', color: '#166534' };
+const recordListStyle = { overflowY: 'auto', padding: '4px 22px 16px' };
+const recordEmptyStyle = { padding: '22px 0', color: '#64748b', textAlign: 'center' };
+const recordItemStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', padding: '14px 0', borderBottom: '1px solid #e2e8f0' };
+const recordItemTitleStyle = { color: '#0f172a', fontSize: '14px' };
+const recordItemDetailStyle = { margin: '4px 0 0', color: '#475569', fontSize: '13px', lineHeight: 1.45 };
+const recordItemTimeStyle = { flex: '0 0 auto', color: '#64748b', fontSize: '11px', textAlign: 'right' };
 const quoteContainerStyle = { marginTop: '30px', padding: '40px', background: '#f1f5f9', borderRadius: '24px', textAlign: 'center', position: 'relative' };
 const quoteIconStyle = { fontSize: '80px', color: '#cbd5e1', position: 'absolute', top: '-10px', left: '30px', fontFamily: 'serif', lineHeight: '1' };
 const quoteTextStyle = { fontSize: '22px', italic: 'true', color: '#334155', position: 'relative', zIndex: '1', margin: '0 0 15px 0' };

@@ -228,7 +228,8 @@ const Member = mongoose.model('members', new mongoose.Schema({
       customImage: { type: String, default: null },
       customUrl: { type: String, default: null },
       solidColor: { type: String, default: null },
-      dim: { type: Boolean, default: true }
+      dim: { type: Boolean, default: true },
+      zoom: { type: Number, default: 100 }
     },
     default: () => ({ mode: 'daynoonnight' })
   },
@@ -1353,7 +1354,7 @@ app.delete('/api/members/:id', async (req, res) => {
 });
 
 // --- USER BACKGROUND PREFERENCE ROUTES ---
-const BG_PREF_ALLOWED = ['mode', 'customImage', 'customUrl', 'solidColor', 'dim'];
+const BG_PREF_ALLOWED = ['mode', 'customImage', 'customUrl', 'solidColor', 'dim', 'zoom'];
 const sanitizeBackgroundPref = (data) => {
   const clean = {};
   if (data && typeof data === 'object') {
@@ -1363,6 +1364,10 @@ const sanitizeBackgroundPref = (data) => {
   }
   const validModes = ['daynoonnight', 'logo', 'solid', 'custom'];
   if (clean.mode && !validModes.includes(clean.mode)) clean.mode = 'daynoonnight';
+  if ('zoom' in clean) {
+    const zoom = Number(clean.zoom);
+    clean.zoom = Number.isFinite(zoom) ? Math.max(50, Math.min(200, zoom)) : 100;
+  }
   if (clean.mode !== 'custom') {
     clean.customImage = null;
     clean.customUrl = null;
@@ -1380,7 +1385,7 @@ app.get('/api/users/:id/background', async (req, res) => {
     if (!member) return res.status(404).json({ error: 'Member not found.' });
     const pref = member.backgroundPreference && Object.keys(member.backgroundPreference).length
       ? member.backgroundPreference
-      : { mode: 'daynoonnight', customImage: null, customUrl: null, solidColor: null, dim: true };
+      : { mode: 'daynoonnight', customImage: null, customUrl: null, solidColor: null, dim: true, zoom: 100 };
     res.json(pref);
   } catch (err) {
     console.error('Get background preference error:', err);
@@ -1408,7 +1413,7 @@ app.put('/api/users/:id/background', async (req, res) => {
 
     const updated = await Member.findByIdAndUpdate(
       req.params.id,
-      { $set: { 'backgroundPreference.mode': clean.mode || 'daynoonnight', 'backgroundPreference.customImage': clean.customImage, 'backgroundPreference.customUrl': String((clean.customUrl || '')).trim() || null, 'backgroundPreference.solidColor': clean.solidColor, 'backgroundPreference.dim': clean.dim !== false } },
+      { $set: { 'backgroundPreference.mode': clean.mode || 'daynoonnight', 'backgroundPreference.customImage': clean.customImage, 'backgroundPreference.customUrl': String((clean.customUrl || '')).trim() || null, 'backgroundPreference.solidColor': clean.solidColor, 'backgroundPreference.dim': clean.dim !== false, 'backgroundPreference.zoom': clean.zoom ?? 100 } },
       { new: true, runValidators: false }
     ).select('backgroundPreference');
 

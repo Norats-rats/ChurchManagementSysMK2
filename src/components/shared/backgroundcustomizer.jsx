@@ -1,15 +1,15 @@
-import { useContext, useRef, useState } from 'react';
-import { BackgroundContext } from './backgroundcontext';
+import { useContext, useEffect, useRef, useState } from 'react';
 import {
-  BG_MODES,
-  CYCLE_IMAGES,
-  LOGO_IMAGE,
-  DEFAULT_BACKGROUND_PREFERENCE,
-  describeMode,
-  ZOOM_MIN,
-  ZOOM_MAX,
-  DEFAULT_ZOOM
+    BG_MODES,
+    CYCLE_IMAGES,
+    DEFAULT_BACKGROUND_PREFERENCE,
+    DEFAULT_ZOOM,
+    describeMode,
+    LOGO_IMAGE,
+    ZOOM_MAX,
+    ZOOM_MIN
 } from '../../utils/backgroundPresets';
+import { BackgroundContext } from './backgroundcontext';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -32,6 +32,7 @@ const BackgroundCustomizer = () => {
     updatePreference,
     resetPreference,
     isSaving,
+    loadedFromBackend,
     customizerOpen,
     setCustomizerOpen
   } = bg || {};
@@ -50,6 +51,19 @@ const BackgroundCustomizer = () => {
       zoom: Number.isFinite(p.zoom) ? p.zoom : DEFAULT_ZOOM
     };
   });
+
+  useEffect(() => {
+    if (!visible || !loadedFromBackend) return;
+    const p = preference || DEFAULT_BACKGROUND_PREFERENCE;
+    setLocalPref({
+      mode: p.mode || DEFAULT_BACKGROUND_PREFERENCE.mode,
+      customImage: p.customImage || null,
+      customUrl: p.customUrl || '',
+      solidColor: p.solidColor || '#0f172a',
+      dim: p.dim !== false,
+      zoom: Number.isFinite(p.zoom) ? p.zoom : DEFAULT_ZOOM
+    });
+  }, [visible, loadedFromBackend, preference]);
 
   const handleFile = (e) => {
     const f = e.target.files && e.target.files[0];

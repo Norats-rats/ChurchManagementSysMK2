@@ -1,6 +1,6 @@
 import churchMorn from '../assets/bgpics/churchmorn.jpg';
-import churchNoon from '../assets/bgpics/churchnoon.jpg';
 import churchNight from '../assets/bgpics/churchnight.jpg';
+import churchNoon from '../assets/bgpics/churchnoon.jpg';
 import churchLogo from '../assets/churchlogo.jpg';
 
 export const CYCLE_IMAGES = {
@@ -20,7 +20,7 @@ export const BG_MODES = {
   custom: 'custom'
 };
 
-export const DEFAULT_ZOOM = 85;
+export const DEFAULT_ZOOM = 100;
 export const ZOOM_MIN = 50;
 export const ZOOM_MAX = 200;
 

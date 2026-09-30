@@ -721,7 +721,10 @@ const styles = {
   },
   agendaPanel: {
     minHeight: '300px',
-    padding: '0.25rem 0'
+    padding: '1.25rem',
+    border: '1px solid #dbe3e8',
+    borderRadius: '8px',
+    background: 'rgba(248, 250, 252, 0.98)'
   },
   agendaHeader: {
     display: 'flex',
