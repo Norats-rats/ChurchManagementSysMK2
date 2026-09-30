@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import api from '../../api';
 import bgMorning from '../../assets/bgpics/churchmorn.jpg';
 import bgNight from '../../assets/bgpics/churchnight.jpg';
 import bgNoon from '../../assets/bgpics/churchnoon.jpg';
+import { formatPhDateObject, getPhDateString, getPhTodayDateObject, normalizeDateString } from '../../utils/philippinesTime';
 
 const galleryModules = import.meta.glob('../../assets/landingpvents/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}', {
   eager: true,
@@ -76,6 +78,11 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
   const [timeGreeting, setTimeGreeting] = useState('');
   const [slideIndex, setSlideIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsError, setEventsError] = useState(false);
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(() => getPhTodayDateObject());
+  const [selectedDate, setSelectedDate] = useState(() => getPhDateString());
   const touchStartX = useRef(null);
 
   useEffect(() => {
@@ -97,6 +104,24 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
     updateTimeBasedTheme();
     const interval = setInterval(updateTimeBasedTheme, 60000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    api.getEvents()
+      .then((response) => {
+        if (isMounted) setEvents(Array.isArray(response.data) ? response.data : []);
+      })
+      .catch((error) => {
+        console.error('Failed to fetch public events:', error);
+        if (isMounted) setEventsError(true);
+      })
+      .finally(() => {
+        if (isMounted) setEventsLoading(false);
+      });
+
+    return () => { isMounted = false; };
   }, []);
 
   const scrollToSection = (id) => {
@@ -126,6 +151,50 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
     [totalSlides]
   );
 
+  const currentYear = currentCalendarDate.getFullYear();
+  const currentMonth = currentCalendarDate.getMonth();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  const calendarDays = [
+    ...Array(firstDayOfMonth).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1)
+  ];
+  const makeDateString = (year, month, day) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const addOneDay = (dateText) => {
+    const date = new Date(`${dateText}T00:00:00`);
+    date.setDate(date.getDate() + 1);
+    return makeDateString(date.getFullYear(), date.getMonth(), date.getDate());
+  };
+  const activeEvents = events.filter((event) => event.status !== 'archived');
+  const hasEventsOnDate = (day) => {
+    if (!day) return false;
+    const dateText = makeDateString(currentYear, currentMonth, day);
+    return activeEvents.some((event) => {
+      const eventDate = normalizeDateString(event.date);
+      if (!eventDate) return false;
+      const overnight = event.timeStart && event.timeEnd && event.timeEnd < event.timeStart;
+      return eventDate === dateText || (overnight && addOneDay(eventDate) === dateText);
+    });
+  };
+  const selectedEvents = activeEvents
+    .filter((event) => {
+      const eventDate = normalizeDateString(event.date);
+      if (!eventDate) return false;
+      const overnight = event.timeStart && event.timeEnd && event.timeEnd < event.timeStart;
+      return eventDate === selectedDate || (overnight && addOneDay(eventDate) === selectedDate);
+    })
+    .sort((first, second) => (first.timeStart || first.time || '').localeCompare(second.timeStart || second.time || ''));
+
+  const selectCalendarDate = (day) => {
+    if (day) setSelectedDate(makeDateString(currentYear, currentMonth, day));
+  };
+
+  const goToToday = () => {
+    const today = getPhTodayDateObject();
+    setCurrentCalendarDate(today);
+    setSelectedDate(getPhDateString());
+  };
+
   useEffect(() => {
     if (isPaused || totalSlides < 2) return undefined;
     const timer = setInterval(nextSlide, SLIDE_INTERVAL);
@@ -139,6 +208,7 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
         <div style={styles.navLinks}>
           <button style={styles.navBtn} onClick={() => scrollToSection('events')}>Events</button>
           <button style={styles.navBtn} onClick={() => scrollToSection('services')}>Our Services</button>
+          <button style={styles.navBtn} onClick={() => scrollToSection('event-calendar')}>Calendar</button>
           <button style={styles.navBtn} onClick={() => scrollToSection('contact')}>Contact Us</button>
           <button style={styles.joinBtn} onClick={onOpenAuth}>Join Us Now</button>
         </div>
@@ -253,6 +323,98 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
               <p style={styles.serviceDescription}>{service.description}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section id="event-calendar" style={styles.section}>
+        <h2 style={styles.sectionTitle}>Upcoming Events</h2>
+        <div style={styles.publicCalendar}>
+          <div style={styles.calendarPanel}>
+            <div style={styles.calendarHeader}>
+              <button
+                type="button"
+                style={styles.calendarNavButton}
+                onClick={() => setCurrentCalendarDate(new Date(currentYear, currentMonth - 1, 1))}
+                aria-label="Previous month"
+              >
+                &#10094;
+              </button>
+              <h3 style={styles.calendarMonth}>
+                {currentCalendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </h3>
+              <button
+                type="button"
+                style={styles.calendarNavButton}
+                onClick={() => setCurrentCalendarDate(new Date(currentYear, currentMonth + 1, 1))}
+                aria-label="Next month"
+              >
+                &#10095;
+              </button>
+              <button type="button" style={styles.todayButton} onClick={goToToday}>Today</button>
+            </div>
+            <div style={styles.calendarGrid}>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <div key={day} style={styles.calendarDayHeader}>{day}</div>
+              ))}
+              {calendarDays.map((day, index) => {
+                const dateText = day ? makeDateString(currentYear, currentMonth, day) : '';
+                const isSelected = dateText === selectedDate;
+                const hasEvents = hasEventsOnDate(day);
+                return day ? (
+                  <button
+                    key={dateText}
+                    type="button"
+                    onClick={() => selectCalendarDate(day)}
+                    aria-label={`${formatPhDateObject(new Date(`${dateText}T00:00:00`))}${hasEvents ? ', events scheduled' : ''}`}
+                    aria-pressed={isSelected}
+                    style={{
+                      ...styles.calendarDay,
+                      ...(isSelected ? styles.calendarDaySelected : {})
+                    }}
+                  >
+                    {day}
+                    {hasEvents && <span style={{ ...styles.calendarEventDot, ...(isSelected ? styles.calendarEventDotSelected : {}) }} />}
+                  </button>
+                ) : <div key={`blank-${index}`} />;
+              })}
+            </div>
+          </div>
+
+          <div style={styles.agendaPanel}>
+            <div style={styles.agendaHeader}>
+              <div>
+                <h3 style={styles.agendaTitle}>Daily Schedule</h3>
+                <p style={styles.agendaDate}>{formatPhDateObject(new Date(`${selectedDate}T00:00:00`))}</p>
+              </div>
+              <span style={styles.timezoneLabel}>Philippine Time</span>
+            </div>
+            {eventsLoading ? (
+              <p style={styles.agendaMessage}>Loading events...</p>
+            ) : eventsError ? (
+              <p style={styles.agendaMessage}>Events are temporarily unavailable.</p>
+            ) : selectedEvents.length === 0 ? (
+              <p style={styles.agendaMessage}>No events scheduled for this day.</p>
+            ) : (
+              <div>
+                {selectedEvents.map((event) => {
+                  const isOvernightCarryover = normalizeDateString(event.date) !== selectedDate;
+                  return (
+                    <article key={event._id} style={styles.agendaEvent}>
+                      <div style={styles.agendaEventAccent} />
+                      <div>
+                        <h4 style={styles.agendaEventTitle}>{event.title || event.titleSelection || 'Church Event'}</h4>
+                        <p style={styles.agendaEventDetail}>
+                          {event.time || `${event.timeStart || 'Time TBA'} - ${event.timeEnd || ''}`}
+                          {isOvernightCarryover ? ' (continues overnight)' : ''}
+                        </p>
+                        <p style={styles.agendaEventDetail}>{event.room || 'Location to be announced'}</p>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -472,6 +634,143 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
     gap: '1.25rem'
+  },
+  publicCalendar: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+    gap: '2rem',
+    alignItems: 'start'
+  },
+  calendarPanel: {
+    padding: '1.25rem',
+    border: '1px solid #dbe3e8',
+    borderRadius: '8px',
+    background: '#f8faf9'
+  },
+  calendarHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.5rem',
+    marginBottom: '1rem'
+  },
+  calendarMonth: {
+    margin: 0,
+    color: '#173b36',
+    fontSize: '1.1rem',
+    flex: 1,
+    textAlign: 'center'
+  },
+  calendarNavButton: {
+    width: '36px',
+    height: '36px',
+    border: '1px solid #cbd5d1',
+    borderRadius: '6px',
+    background: '#fff',
+    color: '#174c42',
+    cursor: 'pointer'
+  },
+  todayButton: {
+    minHeight: '36px',
+    padding: '0 0.7rem',
+    border: '1px solid #176b55',
+    borderRadius: '6px',
+    background: '#176b55',
+    color: '#fff',
+    cursor: 'pointer',
+    fontWeight: 700
+  },
+  calendarGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+    gap: '4px',
+    textAlign: 'center'
+  },
+  calendarDayHeader: {
+    padding: '0.4rem 0',
+    color: '#64748b',
+    fontSize: '0.75rem',
+    fontWeight: 700
+  },
+  calendarDay: {
+    position: 'relative',
+    aspectRatio: '1',
+    border: '0',
+    borderRadius: '6px',
+    background: 'transparent',
+    color: '#263b36',
+    cursor: 'pointer',
+    font: 'inherit'
+  },
+  calendarDaySelected: {
+    background: '#176b55',
+    color: '#fff'
+  },
+  calendarEventDot: {
+    position: 'absolute',
+    left: '50%',
+    bottom: '5px',
+    width: '5px',
+    height: '5px',
+    borderRadius: '50%',
+    background: '#d97706',
+    transform: 'translateX(-50%)'
+  },
+  calendarEventDotSelected: {
+    background: '#fff'
+  },
+  agendaPanel: {
+    minHeight: '300px',
+    padding: '0.25rem 0'
+  },
+  agendaHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '1rem',
+    paddingBottom: '1rem',
+    borderBottom: '1px solid #dbe3e8'
+  },
+  agendaTitle: {
+    margin: 0,
+    color: '#173b36',
+    fontSize: '1.25rem'
+  },
+  agendaDate: {
+    marginTop: '0.25rem',
+    color: '#64748b',
+    fontSize: '0.9rem'
+  },
+  timezoneLabel: {
+    color: '#64748b',
+    fontSize: '0.75rem',
+    textAlign: 'right'
+  },
+  agendaMessage: {
+    padding: '1.5rem 0',
+    color: '#64748b'
+  },
+  agendaEvent: {
+    display: 'flex',
+    gap: '0.9rem',
+    padding: '1rem 0',
+    borderBottom: '1px solid #e2e8f0'
+  },
+  agendaEventAccent: {
+    width: '4px',
+    flex: '0 0 4px',
+    borderRadius: '4px',
+    background: '#176b55'
+  },
+  agendaEventTitle: {
+    margin: 0,
+    color: '#1f2937',
+    fontSize: '1rem'
+  },
+  agendaEventDetail: {
+    marginTop: '0.25rem',
+    color: '#64748b',
+    fontSize: '0.85rem'
   },
   serviceCard: {
     background: '#ffffff',

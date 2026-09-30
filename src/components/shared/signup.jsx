@@ -94,9 +94,9 @@ const response = await api.verifyOtp({
         <div className="logo-circle">
           <img src={churchLogo} alt="Church Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} />
         </div>
-        <h1>Free Believers in Christ</h1>
-        <h2>Fellowship Inc.</h2>
-        <p className="subtitle">CHURCH MANAGEMENT SYSTEM</p>
+        <h1 style={{ color: '#ffffff', textShadow: '0 2px 8px rgba(0, 0, 0, 0.8)' }}>Free Believers in Christ</h1>
+        <h2 style={{ color: '#ffffff', textShadow: '0 2px 8px rgba(0, 0, 0, 0.8)' }}>Fellowship Inc.</h2>
+        <p className="subtitle" style={{ color: '#ffffff', textShadow: '0 2px 6px rgba(0, 0, 0, 0.9)' }}>CHURCH MANAGEMENT SYSTEM</p>
       </div>
 
       <div className="login-card"> 

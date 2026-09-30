@@ -385,7 +385,6 @@ const Ministries = ({ role, user }) => {
           ← Back to All Ministries
         </button>
 
-        {/* Banner Header */}
         <div style={{
           backgroundColor: m.color || '#2563eb',
           color: '#fff',
@@ -400,7 +399,6 @@ const Ministries = ({ role, user }) => {
           </p>
         </div>
 
-        {/* Sub-Navigation Bar */}
         <div style={{ display: 'flex', gap: '12px', borderBottom: '2px solid #e2e8f0', marginBottom: '24px' }}>
           <button 
             onClick={() => setActiveTab('feed')} 
@@ -432,7 +430,6 @@ const Ministries = ({ role, user }) => {
           )}
         </div>
 
-        {/* Tab 1: Stream & Announcements */}
         {activeTab === 'feed' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px' }}>
             {isMyMinistryLeader && (
@@ -446,7 +443,6 @@ const Ministries = ({ role, user }) => {
                   placeholder="Share updates, prayer items, or schedules with this ministry..."
                 />
 
-                {/* File/Image Upload Section */}
                 <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>
                     Attach Image or File
@@ -473,7 +469,6 @@ const Ministries = ({ role, user }) => {
               </div>
             )}
 
-            {/* Announcement History List */}
             <div style={cardStyle}>
               <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1e293b' }}>Announcement Stream</h3>
               
@@ -499,7 +494,6 @@ const Ministries = ({ role, user }) => {
                           </p>
                         )}
 
-                        {/* Display Attachment */}
                         {fileUrl && (
                           <div style={{ marginTop: '12px' }}>
                             {isImage ? (
@@ -529,7 +523,6 @@ const Ministries = ({ role, user }) => {
           </div>
         )}
 
-        {/* Tab 2: Members List */}
         {activeTab === 'members' && (
           <div style={{ maxWidth: '800px' }}>
             {canEditMinistry && (
@@ -593,7 +586,6 @@ const Ministries = ({ role, user }) => {
           </div>
         )}
 
-        {/* Tab 3: Join Requests */}
         {activeTab === 'requests' && canApproveRequests && (
           <div style={{ maxWidth: '800px' }}>
             <div style={cardStyle}>
@@ -627,7 +619,6 @@ const Ministries = ({ role, user }) => {
           </div>
         )}
 
-        {/* Tab 4: Settings */}
         {activeTab === 'settings' && canEditMinistry && (
           <div style={{ maxWidth: '800px' }}>
             <div style={cardStyle}>

@@ -3,8 +3,8 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import api from './api';
 import './App.css';
 import churchLogo from './assets/churchlogo.jpg';
-import { useFeedbackModal } from './components/shared/feedbackmodal';
 import { BackgroundProvider } from './components/shared/backgroundcontext';
+import { useFeedbackModal } from './components/shared/feedbackmodal';
 import LandingPage from './components/shared/landingpage';
 import Signup from './components/shared/signup';
 import { normalizeRole } from './permissions';
@@ -145,9 +145,9 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
         <div className="logo-circle">
           <img src={churchLogo} alt="Church Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} />
         </div>
-        <h1>Free Believers in Christ</h1>
-        <h2>Fellowship Inc.</h2>
-        <p className="subtitle">CHURCH MANAGEMENT SYSTEM</p>
+        <h1 style={{ color: '#ffffff', textShadow: '0 2px 8px rgba(0, 0, 0, 0.8)' }}>Free Believers in Christ</h1>
+        <h2 style={{ color: '#ffffff', textShadow: '0 2px 8px rgba(0, 0, 0, 0.8)' }}>Fellowship Inc.</h2>
+        <p className="subtitle" style={{ color: '#ffffff', textShadow: '0 2px 6px rgba(0, 0, 0, 0.9)' }}>CHURCH MANAGEMENT SYSTEM</p>
         <FeedbackModal />
       </div>
 
