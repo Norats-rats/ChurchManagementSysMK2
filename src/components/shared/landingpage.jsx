@@ -386,7 +386,7 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
                 <h3 style={styles.agendaTitle}>Day View</h3>
                 <p style={styles.agendaDate}>{formatPhDateObject(new Date(`${selectedDate}T00:00:00`))}</p>
               </div>
-              <span style={styles.timezoneLabel}>View events from Previous days</span>
+              <span style={styles.timezoneLabel}>View events from throughout the days</span>
             </div>
             {eventsLoading ? (
               <p style={styles.agendaMessage}>Loading events...</p>
