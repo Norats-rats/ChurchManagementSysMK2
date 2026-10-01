@@ -383,10 +383,10 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
           <div style={styles.agendaPanel}>
             <div style={styles.agendaHeader}>
               <div>
-                <h3 style={styles.agendaTitle}>Daily Schedule</h3>
+                <h3 style={styles.agendaTitle}>Day View</h3>
                 <p style={styles.agendaDate}>{formatPhDateObject(new Date(`${selectedDate}T00:00:00`))}</p>
               </div>
-              <span style={styles.timezoneLabel}>Philippine Time</span>
+              <span style={styles.timezoneLabel}>View events from Previous days</span>
             </div>
             {eventsLoading ? (
               <p style={styles.agendaMessage}>Loading events...</p>
