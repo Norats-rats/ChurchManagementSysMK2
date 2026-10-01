@@ -204,7 +204,7 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
   return (
     <div className="landing-page">
       <nav className="landing-nav" style={styles.nav}>
-        <div style={styles.logo}>Free Believers in Christ Fellowship Taguig INC.</div>
+        <div style={styles.logo}>Free Believers in Christ Fellowship Inc. Taguig City</div>
         <div style={styles.navLinks}>
           <button style={styles.navBtn} onClick={() => scrollToSection('events')}>Events</button>
           <button style={styles.navBtn} onClick={() => scrollToSection('services')}>Our Services</button>
