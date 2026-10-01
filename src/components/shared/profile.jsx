@@ -98,7 +98,15 @@ const Profile = ({ userId, currentUserId }) => {
     setSaving(true);
     try {
       const id = member._id || member.id;
-      await api.updateMember(id, member);
+      await api.updateMember(id, {
+        firstName: member.firstName,
+        lastName: member.lastName,
+        phone: member.phone,
+        birthdate: member.birthdate,
+        gender: member.gender,
+        profilePicture: member.profilePicture,
+        backgroundPreference: member.backgroundPreference
+      });
       setError(null);
       showFeedback('Profile saved successfully.');
     } catch (err) {

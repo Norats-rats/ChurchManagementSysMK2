@@ -16,6 +16,15 @@ const apiClient = axios.create({
   },
 });
 
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('churchAccessToken')
+    || sessionStorage.getItem('churchAccessToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const api = {
 
   // Inventory
@@ -42,6 +51,7 @@ export const api = {
 
   // Authentication
   login: (credentials) => apiClient.post('/login', credentials),
+  logout: () => apiClient.post('/logout'),
   register: (formData) => apiClient.post('/register', formData),
   verifyOtp: (data) => apiClient.post('/verify-otp', data),
   forgotPassword: (data) => apiClient.post('/forgot-password', data),

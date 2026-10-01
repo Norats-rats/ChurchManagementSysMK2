@@ -51,7 +51,7 @@ app.use(cors({
     return callback(new Error(`CORS origin not allowed: ${origin}`));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'x-user-id', 'x-user-role', 'x-user-name'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-user-role', 'x-user-name'],
   credentials: true
 }));
 
@@ -247,6 +247,53 @@ const Member = mongoose.model('members', new mongoose.Schema({
   date: { type: Date, default: Date.now }
 }));
 
+const Session = mongoose.model('sessions', new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'members', required: true, index: true },
+  tokenHash: { type: String, required: true, unique: true },
+  expiresAt: { type: Date, required: true, index: { expires: 0 } }
+}, { timestamps: true }));
+
+const createAccessToken = () => crypto.randomBytes(32).toString('base64url');
+const hashAccessToken = token => crypto.createHash('sha256').update(token).digest('hex');
+
+const requireAuthentication = async (req, res, next) => {
+  const authorization = req.get('authorization') || '';
+  const match = authorization.match(/^Bearer ([A-Za-z0-9_-]{40,})$/);
+  if (!match) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+
+  try {
+    const session = await Session.findOne({
+      tokenHash: hashAccessToken(match[1]),
+      expiresAt: { $gt: new Date() }
+    }).select('_id userId');
+    if (!session) {
+      return res.status(401).json({ error: 'Session is invalid or expired.' });
+    }
+
+    const user = await Member.findById(session.userId)
+      .select('-password -otp -otpHash -otpExpiresAt');
+    if (!user || user.status !== 'Active' || !user.isVerified) {
+      await Session.deleteOne({ _id: session._id });
+      return res.status(401).json({ error: 'An active, verified account is required.' });
+    }
+
+    req.user = user;
+    req.sessionId = session._id;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+const requireRoles = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({ error: 'You do not have permission to perform this action.' });
+  }
+  next();
+};
+
 const ChatConversation = mongoose.model('chatconversations', new mongoose.Schema({
   type: { type: String, enum: ['public', 'group', 'direct'], required: true },
   title: { type: String, required: true, trim: true, maxlength: 80 },
@@ -399,15 +446,11 @@ const Finance = mongoose.model('finances', new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 }));
 
-app.get('/api/finances', async (req, res) => {
+app.get('/api/finances', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
-    const loggedInUserId = req.headers['x-user-id'];
-    const loggedInUserRole = req.headers['x-user-role'];
-
-    let query = {};
-    if (loggedInUserRole === 'Member') {
-      query = { userId: loggedInUserId };
-    }
+    const query = req.user.role === 'Staff'
+      ? { addedBy: String(req.user._id) }
+      : {};
 
     const transactions = await Finance.find(query).sort({ createdAt: -1 });
 
@@ -422,18 +465,13 @@ app.get('/api/finances', async (req, res) => {
   }
 });
 
-app.post('/api/finances', async (req, res) => {
+app.post('/api/finances', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
-    const loggedInUserRole = req.headers['x-user-role'];
-    const loggedInUserId = req.headers['x-user-id'];
-    const loggedInUserName = req.headers['x-user-name'];
-
-    if (!['Admin', 'Ministry Leader', 'Staff'].includes(loggedInUserRole)) {
-      return res.status(403).json({ error: 'Forbidden: only staff, ministry leaders or admin can record finances.' });
-    }
-
-    const { description, type, amount, date } = req.body;
-    if (!description || !type || typeof amount === 'undefined') {
+    const description = String(req.body.description || '').trim();
+    const { type, amount, date } = req.body;
+    const numericAmount = Number(amount);
+    const parsedDate = date ? new Date(date) : new Date();
+    if (!description || description.length > 200 || !Number.isFinite(numericAmount) || numericAmount <= 0 || Number.isNaN(parsedDate.getTime())) {
       return res.status(400).json({ error: 'Missing required fields.' });
     }
 
@@ -441,22 +479,16 @@ app.post('/api/finances', async (req, res) => {
       return res.status(400).json({ error: 'Invalid transaction type.' });
     }
 
-    let addedByName = (loggedInUserName || '').trim();
-    if (!addedByName && loggedInUserId) {
-      const member = await Member.findById(loggedInUserId).select('firstName lastName');
-      if (member) {
-        addedByName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
-      }
-    }
+    const addedByName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
 
     const newRecord = new Finance({
       description,
       type,
-      amount: Number(amount),
-      date: date ? new Date(date) : new Date(),
-      addedBy: loggedInUserId || req.body.addedBy || '',
-      addedByName: addedByName || req.body.addedByName || '',
-      userId: req.body.userId || null
+      amount: numericAmount,
+      date: parsedDate,
+      addedBy: String(req.user._id),
+      addedByName: addedByName || req.user.email,
+      userId: String(req.user._id)
     });
 
     await newRecord.save();
@@ -527,7 +559,7 @@ app.post('/verify-otp', async (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, rememberMe } = req.body;
   try {
     if (!password || password.length < 7) {
       return res.status(400).json({ success: false, message: 'Password must be at least 7 characters long.' });
@@ -551,9 +583,25 @@ if (user.status === 'Deactivated' || user.status === 'Inactive' || !user.isVerif
     delete safeUser.otp;
     delete safeUser.otpHash;
     delete safeUser.otpExpiresAt;
-    res.json({ success: true, role: user.role, user: safeUser });
+    const token = createAccessToken();
+    const expiresAt = new Date(Date.now() + (rememberMe === false ? 12 : 30 * 24) * 60 * 60 * 1000);
+    await Session.create({
+      userId: user._id,
+      tokenHash: hashAccessToken(token),
+      expiresAt
+    });
+    res.json({ success: true, role: user.role, user: safeUser, token, expiresAt });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Unable to sign in.' });
+  }
+});
+
+app.post('/logout', requireAuthentication, async (req, res, next) => {
+  try {
+    await Session.deleteOne({ _id: req.sessionId });
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
   }
 });
 
@@ -591,6 +639,7 @@ app.post('/reset-password', async (req, res) => {
     user.otpHash = undefined;
     user.otpExpiresAt = undefined;
     await user.save();
+    await Session.deleteMany({ userId: user._id });
     res.json({ success: true, message: "Password updated successfully" });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Unable to reset password.' });
@@ -598,14 +647,10 @@ app.post('/reset-password', async (req, res) => {
 });
 
 // --- COMMUNITY CHAT ROUTES ---
+app.use('/api/chat', requireAuthentication);
+
 const getChatMember = async (req) => {
-  const userId = req.headers['x-user-id'] || req.headers['x-member-id'];
-  if (!userId || !mongoose.isValidObjectId(userId)) return null;
-  return Member.findOne({ 
-    _id: userId, 
-    status: 'Active', 
-    isVerified: true 
-  }).select('firstName lastName email role profilePicture');
+  return req.user || null;
 };
 
 const ensurePublicConversation = async () => ChatConversation.findOneAndUpdate(
@@ -889,16 +934,33 @@ app.patch('/api/chat/conversations/:id', async (req, res) => {
   }
 });
 
+const inventoryWriteFields = [
+  'itemName', 'quantity', 'location', 'assignedTo', 'lastMaintenance',
+  'category', 'categoryId', 'condition', 'brand', 'repairStatus'
+];
+const inventoryPayload = (input, lastEditedBy) => {
+  const payload = Object.fromEntries(
+    Object.entries(input || {}).filter(([key]) => inventoryWriteFields.includes(key))
+  );
+  if (payload.itemName !== undefined) payload.itemName = String(payload.itemName).trim();
+  if (payload.quantity !== undefined) payload.quantity = Number(payload.quantity);
+  payload.lastEditedBy = lastEditedBy;
+  return payload;
+};
+
 //inventory routes
+app.use('/api/inventory', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'));
+
 app.post('/api/inventory', async (req, res) => {
   try {
-    const payload = {
-      ...req.body,
-      itemName: req.body.itemName || req.body.item
-    };
+    const itemName = req.body.itemName || req.body.item;
+    const payload = inventoryPayload({ ...req.body, itemName }, `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim());
 
-    if (!payload.itemName) {
-      return res.status(400).json({ error: "Item name is required" });
+    if (!payload.itemName || payload.itemName.length > 120) {
+      return res.status(400).json({ error: 'Item name is required and must be 120 characters or fewer.' });
+    }
+    if (payload.quantity !== undefined && (!Number.isInteger(payload.quantity) || payload.quantity < 0)) {
+      return res.status(400).json({ error: 'Quantity must be a whole number of zero or more.' });
     }
 
     const newItem = new Inventory(payload);
@@ -946,9 +1008,16 @@ app.put('/api/inventory/:id', async (req, res) => {
   try {
     const existing = await Inventory.findById(req.params.id);
     if (!existing) return res.status(404).json({ error: "Item not found" });
-    const updated = await Inventory.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    const quantityChanged = Number(req.body.quantity ?? existing.quantity) !== Number(existing.quantity);
-    const assignmentChanged = req.body.assignedTo !== undefined && req.body.assignedTo !== existing.assignedTo;
+    const payload = inventoryPayload(req.body, `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim());
+    if (payload.itemName !== undefined && (!payload.itemName || payload.itemName.length > 120)) {
+      return res.status(400).json({ error: 'Item name must contain 1 to 120 characters.' });
+    }
+    if (payload.quantity !== undefined && (!Number.isInteger(payload.quantity) || payload.quantity < 0)) {
+      return res.status(400).json({ error: 'Quantity must be a whole number of zero or more.' });
+    }
+    const updated = await Inventory.findByIdAndUpdate(req.params.id, { $set: payload }, { new: true, runValidators: true });
+    const quantityChanged = Number(payload.quantity ?? existing.quantity) !== Number(existing.quantity);
+    const assignmentChanged = payload.assignedTo !== undefined && payload.assignedTo !== existing.assignedTo;
     await InventoryActivity.create({
       inventoryId: updated._id,
       itemName: updated.itemName,
@@ -966,7 +1035,7 @@ app.patch('/api/inventory/:id/archive', async (req, res) => {
   try {
     const archived = await Inventory.findByIdAndUpdate(req.params.id, { status: 'Archived' }, { new: true });
     if (!archived) return res.status(404).json({ error: "Item not found" });
-    await InventoryActivity.create({ inventoryId: archived._id, itemName: archived.itemName, action: 'archived', quantity: archived.quantity, changedBy: archived.lastEditedBy || '' });
+    await InventoryActivity.create({ inventoryId: archived._id, itemName: archived.itemName, action: 'archived', quantity: archived.quantity, changedBy: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() });
     res.json(archived);
   } catch (err) {
     res.status(500).json({ error: "Failed to archive item" });
@@ -977,7 +1046,7 @@ app.patch('/api/inventory/:id/unarchive', async (req, res) => {
   try {
     const unarchived = await Inventory.findByIdAndUpdate(req.params.id, { status: 'Active' }, { new: true });
     if (!unarchived) return res.status(404).json({ error: "Item not found" });
-    await InventoryActivity.create({ inventoryId: unarchived._id, itemName: unarchived.itemName, action: 'restored', quantity: unarchived.quantity, changedBy: unarchived.lastEditedBy || '' });
+    await InventoryActivity.create({ inventoryId: unarchived._id, itemName: unarchived.itemName, action: 'restored', quantity: unarchived.quantity, changedBy: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() });
     res.json(unarchived);
   } catch (err) {
     res.status(500).json({ error: "Failed to unarchive item" });
@@ -1208,6 +1277,8 @@ app.delete('/api/ministries/:id', async (req, res) => {
 });
 
 // --- MEMBER ROUTES ---
+app.use('/api/members', requireAuthentication);
+
 app.get('/api/members', async (req, res) => {
   try {
     const members = await Member.find().sort({ date: -1 }).select('-password -otp -otpHash -otpExpiresAt');
@@ -1217,36 +1288,44 @@ app.get('/api/members', async (req, res) => {
 
 app.get('/api/members/:id', async (req, res) => {
   try {
+    if (String(req.user._id) !== req.params.id && !['Admin', 'Ministry Leader'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'You can only view your own profile.' });
+    }
     const m = await Member.findById(req.params.id).select('-password -otp -otpHash -otpExpiresAt');
     if (!m) return res.status(404).json({ error: 'Member not found' });
     res.json(m);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/members', async (req, res) => {
+app.post('/api/members', requireRoles('Admin'), async (req, res) => {
 try {
-    const userRole = req.headers['x-user-role'];
-    if (userRole === 'Admin') {
-      return res.status(403).json({ error: 'Forbidden: Admins cannot create member records.' });
+    const role = String(req.body.role || 'Member');
+    if (!['Admin', 'Ministry Leader', 'Staff', 'Member'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid member role.' });
     }
-
-    const data = { ...req.body };
-    delete data.otp;
-    delete data.otpHash;
-    delete data.otpExpiresAt;
-    if (!data.birthdate) delete data.birthdate;
-    if (!data.gender) delete data.gender;
-    if (data.gender === 'Other' || data.gender === 'Non-binary') {
-      data.gender = 'Prefer not to say';
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+    if (!email || !password || password.length < 7) {
+      return res.status(400).json({ error: 'A valid email and password of at least 7 characters are required.' });
     }
-    if (data.password) data.password = await bcrypt.hash(data.password, 10);
-    if (!Array.isArray(data.ministries)) {
-      data.ministries = Array.isArray(data.ministry) ? data.ministry : data.ministry ? [data.ministry] : [];
-    }
-    data.ministries = data.ministries.filter(Boolean);
-    if (!data.ministry) {
-      data.ministry = data.ministries[0] || 'None';
-    }
+    const data = {
+      firstName: String(req.body.firstName || '').trim(),
+      lastName: String(req.body.lastName || '').trim(),
+      email,
+      password: await bcrypt.hash(password, 10),
+      role,
+      phone: String(req.body.phone || '').trim(),
+      birthdate: req.body.birthdate || undefined,
+      gender: ['Male', 'Female', 'Prefer not to say'].includes(req.body.gender)
+        ? req.body.gender
+        : 'Prefer not to say',
+      ministry: String(req.body.ministry || 'None'),
+      ministries: Array.isArray(req.body.ministries)
+        ? req.body.ministries.map(value => String(value).trim()).filter(Boolean)
+        : req.body.ministry ? [String(req.body.ministry).trim()] : [],
+      status: 'Inactive',
+      isVerified: false
+    };
     const generatedOtp = crypto.randomInt(100000, 1000000).toString();
     data.otpHash = await bcrypt.hash(generatedOtp, 10);
     data.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -1266,31 +1345,40 @@ try {
 
 app.put('/api/members/:id', async (req, res) => {
   try {
-    const data = { ...req.body };
-    delete data.otp;
-    delete data.otpHash;
-    delete data.otpExpiresAt;
-    if (!data.birthdate) delete data.birthdate;
-    if (!data.gender) delete data.gender;
-    if (data.gender === 'Other' || data.gender === 'Non-binary') {
+    const isSelf = String(req.user._id) === req.params.id;
+    const isAdmin = req.user.role === 'Admin';
+    if (!isSelf && !isAdmin) {
+      return res.status(403).json({ error: 'You can only update your own profile.' });
+    }
+
+    const allowedFields = isAdmin
+      ? ['firstName', 'lastName', 'email', 'phone', 'birthdate', 'gender', 'profilePicture', 'backgroundPreference', 'role', 'status', 'ministries', 'ministry', 'password']
+      : ['firstName', 'lastName', 'phone', 'birthdate', 'gender', 'profilePicture', 'backgroundPreference'];
+    const data = Object.fromEntries(
+      Object.entries(req.body).filter(([key]) => allowedFields.includes(key))
+    );
+    if (!isAdmin && Object.keys(data).length !== Object.keys(req.body).length) {
+      return res.status(403).json({ error: 'You cannot change account access or credentials.' });
+    }
+    if (data.email !== undefined) data.email = String(data.email).trim().toLowerCase();
+    if (data.password !== undefined) {
+      if (String(data.password).length < 7) {
+        return res.status(400).json({ error: 'Password must be at least 7 characters long.' });
+      }
+      data.password = await bcrypt.hash(String(data.password), 10);
+    }
+    if (data.gender && !['Male', 'Female', 'Prefer not to say'].includes(data.gender)) {
       data.gender = 'Prefer not to say';
     }
-    if (data.password && data.password.trim() !== "") {
-      data.password = await bcrypt.hash(data.password, 10);
-    } else { delete data.password; }
     if (data.ministries && !Array.isArray(data.ministries)) {
       data.ministries = [data.ministries].filter(Boolean);
     }
-    if (!Array.isArray(data.ministries) && data.ministry) {
-      data.ministries = [data.ministry];
-    }
     if (Array.isArray(data.ministries)) {
-      data.ministries = data.ministries.filter(Boolean);
-      if (!data.ministry) {
-        data.ministry = data.ministries[0] || 'None';
-      }
+      data.ministries = data.ministries.map(value => String(value).trim()).filter(Boolean);
+      if (!data.ministry) data.ministry = data.ministries[0] || 'None';
     }
-    const updated = await Member.findByIdAndUpdate(req.params.id, data, { new: true }).select('-password -otp -otpHash -otpExpiresAt');
+    const updated = await Member.findByIdAndUpdate(req.params.id, { $set: data }, { new: true, runValidators: true }).select('-password -otp -otpHash -otpExpiresAt');
+    if (data.password) await Session.deleteMany({ userId: req.params.id });
     const out = updated ? updated.toObject() : null;
     if (out && out.password) delete out.password;
     res.json(out);
@@ -1303,11 +1391,17 @@ app.patch('/api/members/:id', async (req, res) => {
     delete data.otp;
     delete data.otpHash;
     delete data.otpExpiresAt;
-    const userRole = req.headers['x-user-role'];
-    const userName = (req.headers['x-user-name'] || '').trim().toLowerCase();
+    const userRole = req.user.role;
+    const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim().toLowerCase();
     const existingMember = await Member.findById(req.params.id);
     if (!existingMember) return res.status(404).json({ error: 'Member not found' });
 
+    if (!['Admin', 'Ministry Leader'].includes(userRole)) {
+      return res.status(403).json({ error: 'You do not have permission to update member records.' });
+    }
+    if (userRole !== 'Admin' && ['role', 'status', 'password', 'email', 'isVerified'].some(key => key in data)) {
+      return res.status(403).json({ error: 'Only administrators can change member access or credentials.' });
+    }
     if (userRole === 'Ministry Leader' && ('ministries' in data || 'ministry' in data)) {
       const ministry = await Ministry.findOne({
         name: new RegExp(`^${(data.ministries && data.ministries[0] ? data.ministries[0] : data.ministry || '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
@@ -1315,7 +1409,7 @@ app.patch('/api/members/:id', async (req, res) => {
       if (!ministry || !isMinistryManager(ministry, userRole, userName)) {
         return res.status(403).json({ error: 'Forbidden: you can only manage members of your own ministry.' });
       }
-    } else if (userRole !== 'Ministry Leader' && ('ministries' in data || 'ministry' in data)) {
+    } else if (userRole !== 'Admin' && userRole !== 'Ministry Leader' && ('ministries' in data || 'ministry' in data)) {
       return res.status(403).json({ error: 'Forbidden: only the assigned ministry leader can add or remove members.' });
     }
 
@@ -1339,14 +1433,19 @@ app.patch('/api/members/:id', async (req, res) => {
         data.ministry = data.ministries[0] || 'None';
       }
     }
-    const updated = await Member.findByIdAndUpdate(req.params.id, data, { new: true }).select('-password -otp -otpHash -otpExpiresAt');
+    if (data.password !== undefined) {
+      if (String(data.password).length < 7) return res.status(400).json({ error: 'Password must be at least 7 characters long.' });
+      data.password = await bcrypt.hash(String(data.password), 10);
+    }
+    const updated = await Member.findByIdAndUpdate(req.params.id, { $set: data }, { new: true, runValidators: true }).select('-password -otp -otpHash -otpExpiresAt');
+    if (data.password) await Session.deleteMany({ userId: req.params.id });
     const out = updated ? updated.toObject() : null;
     if (out && out.password) delete out.password;
     res.json(out);
   } catch (err) { res.status(400).json({ error: "Failed to update record" }); }
 });
 
-app.delete('/api/members/:id', async (req, res) => {
+app.delete('/api/members/:id', requireRoles('Admin'), async (req, res) => {
   try {
     await Member.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted successfully" });
@@ -2062,18 +2161,11 @@ app.patch('/api/prayers/:id/answer', async (req, res) => {
   } catch (err) { res.status(400).json({ error: "Failed to update prayer status." }); }
 });
 
+app.use('/api/notifications', requireAuthentication);
+
 app.get('/api/notifications', async (req, res) => {
   try {
-    const loggedInUserId = req.headers['x-user-id'];
-    if (!loggedInUserId) {
-      return res.status(401).json({ error: 'Unauthorized: Missing user headers.' });
-    }
-
-    const member = await Member.findById(loggedInUserId).select('notifications');
-    if (!member) {
-      return res.status(404).json({ error: 'Member not found.' });
-    }
-
+    const member = await Member.findById(req.user._id).select('notifications');
     const notifications = Array.isArray(member.notifications)
       ? member.notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       : [];
@@ -2087,10 +2179,7 @@ app.get('/api/notifications', async (req, res) => {
 
 app.patch('/api/notifications/:notificationId/read', async (req, res) => {
   try {
-    const loggedInUserId = req.headers['x-user-id'];
-    if (!loggedInUserId) {
-      return res.status(401).json({ error: 'Unauthorized: Missing user headers.' });
-    }
+    const loggedInUserId = String(req.user._id);
     if (!mongoose.Types.ObjectId.isValid(loggedInUserId) || !mongoose.Types.ObjectId.isValid(req.params.notificationId)) {
       return res.status(400).json({ error: 'Invalid user or notification ID.' });
     }
@@ -2115,10 +2204,7 @@ app.patch('/api/notifications/:notificationId/read', async (req, res) => {
 
 app.patch('/api/notifications/clear', async (req, res) => {
   try {
-    const loggedInUserId = req.headers['x-user-id'];
-    if (!loggedInUserId) {
-      return res.status(401).json({ error: 'Unauthorized: Missing user headers.' });
-    }
+    const loggedInUserId = String(req.user._id);
     if (!mongoose.Types.ObjectId.isValid(loggedInUserId)) {
       return res.status(400).json({ error: 'Invalid user ID.' });
     }

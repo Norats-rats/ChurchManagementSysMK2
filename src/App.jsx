@@ -11,6 +11,42 @@ import { normalizeRole } from './permissions';
 import Dashboard from './roles/admin/dashboard';
 import { getPhDateString, getPhTimeString } from './utils/philippinesTime';
 
+const loadStoredAuth = () => {
+  const hasRememberedSession = Boolean(
+    localStorage.getItem('rememberedUser')
+    && localStorage.getItem('rememberedRole')
+    && localStorage.getItem('churchAccessToken')
+  );
+  const storage = hasRememberedSession ? localStorage : sessionStorage;
+  const userData = storage.getItem(hasRememberedSession ? 'rememberedUser' : 'sessionUser');
+  const role = storage.getItem(hasRememberedSession ? 'rememberedRole' : 'sessionRole');
+  const accessToken = storage.getItem('churchAccessToken');
+  const hasStoredAuth = [
+    localStorage.getItem('rememberedUser'),
+    localStorage.getItem('rememberedRole'),
+    localStorage.getItem('churchAccessToken'),
+    sessionStorage.getItem('sessionUser'),
+    sessionStorage.getItem('sessionRole'),
+    sessionStorage.getItem('churchAccessToken')
+  ].some(Boolean);
+
+  if (!userData || !role || !accessToken) {
+    return { user: null, role: null, hasStoredAuth, parseError: false };
+  }
+
+  try {
+    const user = JSON.parse(userData);
+    return {
+      user,
+      role: normalizeRole(user.role || role),
+      hasStoredAuth: true,
+      parseError: false
+    };
+  } catch {
+    return { user: null, role: null, hasStoredAuth: true, parseError: true };
+  }
+};
+
 const ForgotPasswordView = ({ onGoToLogin }) => {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -129,10 +165,10 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
     }
 
     try {
-      const response = await api.login({ email, password });
+      const response = await api.login({ email, password, rememberMe: remember });
       const data = response.data;
       if (data.success) {
-        onLoginSuccess(data.role, data.user, remember);
+        onLoginSuccess(data.role, data.user, remember, data.token);
       }
     } catch (err) {
       showFeedback(err.response?.data?.message || "Connection error");
@@ -230,10 +266,10 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
 
 export default function App() {
   const navigate = useNavigate();
-  const [userRole, setUserRole] = useState(null);
-  const [userData, setUserData] = useState(null);
-  const [theme, setTheme] = useState('light');
-  const [authChecked, setAuthChecked] = useState(false);
+  const [initialAuth] = useState(loadStoredAuth);
+  const [userRole, setUserRole] = useState(initialAuth.role);
+  const [userData, setUserData] = useState(initialAuth.user);
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const { showFeedback, FeedbackModal } = useFeedbackModal();
 
   // Captured on the very first render, before any route navigation drops the query string,
@@ -280,28 +316,30 @@ export default function App() {
   useEffect(() => {
     const storedTheme = localStorage.getItem('theme');
     if (storedTheme) {
-      setTheme(storedTheme);
       document.documentElement.classList.toggle('theme-dark', storedTheme === 'dark');
     }
-    const remembered = localStorage.getItem('rememberedUser');
-    const rememberedRole = localStorage.getItem('rememberedRole');
-    if (remembered && rememberedRole) {
-      try {
-        const user = JSON.parse(remembered);
-        setUserData(user);
-        setUserRole(normalizeRole(user.role || rememberedRole));
-        sessionStorage.setItem('loginTimestamp', Date.now().toString());
-        if (window.location.pathname === '/' || window.location.pathname === '/login') {
-          navigate('/home', { replace: true });
-        }
-      } catch (err) {
-        console.warn('Failed to parse remembered user', err);
+    if (initialAuth.user) {
+      sessionStorage.setItem('loginTimestamp', Date.now().toString());
+      if (window.location.pathname === '/' || window.location.pathname === '/login') {
+        navigate('/home', { replace: true });
       }
+    } else {
+      if (initialAuth.parseError) {
+        console.warn('Failed to parse stored user session.');
+      }
+      localStorage.removeItem('rememberedUser');
+      localStorage.removeItem('rememberedRole');
+      localStorage.removeItem('churchAccessToken');
+      sessionStorage.removeItem('sessionUser');
+      sessionStorage.removeItem('sessionRole');
+      sessionStorage.removeItem('churchAccessToken');
     }
-    setAuthChecked(true);
-  }, [navigate]);
+  }, [initialAuth, navigate]);
 
-  const handleLoginSuccess = (role, user, remember) => {
+  const handleLoginSuccess = (role, user, remember, accessToken) => {
+    if (!accessToken) {
+      throw new Error('The server did not return a secure session token.');
+    }
     const normalizedRole = normalizeRole(role || user?.role);
     setUserRole(normalizedRole);
     setUserData(user);
@@ -309,9 +347,17 @@ export default function App() {
     if (remember) {
       localStorage.setItem('rememberedUser', JSON.stringify(user));
       localStorage.setItem('rememberedRole', normalizedRole);
+      localStorage.setItem('churchAccessToken', accessToken);
+      sessionStorage.removeItem('sessionUser');
+      sessionStorage.removeItem('sessionRole');
+      sessionStorage.removeItem('churchAccessToken');
     } else {
       localStorage.removeItem('rememberedUser');
       localStorage.removeItem('rememberedRole');
+      localStorage.removeItem('churchAccessToken');
+      sessionStorage.setItem('sessionUser', JSON.stringify(user));
+      sessionStorage.setItem('sessionRole', normalizedRole);
+      sessionStorage.setItem('churchAccessToken', accessToken);
     }
     navigate('/home', { replace: true });
   };
@@ -324,18 +370,23 @@ export default function App() {
     window.dispatchEvent(new Event('theme:change'));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch (err) {
+      console.error('Failed to revoke server session:', err);
+    }
     setUserData(null);
     setUserRole(null);
     localStorage.removeItem('rememberedUser');
     localStorage.removeItem('rememberedRole');
+    localStorage.removeItem('churchAccessToken');
+    sessionStorage.removeItem('sessionUser');
+    sessionStorage.removeItem('sessionRole');
+    sessionStorage.removeItem('churchAccessToken');
     sessionStorage.removeItem('loginTimestamp');
     navigate('/login', { replace: true });
   };
-
-  if (!authChecked) {
-    return null;
-  }
 
   const dashboardElement = userData ? (
     <BackgroundProvider
