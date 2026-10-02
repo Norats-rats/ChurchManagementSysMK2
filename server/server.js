@@ -1172,16 +1172,24 @@ app.get('/api/ministries/my-status', async (req, res) => {
       .map(name => String(name || '').trim())
       .filter(name => name && name.toLowerCase() !== 'none');
     const userId = String(req.user._id);
+    const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim().toLowerCase();
     const joinedSet = new Set(joinedNames.map(name => name.toLowerCase()));
-    const ministries = await Ministry.find().select('name color joinRequests').lean();
+    const ministries = await Ministry.find().select('name color leader assistants joinRequests').lean();
     const statuses = ministries.flatMap(ministry => {
-      const isJoined = joinedSet.has(String(ministry.name || '').trim().toLowerCase());
-      const hasPendingRequest = (ministry.joinRequests || []).some(request => request.userId === userId && request.status === 'Pending');
-      if (!isJoined && !hasPendingRequest) return [];
+      const ministryName = String(ministry.name || '').trim().toLowerCase();
+      const requests = (ministry.joinRequests || []).filter(request => request.userId === userId);
+      const isJoined = joinedSet.has(ministryName) || requests.some(request => request.status === 'Approved');
+      const isOwner = String(ministry.leader || '').trim().toLowerCase() === userName;
+      const isAssistant = (ministry.assistants || []).some(assistant =>
+        String(assistant.userId || '') === userId
+        || String(assistant.name || '').trim().toLowerCase() === userName
+      );
+      const hasPendingRequest = requests.some(request => request.status === 'Pending');
+      if (!isJoined && !isOwner && !isAssistant && !hasPendingRequest) return [];
       return [{
         name: ministry.name,
         color: ministry.color,
-        status: isJoined ? 'Joined' : 'Applied'
+        status: isOwner ? 'Owner' : isAssistant ? 'Assistant' : isJoined ? 'Joined' : 'Applied'
       }];
     });
     res.json(statuses);

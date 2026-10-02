@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../api';
