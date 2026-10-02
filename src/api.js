@@ -9,6 +9,17 @@ const API_BASE = API_BASE_RAW && /^https?:\/\//i.test(API_BASE_RAW)
 
 const toHeaderSafeText = (value) => String(value || '').replace(/[^\x20-\x7E]/g, '').trim();
 
+const getAccessToken = () => {
+  const hasRememberedSession = Boolean(
+    localStorage.getItem('rememberedUser')
+    && localStorage.getItem('rememberedRole')
+    && localStorage.getItem('churchAccessToken')
+  );
+  return hasRememberedSession
+    ? localStorage.getItem('churchAccessToken')
+    : sessionStorage.getItem('churchAccessToken');
+};
+
 const apiClient = axios.create({
   baseURL: API_BASE,
   headers: {
@@ -17,8 +28,7 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('churchAccessToken')
-    || sessionStorage.getItem('churchAccessToken');
+  const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -26,8 +36,7 @@ apiClient.interceptors.request.use((config) => {
 });
 
 export const authenticatedFetch = (url, options = {}) => {
-  const token = localStorage.getItem('churchAccessToken')
-    || sessionStorage.getItem('churchAccessToken');
+  const token = getAccessToken();
   const headers = new Headers(options.headers || {});
   if (token) headers.set('Authorization', `Bearer ${token}`);
   return fetch(url, { ...options, headers });
