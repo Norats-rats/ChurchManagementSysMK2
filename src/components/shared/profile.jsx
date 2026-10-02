@@ -224,8 +224,7 @@ const Profile = ({ userId, currentUserId }) => {
               {ministryMemberships.map(ministry => {
                 const color = /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(ministry.color || '') ? ministry.color : '#2563eb';
                 return (
-                  <div key={ministry.name} style={{ ...styles.ministryBadge, borderLeftColor: color }}>
-                    <span aria-hidden="true" style={{ ...styles.ministrySwatch, backgroundColor: color }} />
+                  <div key={ministry.name} style={{ ...styles.ministryBadge, backgroundColor: `color-mix(in srgb, ${color} 24%, white)` }}>
                     <span style={styles.ministryName}>{ministry.name}</span>
                     <span style={styles.ministryStatus}>{ministry.status}</span>
                   </div>
@@ -369,42 +368,34 @@ const styles = {
     fontWeight: 700,
   },
   ministryList: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-    gap: 9,
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   ministryBadge: {
     minWidth: 0,
-    minHeight: 48,
+    minHeight: 34,
     boxSizing: 'border-box',
     display: 'flex',
     alignItems: 'center',
-    gap: 9,
-    padding: '8px 10px',
-    border: '1px solid #e2e8f0',
-    borderLeftWidth: 4,
-    borderRadius: 6,
-    background: '#f8fafc',
-  },
-  ministrySwatch: {
-    width: 12,
-    height: 12,
-    flex: '0 0 12px',
-    borderRadius: 3,
+    gap: 10,
+    padding: '6px 12px',
+    border: '1px solid rgba(15, 23, 42, 0.1)',
+    borderRadius: 999,
   },
   ministryName: {
     minWidth: 0,
     flex: 1,
-    color: '#0f172a',
-    fontSize: 13,
-    fontWeight: 650,
+    color: '#000000',
+    fontSize: 12,
+    fontWeight: 700,
     overflowWrap: 'anywhere',
   },
   ministryStatus: {
     flex: '0 0 auto',
-    color: '#475569',
-    fontSize: 11,
-    fontWeight: 700,
+    color: '#111827',
+    fontSize: 10,
+    fontWeight: 600,
   },
   ministryEmpty: {
     margin: 0,
