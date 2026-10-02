@@ -167,6 +167,34 @@ const EBible = ({ userId }) => {
     }
   };
 
+  useEffect(() => {
+    const openPendingPassage = () => {
+      const storedPassage = sessionStorage.getItem('pendingBibleSearch');
+      if (!storedPassage) return;
+      sessionStorage.removeItem('pendingBibleSearch');
+      try {
+        const passage = JSON.parse(storedPassage);
+        const firstVerse = passage.verses?.[0];
+        if (!firstVerse?.book_name || !firstVerse.chapter) return;
+        setSelectedBook(firstVerse.book_name);
+        setSelectedChapter(firstVerse.chapter);
+        setContent({
+          ...passage,
+          verses: (passage.verses || []).map(verse => ({
+            ...verse,
+            text: formatWebToNivText(verse.text)
+          }))
+        });
+        setView('reading');
+      } catch {
+        setError('Unable to open the selected Bible passage.');
+      }
+    };
+    window.addEventListener('bible-search-requested', openPendingPassage);
+    openPendingPassage();
+    return () => window.removeEventListener('bible-search-requested', openPendingPassage);
+  }, [userId]);
+
   const handleBookSelect = (book) => {
     setSelectedBook(book);
   };

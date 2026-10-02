@@ -206,6 +206,11 @@ mongoose.connect(mongoURI)
       await Location.insertMany(defaultEventLocations.map(name => ({ name })));
       console.log(`✅ Seeded ${defaultEventLocations.length} event locations`);
     }
+    await syncEventLifecycle();
+    const eventLifecycleTimer = setInterval(() => {
+      syncEventLifecycle().catch(err => console.error('Event lifecycle sync failed:', err));
+    }, 60 * 1000);
+    eventLifecycleTimer.unref();
   })
   .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
@@ -334,8 +339,68 @@ const Event = mongoose.model('events', new mongoose.Schema({
   type: String,
   role: String,
   leadPeople: [{ type: String }],
-  status: { type: String, default: 'active' }
+  status: { type: String, default: 'active' },
+  endedAt: { type: Date, default: null },
+  archiveAt: { type: Date, default: null }
 }, { timestamps: true }));
+
+const parseEventMinutes = (value) => {
+  const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return null;
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (minute > 59) return null;
+  if (match[3]) {
+    if (hour < 1 || hour > 12) return null;
+    if (match[3].toUpperCase() === 'PM' && hour !== 12) hour += 12;
+    if (match[3].toUpperCase() === 'AM' && hour === 12) hour = 0;
+  } else if (hour > 23) {
+    return null;
+  }
+  return hour * 60 + minute;
+};
+
+const getEventEndAt = (event) => {
+  const date = String(event.date || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (!date) return null;
+  const legacyTimes = String(event.time || '').split('-');
+  const startTime = event.timeStart || legacyTimes[0]?.trim();
+  const endTime = event.timeEnd || legacyTimes[1]?.trim() || '23:59';
+  const endMinutes = parseEventMinutes(endTime);
+  if (endMinutes === null) return null;
+  const startMinutes = parseEventMinutes(startTime);
+  const endDate = new Date(`${date}T00:00:00+08:00`);
+  if (startMinutes !== null && endMinutes < startMinutes) endDate.setTime(endDate.getTime() + 24 * 60 * 60 * 1000);
+  endDate.setTime(endDate.getTime() + endMinutes * 60 * 1000);
+  return endDate;
+};
+
+const addOneMonthInPhTime = (date) => {
+  const shifted = new Date(date.getTime() + PH_OFFSET_MINUTES * 60 * 1000);
+  const day = shifted.getUTCDate();
+  shifted.setUTCDate(1);
+  shifted.setUTCMonth(shifted.getUTCMonth() + 1);
+  const lastDay = new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 0)).getUTCDate();
+  shifted.setUTCDate(Math.min(day, lastDay));
+  return new Date(shifted.getTime() - PH_OFFSET_MINUTES * 60 * 1000);
+};
+
+const syncEventLifecycle = async () => {
+  const now = new Date();
+  const events = await Event.find({ status: { $in: ['active', 'ended'] } });
+  for (const event of events) {
+    const endAt = event.endedAt || getEventEndAt(event);
+    if (!endAt || (event.status === 'active' && now < endAt)) continue;
+    const archiveAt = event.archiveAt || addOneMonthInPhTime(endAt);
+    event.endedAt = endAt;
+    event.archiveAt = archiveAt;
+    event.status = now >= archiveAt ? 'archived' : 'ended';
+    await event.save();
+  }
+};
+
+const isEventUnavailable = (event) => ['ended', 'archived'].includes(event.status)
+  || Boolean(getEventEndAt(event) && getEventEndAt(event) <= new Date());
 
 const Attendance = mongoose.model('attendance', new mongoose.Schema({
   userId: { type: String, required: true },
@@ -1099,6 +1164,33 @@ app.get('/api/ministries', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get('/api/ministries/my-status', async (req, res) => {
+  try {
+    const member = await Member.findById(req.user._id).select('ministries ministry').lean();
+    if (!member) return res.status(404).json({ error: 'Member not found.' });
+    const joinedNames = [...(member.ministries || []), member.ministry]
+      .map(name => String(name || '').trim())
+      .filter(name => name && name.toLowerCase() !== 'none');
+    const userId = String(req.user._id);
+    const joinedSet = new Set(joinedNames.map(name => name.toLowerCase()));
+    const ministries = await Ministry.find().select('name color joinRequests').lean();
+    const statuses = ministries.flatMap(ministry => {
+      const isJoined = joinedSet.has(String(ministry.name || '').trim().toLowerCase());
+      const hasPendingRequest = (ministry.joinRequests || []).some(request => request.userId === userId && request.status === 'Pending');
+      if (!isJoined && !hasPendingRequest) return [];
+      return [{
+        name: ministry.name,
+        color: ministry.color,
+        status: isJoined ? 'Joined' : 'Applied'
+      }];
+    });
+    res.json(statuses);
+  } catch (err) {
+    console.error('Failed to fetch member ministry status:', err);
+    res.status(500).json({ error: 'Failed to fetch ministry status.' });
+  }
+});
+
 app.patch('/api/ministries/:id', requireRoles('Admin', 'Ministry Leader'), async (req, res) => {
   try {
     const userRole = req.user.role;
@@ -1593,6 +1685,9 @@ app.post('/api/attendance', requireAuthentication, async (req, res) => {
     if (!event) {
       return res.status(404).json({ success: false, message: 'This event is no longer available for check-in. Please ask the booth monitor.' });
     }
+    if (isEventUnavailable(event)) {
+      return res.status(409).json({ success: false, message: 'This event has ended and is no longer accepting attendance.' });
+    }
 
     const alreadyLogged = await Attendance.findOne({ eventId, userId });
     if (alreadyLogged) {
@@ -1640,6 +1735,7 @@ app.post('/api/events/:id/toggle-attendance', requireAuthentication, requireRole
     }
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).send("Event not found");
+    if (isEventUnavailable(event)) return res.status(409).json({ error: 'Ended events cannot be modified.' });
 
     const index = event.attendees.indexOf(userId);
     if (index === -1) {
@@ -1708,7 +1804,7 @@ app.post('/api/events', requireAuthentication, requireRoles('Admin', 'Ministry L
     }
 
     if (date && room && timeStart && timeEnd) {
-      const existingEvents = await Event.find({ room, status: { $ne: 'archived' } });
+      const existingEvents = await Event.find({ room, status: { $nin: ['archived', 'ended'] } });
       const clash = existingEvents.find((event) => {
         if (event._id && req.body._id && event._id.toString() === req.body._id.toString()) return false;
         if (!event.timeStart || !event.timeEnd) return event.time === req.body.time;
@@ -1755,6 +1851,7 @@ app.post('/api/events', requireAuthentication, requireRoles('Admin', 'Ministry L
 
 app.get('/api/events', async (req, res) => {
   try {
+    await syncEventLifecycle();
     const events = await Event.find().sort({ createdAt: -1 });
     res.json(events);
   } catch (err) {
@@ -1776,6 +1873,11 @@ app.get('/api/locations', async (req, res) => {
 app.put('/api/events/:id', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
     const { date, timeStart, timeEnd, room, reservationName, titleSelection } = req.body;
+    const existingEvent = await Event.findById(req.params.id);
+    if (!existingEvent) return res.status(404).send('Event not found');
+    if (isEventUnavailable(existingEvent)) {
+      return res.status(409).json({ error: 'Ended events cannot be edited.' });
+    }
     const normalizedReservation = (reservationName || '').trim();
     const normalizedTitle = (titleSelection || '').trim();
 
@@ -1787,7 +1889,7 @@ app.put('/api/events/:id', requireAuthentication, requireRoles('Admin', 'Ministr
     }
 
     if (date && room && timeStart && timeEnd) {
-      const existingEvents = await Event.find({ room, status: { $ne: 'archived' }, _id: { $ne: req.params.id } });
+      const existingEvents = await Event.find({ room, status: { $nin: ['archived', 'ended'] }, _id: { $ne: req.params.id } });
       const clash = existingEvents.find((event) => {
         if (!event.timeStart || !event.timeEnd) return event.time === req.body.time;
         return eventRangesOverlap({ date, timeStart, timeEnd }, event);
@@ -1837,11 +1939,13 @@ app.put('/api/events/:id', requireAuthentication, requireRoles('Admin', 'Ministr
 
 app.patch('/api/events/:id/archive', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
+    const endedAt = new Date();
     const updatedEvent = await Event.findByIdAndUpdate(
       req.params.id,
-      { $set: { status: 'archived' } },
+      { $set: { status: 'ended', endedAt, archiveAt: addOneMonthInPhTime(endedAt) } },
       { new: true }
     );
+    if (!updatedEvent) return res.status(404).json({ error: 'Event not found.' });
     res.json(updatedEvent);
   } catch (err) {
     res.status(400).json({ error: "Failed to archive event" });
@@ -1882,6 +1986,9 @@ app.post('/api/events/scan-qr', requireAuthentication, async (req, res) => {
     const event = await Event.findById(eventId);
     if (!event) {
       return res.status(404).json({ success: false, message: 'Event record not found in database.' });
+    }
+    if (isEventUnavailable(event)) {
+      return res.status(409).json({ success: false, message: 'This event has ended and is no longer accepting attendance.' });
     }
     let userName = "Unknown Member";
     try {

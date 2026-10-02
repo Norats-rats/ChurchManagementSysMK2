@@ -60,6 +60,8 @@ const EventTab = ({ role, userId, user }) => {
     fetchEvents();
     fetchLocations();
     fetchLeaderOptions();
+    const lifecycleRefresh = setInterval(fetchEvents, 60 * 1000);
+    return () => clearInterval(lifecycleRefresh);
   }, []);
 
   const fetchLocations = async () => {
@@ -130,7 +132,7 @@ const EventTab = ({ role, userId, user }) => {
     const checkDate = new Date(currentYear, currentMonth, day);
     checkDate.setHours(0, 0, 0, 0);
     return events.some(event => {
-      if (event.status === 'archived') return false;
+      if (['ended', 'archived'].includes(event.status)) return false;
       const eventDateText = normalizeDateString(event.date);
       if (!eventDateText) return false;
       const eventDate = new Date(`${eventDateText}T00:00:00`);
@@ -268,7 +270,7 @@ const EventTab = ({ role, userId, user }) => {
         (dayOffset === 1 && eventStart && eventEnd && eventEnd < eventStart) ||
         (dayOffset === -1 && formData.timeEnd < formData.timeStart);
       return event._id !== editingId &&
-        event.status !== 'archived' &&
+        !['ended', 'archived'].includes(event.status) &&
         relevantDay &&
         event.room?.trim().toLowerCase() === formData.room.trim().toLowerCase() &&
         eventStart && eventEnd &&
@@ -353,11 +355,11 @@ const EventTab = ({ role, userId, user }) => {
   };
 
   const archiveEvent = async (id) => {
-    askConfirmation('Are you sure you want to archive this event? It will no longer be editable.', async () => {
+    askConfirmation('End this event now? It will become unavailable immediately and be archived after one month.', async () => {
       try {
         await api.archiveEvent(id);
         fetchEvents();
-        showFeedback('Event archived successfully.');
+        showFeedback('Event ended. It will be archived after one month.');
       } catch (err) {
         console.error(err);
         showFeedback('Error archiving event');
@@ -650,9 +652,9 @@ const EventTab = ({ role, userId, user }) => {
             {sortedSelectedEvents.map((event) => {
               const isAttending = event.attendees?.includes(userId);
               
-              const eventDateObj = new Date(event.date + 'T00:00:00');
-              const isPastEvent = eventDateObj < today;
-              const isArchived = event.status === 'archived' || isPastEvent;
+              const isArchived = event.status === 'archived';
+              const isEnded = event.status === 'ended';
+              const isUnavailable = isArchived || isEnded;
               const isHovered = hoveredEventId === event._id;
 
               return (
@@ -662,11 +664,11 @@ const EventTab = ({ role, userId, user }) => {
                   onMouseEnter={() => setHoveredEventId(event._id)}
                   onMouseLeave={() => setHoveredEventId(prev => (prev === event._id ? null : prev))}
                 >
-                  <div style={styles.card(isArchived)}>
+                  <div style={styles.card(isUnavailable)}>
                   <div style={{ flex: 1 }}>
                     <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <span style={styles.badge(event.category, isArchived)}>
-                        {isArchived ? "Archived" : event.category}
+                      <span style={styles.badge(event.category, isUnavailable)}>
+                        {isArchived ? 'Archived' : isEnded ? 'Event Ended' : event.category}
                       </span>
                     </div>
                     <h4 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#1a202c' }}>{event.title}</h4>
@@ -682,7 +684,7 @@ const EventTab = ({ role, userId, user }) => {
                   </div>
 
                   <div style={styles.footer}>
-                    {isArchived ? (
+                    {isUnavailable ? (
                       <button type="button" onClick={() => openHistory(event, canManage ? 'attendance' : (canUploadImages ? 'upload' : 'gallery'))} style={styles.historyFooterBtn}>
                         📂 View Event History
                       </button>
@@ -698,7 +700,7 @@ const EventTab = ({ role, userId, user }) => {
                             leadPeople: Array.isArray(event.leadPeople) ? event.leadPeople : (event.role ? [event.role] : [])
                           });
                         }}>Edit</button>
-                          <button style={{ border: 'none', background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} onClick={() => archiveEvent(event._id)}>Archive</button>
+                          <button style={{ border: 'none', background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} onClick={() => archiveEvent(event._id)}>End Event</button>
                         </>
                       ) : (
                         <button style={styles.attendBtn(isAttending)} onClick={() => handleToggleAttendance(event._id, isAttending)}>
@@ -708,7 +710,7 @@ const EventTab = ({ role, userId, user }) => {
                     )}
                   </div>
                 </div>
-                  {isArchived && isHovered && (
+                  {isUnavailable && isHovered && (
                     <div style={styles.historyOverlay}>
                       <span style={styles.historyOverlayTitle}>Event History</span>
                       {canManage && (

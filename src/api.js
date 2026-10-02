@@ -166,6 +166,7 @@ export const api = {
   getMinistries: (role) => apiClient.get('/api/ministries', {
     headers: { 'x-user-role': role }
   }),
+  getMyMinistryStatus: () => apiClient.get('/api/ministries/my-status'),
   getMinistryByName: (name, role) => apiClient.get(`/api/ministries/name/${encodeURIComponent(name)}`, {
     headers: { 'x-user-role': role }
   }),

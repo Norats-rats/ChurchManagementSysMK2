@@ -4,6 +4,7 @@ import { useFeedbackModal } from './feedbackmodal';
 
 const Profile = ({ userId, currentUserId }) => {
   const [member, setMember] = useState(null);
+  const [ministryMemberships, setMinistryMemberships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [genderSaving, setGenderSaving] = useState(false);
@@ -15,8 +16,12 @@ const Profile = ({ userId, currentUserId }) => {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await api.getMember(userId);
+        const [res, ministryRes] = await Promise.all([
+          api.getMember(userId),
+          api.getMyMinistryStatus().catch(() => ({ data: [] }))
+        ]);
         setMember(res.data || null);
+        setMinistryMemberships(Array.isArray(ministryRes.data) ? ministryRes.data : []);
       } catch (err) {
         console.error('Profile load error', err);
         setError('Unable to load profile');
@@ -212,6 +217,26 @@ const Profile = ({ userId, currentUserId }) => {
           </div>
         </div>
 
+        <section style={styles.ministrySection} aria-labelledby="profile-ministries-title">
+          <h3 id="profile-ministries-title" style={styles.ministryHeading}>My Ministries</h3>
+          {ministryMemberships.length ? (
+            <div style={styles.ministryList}>
+              {ministryMemberships.map(ministry => {
+                const color = /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(ministry.color || '') ? ministry.color : '#2563eb';
+                return (
+                  <div key={ministry.name} style={{ ...styles.ministryBadge, borderLeftColor: color }}>
+                    <span aria-hidden="true" style={{ ...styles.ministrySwatch, backgroundColor: color }} />
+                    <span style={styles.ministryName}>{ministry.name}</span>
+                    <span style={styles.ministryStatus}>{ministry.status}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p style={styles.ministryEmpty}>No joined or pending ministries.</p>
+          )}
+        </section>
+
         <div style={styles.actionsRow}>
           {error && <div style={styles.errorText}>{error}</div>}
           {canSetGender && (
@@ -332,6 +357,59 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     gap: 18,
+  },
+  ministrySection: {
+    display: 'grid',
+    gap: 10,
+  },
+  ministryHeading: {
+    margin: 0,
+    color: '#334155',
+    fontSize: 14,
+    fontWeight: 700,
+  },
+  ministryList: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+    gap: 9,
+  },
+  ministryBadge: {
+    minWidth: 0,
+    minHeight: 48,
+    boxSizing: 'border-box',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 9,
+    padding: '8px 10px',
+    border: '1px solid #e2e8f0',
+    borderLeftWidth: 4,
+    borderRadius: 6,
+    background: '#f8fafc',
+  },
+  ministrySwatch: {
+    width: 12,
+    height: 12,
+    flex: '0 0 12px',
+    borderRadius: 3,
+  },
+  ministryName: {
+    minWidth: 0,
+    flex: 1,
+    color: '#0f172a',
+    fontSize: 13,
+    fontWeight: 650,
+    overflowWrap: 'anywhere',
+  },
+  ministryStatus: {
+    flex: '0 0 auto',
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  ministryEmpty: {
+    margin: 0,
+    color: '#64748b',
+    fontSize: 13,
   },
   fieldBlock: {
     display: 'flex',

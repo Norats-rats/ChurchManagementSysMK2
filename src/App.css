@@ -651,6 +651,130 @@ body, .App {
   padding: 10px 13px;
 }
 
+.global-search {
+  position: relative;
+  z-index: 30;
+  flex: 1 1 260px;
+  width: min(360px, 36vw);
+  min-width: 180px;
+  margin: 0;
+}
+
+.nav-right {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.global-search input {
+  width: 100%;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 13px;
+}
+
+.global-search input:focus {
+  border-color: #16845b;
+  outline: 2px solid rgba(22, 132, 91, 0.18);
+}
+
+.global-search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(360px, calc(100vw - 28px), 100%);
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid #dbe3eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
+}
+
+.global-search-results button {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #172033;
+  text-align: left;
+  cursor: pointer;
+}
+
+.global-search-results button:hover,
+.global-search-results button:focus-visible {
+  background: #edf7f2;
+  outline: none;
+}
+
+.global-search-kind {
+  flex: 0 0 66px;
+  color: #14734f;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.global-search-result-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.global-search-result-copy strong,
+.global-search-result-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.global-search-result-copy small {
+  display: -webkit-box;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.global-search-empty {
+  padding: 12px 10px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.theme-dark .global-search input,
+.theme-dark .global-search-results {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #0b1930;
+  color: #e6eef8;
+}
+
+.theme-dark .global-search-results button {
+  color: #e6eef8;
+}
+
+.theme-dark .global-search-results button:hover,
+.theme-dark .global-search-results button:focus-visible {
+  background: #12342c;
+}
+
+.theme-dark .global-search-result-copy small,
+.theme-dark .global-search-empty {
+  color: #a9b8cb;
+}
+
 .sidebar-toggle {
   justify-content: flex-start;
   padding: 9px 13px;
@@ -747,6 +871,25 @@ body, .App {
     gap: 8px;
     overflow-x: auto;
     overflow-y: hidden;
+  }
+
+  .dashboard-content .menu-bar {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .nav-right {
+    width: 100%;
+  }
+
+  .nav-right .global-search {
+    flex: 1 0 100%;
+    width: 100%;
+    order: -1;
+  }
+
+  .global-search-results {
+    width: min(420px, calc(100vw - 24px));
   }
 
   .sidebar-toggle {

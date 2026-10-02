@@ -127,6 +127,11 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   const [expandedNotificationId, setExpandedNotificationId] = useState(null);
   const [hidePrayerNotifications, setHidePrayerNotifications] = useState(false);
   const [dailyVerse, setDailyVerse] = useState({ text: "Loading scripture...", reference: "" });
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [searchIndex, setSearchIndex] = useState({ members: [], ministries: [], events: [], inventory: [] });
+  const [bibleSearchResult, setBibleSearchResult] = useState(null);
+  const [bibleSearchLoading, setBibleSearchLoading] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(() => localStorage.getItem('sidebarExpanded') !== 'false');
   const notificationsRef = useRef(null);
   const { showFeedback, FeedbackModal } = useFeedbackModal();
@@ -163,6 +168,85 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   ];
 
   const visibleTabs = navigationConfig.filter(tab => hasPermission(role, tab.permission));
+
+  useEffect(() => {
+    let cancelled = false;
+    const requests = [
+      api.getEvents().catch(() => ({ data: [] })),
+      api.getMinistries(role).catch(() => ({ data: [] })),
+      hasPermission(role, 'members') ? api.getMembers().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+      canViewInventory(role) ? api.getInventory().catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
+    ];
+    Promise.all(requests).then(([events, ministries, members, inventory]) => {
+      if (cancelled) return;
+      setSearchIndex({
+        events: Array.isArray(events.data) ? events.data : [],
+        ministries: Array.isArray(ministries.data) ? ministries.data : [],
+        members: Array.isArray(members.data) ? members.data : [],
+        inventory: Array.isArray(inventory.data) ? inventory.data : []
+      });
+    });
+    return () => { cancelled = true; };
+  }, [role]);
+
+  useEffect(() => {
+    const reference = globalSearch.trim();
+    const isReference = /^(?:[1-3]\s*)?[a-z]+(?:\s+[a-z]+)*\s+\d+(?::\d+(?:-\d+)?)?$/i.test(reference);
+    setBibleSearchResult(null);
+    if (!isReference) {
+      setBibleSearchLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setBibleSearchLoading(true);
+      try {
+        const response = await fetch(`https://bible-api.com/${encodeURIComponent(reference)}?translation=web`);
+        if (!response.ok) return;
+        const passage = await response.json();
+        if (!cancelled && passage.reference && passage.text) {
+          setBibleSearchResult({ reference: passage.reference, text: passage.text.trim(), passage });
+        }
+      } catch {
+        if (!cancelled) setBibleSearchResult(null);
+      } finally {
+        if (!cancelled) setBibleSearchLoading(false);
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [globalSearch]);
+
+  const searchTerm = globalSearch.trim().toLowerCase();
+  const globalSearchResults = searchTerm.length < 2 ? [] : [
+    ...searchIndex.members.filter(item => `${item.firstName || ''} ${item.lastName || ''} ${item.email || ''} ${item.role || ''}`.toLowerCase().includes(searchTerm)).slice(0, 4).map(item => ({
+      kind: 'Member', title: `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.email || 'Member', detail: [item.role, item.email].filter(Boolean).join(' · '), route: '/members'
+    })),
+    ...searchIndex.ministries.filter(item => `${item.name || ''} ${item.leader || ''}`.toLowerCase().includes(searchTerm)).slice(0, 4).map(item => ({
+      kind: 'Ministry', title: item.name, detail: item.leader ? `Leader: ${item.leader}` : 'Ministry', route: '/ministry'
+    })),
+    ...searchIndex.events.filter(item => `${item.titleSelection || ''} ${item.title || ''} ${item.reservationName || ''} ${item.category || ''} ${item.room || ''} ${item.date || ''}`.toLowerCase().includes(searchTerm)).slice(0, 4).map(item => ({
+      kind: 'Event', title: item.titleSelection || item.title || item.reservationName || 'Church event', detail: [item.date, item.room].filter(Boolean).join(' · '), route: '/events'
+    })),
+    ...searchIndex.inventory.filter(item => `${item.itemName || ''} ${item.brand || ''} ${item.category || ''} ${item.location || ''} ${item.assignedTo || ''}`.toLowerCase().includes(searchTerm)).slice(0, 4).map(item => ({
+      kind: 'Inventory', title: item.itemName, detail: [item.category, item.location].filter(Boolean).join(' · '), route: '/inventory'
+    }))
+  ].slice(0, 10);
+
+  const openGlobalSearchResult = (result) => {
+    setGlobalSearchOpen(false);
+    if (result.kind === 'Scripture') {
+      sessionStorage.setItem('pendingBibleSearch', JSON.stringify(result.passage));
+      window.dispatchEvent(new Event('bible-search-requested'));
+      navigate('/bible');
+    } else {
+      navigate(result.route);
+    }
+  };
 
   useEffect(() => {
     if (!role || currentTab === 'profile') return;
@@ -390,7 +474,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       
       const futureEvents = allEvents
         .filter(e => {
-          if (e.status === 'archived') return false;
+          if (['ended', 'archived'].includes(e.status)) return false;
           const eventDate = new Date(e.date);
           return eventDate >= now;
         })
@@ -892,6 +976,56 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           </div>
         </div>
         <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="global-search">
+            <input
+              type="search"
+              value={globalSearch}
+              onChange={event => setGlobalSearch(event.target.value)}
+              onFocus={() => setGlobalSearchOpen(true)}
+              onKeyDown={event => {
+                if (event.key === 'Escape') setGlobalSearchOpen(false);
+                if (event.key === 'Enter') {
+                  if (bibleSearchResult) openGlobalSearchResult({ kind: 'Scripture', ...bibleSearchResult });
+                  else if (globalSearchResults[0]) openGlobalSearchResult(globalSearchResults[0]);
+                }
+              }}
+              placeholder="Search records or verse…"
+              aria-label="Search members, ministries, events, inventory, and Bible references"
+              aria-expanded={globalSearchOpen && globalSearch.trim().length >= 2}
+            />
+            {globalSearchOpen && globalSearch.trim().length >= 2 && (
+              <div className="global-search-results" role="listbox" aria-label="Search results">
+                {globalSearchResults.map((result, index) => (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected="false"
+                    key={`${result.kind}-${result.title}-${index}`}
+                    onClick={() => openGlobalSearchResult(result)}
+                  >
+                    <span className="global-search-kind">{result.kind}</span>
+                    <span className="global-search-result-copy">
+                      <strong>{result.title}</strong>
+                      {result.detail && <small>{result.detail}</small>}
+                    </span>
+                  </button>
+                ))}
+                {bibleSearchResult && (
+                  <button type="button" role="option" aria-selected="false" onClick={() => openGlobalSearchResult({ kind: 'Scripture', ...bibleSearchResult })}>
+                    <span className="global-search-kind">Bible</span>
+                    <span className="global-search-result-copy">
+                      <strong>{bibleSearchResult.reference}</strong>
+                      <small>{bibleSearchResult.text}</small>
+                    </span>
+                  </button>
+                )}
+                {bibleSearchLoading && <div className="global-search-empty">Looking up passage…</div>}
+                {!globalSearchResults.length && !bibleSearchResult && !bibleSearchLoading && (
+                  <div className="global-search-empty">No matching records.</div>
+                )}
+              </div>
+            )}
+          </div>
           <div ref={notificationsRef} style={{ position: 'relative' }}>
             <button
               type="button"
