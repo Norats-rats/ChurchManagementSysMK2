@@ -266,6 +266,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
 
 export default function App() {
   const navigate = useNavigate();
+  const navigateRef = useRef(navigate);
   const [initialAuth] = useState(loadStoredAuth);
   const [userRole, setUserRole] = useState(initialAuth.role);
   const [userData, setUserData] = useState(initialAuth.user);
@@ -321,7 +322,7 @@ export default function App() {
     if (initialAuth.user) {
       sessionStorage.setItem('loginTimestamp', Date.now().toString());
       if (window.location.pathname === '/' || window.location.pathname === '/login') {
-        navigate('/home', { replace: true });
+        navigateRef.current('/home', { replace: true });
       }
     } else {
       if (initialAuth.parseError) {
@@ -334,7 +335,7 @@ export default function App() {
       sessionStorage.removeItem('sessionRole');
       sessionStorage.removeItem('churchAccessToken');
     }
-  }, [initialAuth, navigate]);
+  }, [initialAuth]);
 
   const handleLoginSuccess = (role, user, remember, accessToken) => {
     if (!accessToken) {
