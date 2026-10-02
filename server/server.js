@@ -1054,7 +1054,9 @@ app.patch('/api/inventory/:id/unarchive', async (req, res) => {
 });
 
 // --- MINISTRY ROUTES ---
-app.post('/api/ministries', async (req, res) => {
+app.use('/api/ministries', requireAuthentication);
+
+app.post('/api/ministries', requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
     const newMin = new Ministry(req.body);
     await newMin.save();
@@ -1064,7 +1066,7 @@ app.post('/api/ministries', async (req, res) => {
 
 app.get('/api/ministries/name/:name', async (req, res) => {
   try {
-    const userRole = req.headers['x-user-role'];
+    const userRole = req.user.role;
     const rawName = decodeURIComponent(req.params.name);
     const ministry = await Ministry.findOne({
       name: new RegExp(`^${rawName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
@@ -1080,7 +1082,7 @@ app.get('/api/ministries/name/:name', async (req, res) => {
 
 app.get('/api/ministries', async (req, res) => {
   try {
-    const userRole = req.headers['x-user-role'];
+    const userRole = req.user.role;
     let list = await Ministry.find().sort({ createdAt: -1 });
     if (!['Admin', 'Ministry Leader'].includes(userRole)) {
       list = list.map(m => {
@@ -1093,27 +1095,33 @@ app.get('/api/ministries', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.patch('/api/ministries/:id', async (req, res) => {
+app.patch('/api/ministries/:id', requireRoles('Admin', 'Ministry Leader'), async (req, res) => {
   try {
-    const userRole = req.headers['x-user-role'];
-    const userName = (req.headers['x-user-name'] || '').trim();
+    const userRole = req.user.role;
+    const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
     if (userRole !== 'Admin' && !isMinistryManager(ministry, userRole, userName)) {
       return res.status(403).json({ error: 'Forbidden: only the assigned ministry leader or admin can update this ministry.' });
     }
-    const updated = await Ministry.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true });
+    const allowedFields = userRole === 'Admin'
+      ? ['name', 'leader', 'assistants', 'schedule', 'color', 'members', 'status', 'announcementText', 'announcements']
+      : ['schedule', 'color', 'announcementText', 'announcements'];
+    const updates = Object.fromEntries(
+      Object.entries(req.body || {}).filter(([key]) => allowedFields.includes(key))
+    );
+    const updated = await Ministry.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true, runValidators: true });
     res.json(updated);
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
-app.post('/api/ministries/:id/assistants', async (req, res) => {
+app.post('/api/ministries/:id/assistants', requireRoles('Admin', 'Ministry Leader'), async (req, res) => {
   try {
-    const userRole = req.headers['x-user-role'];
-    const userName = (req.headers['x-user-name'] || '').trim();
+    const userRole = req.user.role;
+    const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
-    if (userRole !== 'Admin' && ministry.leader?.trim().toLowerCase() !== userName.toLowerCase()) {
+    if (userRole !== 'Admin' && !isMinistryManager(ministry, userRole, userName)) {
       return res.status(403).json({ error: 'Forbidden: only the ministry leader can manage assistants.' });
     }
     const { assistantId, assistantName, action } = req.body;
@@ -1140,13 +1148,10 @@ app.post('/api/ministries/:id/assistants', async (req, res) => {
 const multer = require('multer');
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
-app.post('/api/ministries/:id/announcement', upload.single('attachment'), async (req, res) => {
+app.post('/api/ministries/:id/announcement', requireRoles('Admin', 'Ministry Leader'), upload.single('attachment'), async (req, res) => {
   try {
-    const userRole = req.headers['x-user-role'];
-    const userName = (req.headers['x-user-name'] || '').trim();
-    if (userRole !== 'Ministry Leader' && userRole !== 'Admin') {
-      return res.status(403).json({ error: 'Forbidden: only assigned ministry leaders can announce.' });
-    }
+    const userRole = req.user.role;
+    const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
     if (userRole !== 'Admin' && !isMinistryManager(ministry, userRole, userName)) {
@@ -1183,16 +1188,11 @@ app.post('/api/ministries/:id/announcement', upload.single('attachment'), async 
   }
 });
 
-app.post('/api/ministries/:id/join-request', async (req, res) => {
+app.post('/api/ministries/:id/join-request', requireRoles('Member', 'Staff'), async (req, res) => {
   try {
-    const userRole = req.headers['x-user-role'];
-    if (!['Member', 'Staff'].includes(userRole)) {
-      return res.status(403).json({ error: 'Forbidden: only members or staff may request to join a ministry.' });
-    }
-    const { userId, userName, userRole: requestRole } = req.body;
-    if (!userId || !userName) {
-      return res.status(400).json({ error: 'Missing request metadata.' });
-    }
+    const userId = String(req.user._id);
+    const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
+    const userRole = req.user.role;
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
     const existing = ministry.joinRequests.find(r => r.userId === userId && r.status === 'Pending');
@@ -1200,7 +1200,7 @@ app.post('/api/ministries/:id/join-request', async (req, res) => {
     ministry.joinRequests.push({
       userId,
       userName,
-      userRole: requestRole || userRole,
+      userRole,
       status: 'Pending',
       requestedAt: new Date()
     });
@@ -1209,14 +1209,10 @@ app.post('/api/ministries/:id/join-request', async (req, res) => {
   } catch (err) { console.error(err); res.status(400).json({ error: err.message }); }
 });
 
-app.patch('/api/ministries/:id/join-request/:requestId/approve', async (req, res) => {
+app.patch('/api/ministries/:id/join-request/:requestId/approve', requireRoles('Ministry Leader'), async (req, res) => {
   try {
-    const userRole = req.headers['x-user-role'];
-    const userName = (req.headers['x-user-name'] || '').trim();
-
-    if (userRole !== 'Ministry Leader') {
-      return res.status(403).json({ error: 'Forbidden: Only Ministry Leaders can approve join requests.' });
-    }
+    const userRole = req.user.role;
+    const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
     
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
@@ -1247,13 +1243,10 @@ app.patch('/api/ministries/:id/join-request/:requestId/approve', async (req, res
   } catch (err) { console.error(err); res.status(400).json({ error: err.message }); }
 });
 
-app.patch('/api/ministries/:id/join-request/:requestId/reject', async (req, res) => {
+app.patch('/api/ministries/:id/join-request/:requestId/reject', requireRoles('Ministry Leader'), async (req, res) => {
   try {
-    const userRole = req.headers['x-user-role'];
-    const userName = (req.headers['x-user-name'] || '').trim();
-    if (userRole !== 'Ministry Leader') {
-      return res.status(403).json({ error: 'Forbidden: Only Ministry Leaders can reject join requests.' });
-    }
+    const userRole = req.user.role;
+    const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
     const ministry = await Ministry.findById(req.params.id);
     if (!ministry) return res.status(404).json({ error: 'Ministry not found' });
 
@@ -1269,7 +1262,7 @@ app.patch('/api/ministries/:id/join-request/:requestId/reject', async (req, res)
   } catch (err) { console.error(err); res.status(400).json({ error: err.message }); }
 });
 
-app.delete('/api/ministries/:id', async (req, res) => {
+app.delete('/api/ministries/:id', requireRoles('Admin'), async (req, res) => {
   try {
     await Ministry.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted successfully" });
@@ -1475,10 +1468,10 @@ const sanitizeBackgroundPref = (data) => {
   return clean;
 };
 
-app.get('/api/users/:id/background', async (req, res) => {
+app.get('/api/users/:id/background', requireAuthentication, async (req, res) => {
   try {
-    if (!req.headers['x-user-id'] && !req.headers['x-member-id']) {
-      return res.status(401).json({ error: 'Unauthorized access: Missing identity headers.' });
+    if (String(req.user._id) !== req.params.id && !['Admin', 'Ministry Leader', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'You can only view your own background preference.' });
     }
     const member = await Member.findById(req.params.id).select('backgroundPreference');
     if (!member) return res.status(404).json({ error: 'Member not found.' });
@@ -1492,16 +1485,12 @@ app.get('/api/users/:id/background', async (req, res) => {
   }
 });
 
-app.put('/api/users/:id/background', async (req, res) => {
+app.put('/api/users/:id/background', requireAuthentication, async (req, res) => {
   try {
-    if (!req.headers['x-user-id'] && !req.headers['x-member-id']) {
-      return res.status(401).json({ error: 'Unauthorized access: Missing identity headers.' });
-    }
     const existing = await Member.findById(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Member not found.' });
 
-    const callerId = String(req.headers['x-user-id'] || req.headers['x-member-id'] || '');
-    if (callerId !== String(req.params.id) && (req.headers['x-user-role'] !== 'Admin' && req.headers['x-user-role'] !== 'Ministry Leader' && req.headers['x-user-role'] !== 'Staff')) {
+    if (String(req.user._id) !== req.params.id && !['Admin', 'Ministry Leader', 'Staff'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden: you can only customize your own background.' });
     }
 
@@ -1526,9 +1515,12 @@ app.put('/api/users/:id/background', async (req, res) => {
 
 
 // --- ATTENDANCE & EVENTS ---
-app.get('/api/attendance', async (req, res) => {
+app.get('/api/attendance', requireAuthentication, async (req, res) => {
   try {
-    const records = await Attendance.find({}).sort({ createdAt: -1 });
+    const query = ['Admin', 'Ministry Leader', 'Staff'].includes(req.user.role)
+      ? {}
+      : { userId: req.user._id };
+    const records = await Attendance.find(query).sort({ createdAt: -1 });
     return res.json(records);
   } catch (err) { 
     console.error("❌ GET Attendance Route Error:", err.message);
@@ -1536,9 +1528,10 @@ app.get('/api/attendance', async (req, res) => {
   }
 });
 
-app.post('/api/attendance', async (req, res) => {
+app.post('/api/attendance', requireAuthentication, async (req, res) => {
   try {
-    let { userId, eventId, date, time, status } = req.body;
+    let { eventId } = req.body;
+    const userId = String(req.user._id);
 
     const rawQrString = req.body.qrData || req.body.text || req.body.data;
     if (rawQrString && typeof rawQrString === 'string' && rawQrString.includes('eventId=')) {
@@ -1546,17 +1539,12 @@ app.post('/api/attendance', async (req, res) => {
       if (queryString) {
         const urlParams = new URLSearchParams(queryString);
         if (!eventId || eventId === 'undefined') eventId = urlParams.get('eventId');
-        if (!userId || userId === 'undefined') userId = urlParams.get('userId');
       }
     }
 
     if (!eventId || eventId === 'undefined' || eventId === 'null') {
       return res.status(400).json({ success: false, message: 'Invalid or missing Event ID sequence.' });
     }
-    if (!userId || userId === 'undefined' || userId === 'null') {
-      return res.status(400).json({ success: false, message: 'Invalid or missing User ID sequence.' });
-    }
-
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return res.status(400).json({ success: false, message: 'That QR code does not point to a valid event. Please scan the current code.' });
     }
@@ -1585,9 +1573,9 @@ app.post('/api/attendance', async (req, res) => {
       userId,
       eventId,
       userName,
-      date: date || getPhDateString(),
-      time: time || getPhTimeString(),
-      status: status || 'Present'
+      date: event.date || getPhDateString(),
+      time: getPhTimeString(),
+      status: 'Present'
     });
 
     await newAttendance.save();
@@ -1604,9 +1592,12 @@ app.post('/api/attendance', async (req, res) => {
   }
 });
 
-app.post('/api/events/:id/toggle-attendance', async (req, res) => {
+app.post('/api/events/:id/toggle-attendance', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
-    const { userId } = req.body;
+    const userId = String(req.body.userId || req.user._id);
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: 'Invalid member ID.' });
+    }
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).send("Event not found");
 
@@ -1663,7 +1654,7 @@ const eventRangesOverlap = (newEvent, existingEvent) => {
   return newRange.start < existingRange.end && existingRange.start < newRange.end;
 };
 
-app.post('/api/events', async (req, res) => {
+app.post('/api/events', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
     const { date, timeStart, timeEnd, room, reservationName, titleSelection } = req.body;
     const normalizedReservation = (reservationName || '').trim();
@@ -1742,7 +1733,7 @@ app.get('/api/locations', async (req, res) => {
   }
 });
 
-app.put('/api/events/:id', async (req, res) => {
+app.put('/api/events/:id', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
     const { date, timeStart, timeEnd, room, reservationName, titleSelection } = req.body;
     const normalizedReservation = (reservationName || '').trim();
@@ -1804,7 +1795,7 @@ app.put('/api/events/:id', async (req, res) => {
   }
 });
 
-app.patch('/api/events/:id/archive', async (req, res) => {
+app.patch('/api/events/:id/archive', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
     const updatedEvent = await Event.findByIdAndUpdate(
       req.params.id,
@@ -1813,15 +1804,15 @@ app.patch('/api/events/:id/archive', async (req, res) => {
     );
     res.json(updatedEvent);
   } catch (err) {
-    doc.status(400).json({ error: "Failed to archive event" });
+    res.status(400).json({ error: "Failed to archive event" });
   }
 });
 
 // --- ATTENDANCE & EVENTS ---
-app.post('/api/events/scan-qr', async (req, res) => {
+app.post('/api/events/scan-qr', requireAuthentication, async (req, res) => {
   try {
     let eventId = req.body.eventId;
-    let userId = req.body.userId;
+    const userId = String(req.user._id);
 
     const rawQrString = req.body.qrData || req.body.text || req.body.data || req.body.qrCode;
     if (rawQrString && typeof rawQrString === 'string' && rawQrString.includes('eventId=')) {
@@ -1832,9 +1823,6 @@ app.post('/api/events/scan-qr', async (req, res) => {
           if (!eventId || eventId === 'undefined') {
             eventId = urlParams.get('eventId');
           }
-          if (!userId || userId === 'undefined') {
-            userId = urlParams.get('userId');
-          }
         }
       } catch (urlErr) {
         console.error("⚠️ Error parsing QR URL string:", urlErr.message);
@@ -1842,14 +1830,12 @@ app.post('/api/events/scan-qr', async (req, res) => {
     }
 
     if (eventId === 'undefined' || !eventId) eventId = undefined;
-    if (userId === 'undefined' || !userId) userId = undefined;
+    console.log("➡️ Processing incoming scan request logic:", { eventId });
 
-    console.log("➡️ Processing incoming scan request logic:", { eventId, userId });
-
-    if (!eventId || !userId) {
+    if (!eventId) {
       return res.status(400).json({ 
         success: false, 
-        message: `Missing parameters. Received eventId: ${eventId}, userId: ${userId}` 
+        message: 'Missing event ID.'
       });
     }
 
@@ -1911,15 +1897,14 @@ const EVENT_IMAGE_MAX_BYTES = 12 * 1024 * 1024;
 const EVENT_IMAGE_MAX_FILES = 60;
 
 const canManageEventMedia = (req) => {
-  const role = req.headers['x-user-role'];
+  const role = req.user?.role;
   return role === 'Admin' || role === 'Ministry Leader' || role === 'Staff';
 };
 
 const getValidEventId = (value) => (mongoose.Types.ObjectId.isValid(value) ? String(value) : null);
 
-app.get('/api/events/:id/images', async (req, res) => {
+app.get('/api/events/:id/images', requireAuthentication, async (req, res) => {
   try {
-    if (!req.headers['x-user-id']) return res.status(401).json({ error: 'Unauthorized access: Missing identity headers.' });
     const eventId = getValidEventId(req.params.id);
     if (!eventId) return res.status(400).json({ error: 'Invalid event reference.' });
     if (!eventImageBucket) return res.status(503).json({ error: 'Image storage is still starting. Please retry shortly.' });
@@ -1940,9 +1925,8 @@ app.get('/api/events/:id/images', async (req, res) => {
   }
 });
 
-app.get('/api/events/:id/images/:imageId', async (req, res) => {
+app.get('/api/events/:id/images/:imageId', requireAuthentication, async (req, res) => {
   try {
-    if (!req.headers['x-user-id']) return res.status(401).json({ error: 'Unauthorized access: Missing identity headers.' });
     const imageId = getValidEventId(req.params.imageId);
     if (!imageId) return res.status(400).json({ error: 'Invalid image reference.' });
     if (!eventImageBucket) return res.status(503).json({ error: 'Image storage is still starting. Please retry shortly.' });
@@ -1961,7 +1945,7 @@ app.get('/api/events/:id/images/:imageId', async (req, res) => {
   }
 });
 
-app.post('/api/events/:id/images', async (req, res) => {
+app.post('/api/events/:id/images', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
     if (!canManageEventMedia(req)) return res.status(403).json({ error: 'Only administrators, ministry leaders, and staff can upload event images.' });
     const eventId = getValidEventId(req.params.id);
@@ -1993,7 +1977,7 @@ app.post('/api/events/:id/images', async (req, res) => {
     const safeName = String(fileName || 'event-photo').replace(/[^\w.\- ]+/g, '_').slice(0, 120);
     const uploadStream = eventImageBucket.openUploadStream(safeName, {
       contentType: String(contentType).toLowerCase(),
-      metadata: { eventId, uploadedBy: String(req.headers['x-user-id'] || '') }
+      metadata: { eventId, uploadedBy: String(req.user._id) }
     });
 
     const fileId = await new Promise((resolve, reject) => {
@@ -2008,8 +1992,8 @@ app.post('/api/events/:id/images', async (req, res) => {
       fileName: safeName,
       contentType: String(contentType).toLowerCase(),
       size: buffer.length,
-      uploadedBy: String(req.headers['x-user-id'] || ''),
-      uploadedByName: String(req.headers['x-user-name'] || '')
+      uploadedBy: String(req.user._id),
+      uploadedByName: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim()
     });
 
     return res.status(201).json({
@@ -2027,7 +2011,7 @@ app.post('/api/events/:id/images', async (req, res) => {
   }
 });
 
-app.delete('/api/events/:id/images/:imageId', async (req, res) => {
+app.delete('/api/events/:id/images/:imageId', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
     if (!canManageEventMedia(req)) return res.status(403).json({ error: 'Only administrators, ministry leaders, and staff can remove event images.' });
     const eventId = getValidEventId(req.params.id);
@@ -2051,19 +2035,13 @@ app.delete('/api/events/:id/images/:imageId', async (req, res) => {
 });
 
 // --- PRAYER ROUTES ---
+app.use('/api/prayers', requireAuthentication);
+
 app.get('/api/prayers', async (req, res) => { 
   try {
-    const loggedInUserId = req.headers['x-user-id'];
-    const loggedInUserRole = req.headers['x-user-role'];
-
-    if (!loggedInUserId) {
-      return res.status(401).json({ error: "Unauthorized access: Missing identity headers." });
-    }
-
-    let query = {};
-    if (loggedInUserRole !== 'Ministry Leader' && loggedInUserRole !== 'Admin') {
-      query = { userId: loggedInUserId };
-    }
+    const query = ['Ministry Leader', 'Admin'].includes(req.user.role)
+      ? {}
+      : { userId: req.user._id };
     const prayers = await Prayer.find(query).sort({ date: -1 });
     res.json(prayers);
   } catch (err) { 
@@ -2074,11 +2052,9 @@ app.get('/api/prayers', async (req, res) => {
 
 app.post('/api/prayers', async (req, res) => {
   try {
-    const { name, initial, text, userId, tags } = req.body;
-    
-    if (!userId) {
-      return res.status(400).json({ error: "A valid userId is required." });
-    }
+    const { initial, text, tags } = req.body;
+    const userId = String(req.user._id);
+    const name = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
 
     let aiFeedback = "";
     if (process.env.PUTER_AUTH_TOKEN && text) {
@@ -2125,14 +2101,8 @@ app.post('/api/prayers', async (req, res) => {
   }
 });
 
-app.patch('/api/prayers/:id/answer', async (req, res) => {
+app.patch('/api/prayers/:id/answer', requireRoles('Ministry Leader', 'Admin'), async (req, res) => {
   try {
-    const loggedInUserRole = req.headers['x-user-role'];
-
-    if (loggedInUserRole !== 'Ministry Leader' && loggedInUserRole !== 'Admin') {
-      return res.status(403).json({ error: "Forbidden: Only Ministry Leaders can update prayer states." });
-    }
-
     const prayer = await Prayer.findById(req.params.id);
     if (!prayer) {
       return res.status(404).json({ error: "Prayer request not found." });
@@ -2225,19 +2195,21 @@ app.patch('/api/notifications/clear', async (req, res) => {
   }
 });
 
+app.use('/api/advising', requireAuthentication);
+
 app.post('/api/advising', async (req, res) => {
   try {
-    const { name, title, concern, userId, userRole } = req.body;
-    if (!name || !title || !concern || !userId) {
-      return res.status(400).json({ error: 'Name, title, concern, and userId are required.' });
+    const { title, concern } = req.body;
+    if (!title || !concern) {
+      return res.status(400).json({ error: 'Title and concern are required.' });
     }
 
     const newAdvising = new AdvisingRequest({
-      name,
+      name: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim(),
       title,
       concern,
-      userId,
-      userRole: userRole || 'Member',
+      userId: req.user._id,
+      userRole: req.user.role,
       status: 'Pending'
     });
 
@@ -2251,11 +2223,9 @@ app.post('/api/advising', async (req, res) => {
 
 app.get('/api/advising', async (req, res) => {
   try {
-    const loggedInUserId = req.headers['x-user-id'];
-    const loggedInUserRole = req.headers['x-user-role'];
-    const query = (loggedInUserRole === 'Admin' || loggedInUserRole === 'Ministry Leader')
+    const query = ['Admin', 'Ministry Leader'].includes(req.user.role)
       ? {}
-      : { userId: loggedInUserId };
+      : { userId: req.user._id };
 
     const entries = await AdvisingRequest.find(query).sort({ createdAt: -1 });
     res.json(entries);
@@ -2265,14 +2235,9 @@ app.get('/api/advising', async (req, res) => {
   }
 });
 
-app.patch('/api/advising/:id/accept', async (req, res) => {
+app.patch('/api/advising/:id/accept', requireRoles('Ministry Leader'), async (req, res) => {
   try {
-    const loggedInUserRole = req.headers['x-user-role'];
-    if (loggedInUserRole !== 'Ministry Leader') {
-      return res.status(403).json({ error: 'Forbidden: Only Ministry Leaders may accept advising requests.' });
-    }
-
-    const { date, time, location, leaderId, leaderName } = req.body;
+    const { date, time, location } = req.body;
     if (!date || !time || !location) {
       return res.status(400).json({ error: 'Date, time, and location are required to accept a request.' });
     }
@@ -2289,8 +2254,8 @@ app.patch('/api/advising/:id/accept', async (req, res) => {
     requestItem.acceptedDate = date;
     requestItem.acceptedTime = time;
     requestItem.acceptedLocation = location;
-    requestItem.acceptedBy = leaderName || '';
-    requestItem.acceptedById = leaderId || '';
+    requestItem.acceptedBy = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
+    requestItem.acceptedById = String(req.user._id);
     await requestItem.save();
 
     res.json(requestItem);
@@ -2300,17 +2265,9 @@ app.patch('/api/advising/:id/accept', async (req, res) => {
   }
 });
 
-app.patch('/api/advising/:id/ignore', async (req, res) => {
+app.patch('/api/advising/:id/ignore', requireRoles('Ministry Leader'), async (req, res) => {
   try {
-    const loggedInUserRole = req.headers['x-user-role'];
-    if (loggedInUserRole !== 'Ministry Leader') {
-      return res.status(403).json({ error: 'Forbidden: Only Ministry Leaders may ignore advising requests.' });
-    }
-
-    const { leaderId } = req.body;
-    if (!leaderId) {
-      return res.status(400).json({ error: 'Leader ID is required when ignoring a request.' });
-    }
+    const leaderId = String(req.user._id);
 
     const requestItem = await AdvisingRequest.findById(req.params.id);
     if (!requestItem) {
@@ -2355,7 +2312,7 @@ app.get('/api/settings/announcement/history', async (req, res) => {
   }
 });
 
-app.post('/api/settings/announcement', async (req, res) => {
+app.post('/api/settings/announcement', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
     const text = String(req.body.text || '').trim();
     if (!text) return res.status(400).json({ error: 'Announcement text is required.' });
@@ -2367,7 +2324,7 @@ app.post('/api/settings/announcement', async (req, res) => {
     );
     await BulletinAnnouncement.create({
       text,
-      announcedBy: String(req.body.userName || 'Church Administration').trim()
+      announcedBy: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Church Administration'
     });
     res.json({ success: true });
   } catch (err) {
@@ -2378,7 +2335,7 @@ app.post('/api/settings/announcement', async (req, res) => {
 // --- AI ROUTES ---
 const { OpenAI } = require('openai');
 
-app.post('/api/ai/analyze-schedule', async (req, res) => {
+app.post('/api/ai/analyze-schedule', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   try {
     const { userRequest, currentEvents } = req.body;
 
@@ -2489,7 +2446,7 @@ const computeMetricsFallback = (focus, data) => {
   return `System Analysis: The congregation has ${data.totalMembers || 0} members across ${data.activeMinistries || 0} ministries with ${data.upcomingEvents || 0} upcoming events. Review event timelines and member engagement metrics to support community plans.`;
 };
 
-app.post('/api/ai/analyze-metrics', async (req, res) => {
+app.post('/api/ai/analyze-metrics', requireAuthentication, requireRoles('Admin', 'Ministry Leader', 'Staff'), async (req, res) => {
   const {
     focus,
     totalMembers,
