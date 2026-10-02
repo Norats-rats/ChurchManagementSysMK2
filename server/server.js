@@ -1396,10 +1396,46 @@ app.patch('/api/members/:id', async (req, res) => {
       return res.status(403).json({ error: 'Only administrators can change member access or credentials.' });
     }
     if (userRole === 'Ministry Leader' && ('ministries' in data || 'ministry' in data)) {
-      const ministry = await Ministry.findOne({
-        name: new RegExp(`^${(data.ministries && data.ministries[0] ? data.ministries[0] : data.ministry || '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
-      });
-      if (!ministry || !isMinistryManager(ministry, userRole, userName)) {
+      const normalizeMinistries = values => [...new Set(
+        values.map(value => String(value || '').trim())
+          .filter(value => value && value.toLowerCase() !== 'none')
+          .map(value => value.toLowerCase())
+      )];
+      const currentMinistries = normalizeMinistries(
+        Array.isArray(existingMember.ministries)
+          ? existingMember.ministries
+          : existingMember.ministry ? [existingMember.ministry] : []
+      );
+      const requestedMinistryValues = Array.isArray(data.ministries)
+        ? data.ministries
+        : data.ministries
+          ? [data.ministries]
+          : data.ministry ? [data.ministry] : [];
+      const requestedMinistries = normalizeMinistries(requestedMinistryValues);
+      const currentSet = new Set(currentMinistries);
+      const requestedSet = new Set(requestedMinistries);
+      const changedMinistries = [
+        ...currentMinistries.filter(name => !requestedSet.has(name)),
+        ...requestedMinistries.filter(name => !currentSet.has(name))
+      ];
+      const ministriesToAuthorize = changedMinistries.length
+        ? changedMinistries
+        : requestedMinistries;
+      if (!ministriesToAuthorize.length) {
+        return res.status(403).json({ error: 'Forbidden: you can only manage members of your own ministry.' });
+      }
+      let managesRequestedMinistry = false;
+      for (const name of ministriesToAuthorize) {
+        const ministry = await Ministry.findOne({
+          name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+        });
+        const managesMinistry = ministry && isMinistryManager(ministry, userRole, userName);
+        if (managesMinistry) managesRequestedMinistry = true;
+        if (changedMinistries.length && !managesMinistry) {
+          return res.status(403).json({ error: 'Forbidden: you can only manage members of your own ministry.' });
+        }
+      }
+      if (!changedMinistries.length && !managesRequestedMinistry) {
         return res.status(403).json({ error: 'Forbidden: you can only manage members of your own ministry.' });
       }
     } else if (userRole !== 'Admin' && userRole !== 'Ministry Leader' && ('ministries' in data || 'ministry' in data)) {
