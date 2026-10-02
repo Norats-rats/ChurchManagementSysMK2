@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { authenticatedFetch } from '../../api';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import { canManageMinistries } from '../../permissions';
 
@@ -56,7 +57,7 @@ const Ministries = ({ role, user }) => {
     }
     setLoading(true);
     try {
-      const minRes = await fetch(`${API_BASE}/api/ministries`, {
+      const minRes = await authenticatedFetch(`${API_BASE}/api/ministries`, {
         headers: { 'x-user-role': role }
       });
       if (!minRes.ok) throw new Error("Failed to fetch ministries");
@@ -65,7 +66,7 @@ const Ministries = ({ role, user }) => {
       
       setMinistryList(rawList);
 
-      const userRes = await fetch(`${API_BASE}/api/members`);
+      const userRes = await authenticatedFetch(`${API_BASE}/api/members`);
       if (!userRes.ok) throw new Error("Failed to fetch members");
       const userData = await userRes.json();
       
@@ -93,7 +94,7 @@ const Ministries = ({ role, user }) => {
     e.preventDefault();
     try {
       const submissionData = { ...formData, members: 0, status: 'Active' };
-      const res = await fetch(`${API_BASE}/api/ministries`, {
+      const res = await authenticatedFetch(`${API_BASE}/api/ministries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submissionData)
@@ -112,7 +113,7 @@ const Ministries = ({ role, user }) => {
 
   const handleUpdateLeader = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/api/ministries/${id}`, {
+      const res = await authenticatedFetch(`${API_BASE}/api/ministries/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +135,7 @@ const Ministries = ({ role, user }) => {
     
     askConfirmation(`Are you sure you want to ${actionText} this ministry?`, async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}`, {
+        const res = await authenticatedFetch(`${API_BASE}/api/ministries/${ministry._id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -159,7 +160,7 @@ const Ministries = ({ role, user }) => {
       const nextMinistries = currentMinistries.includes(ministryName)
         ? currentMinistries
         : [...currentMinistries, ministryName];
-      const res = await fetch(`${API_BASE}/api/members/${memberId}`, {
+      const res = await authenticatedFetch(`${API_BASE}/api/members/${memberId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -182,7 +183,7 @@ const Ministries = ({ role, user }) => {
         const member = allMembers.find(m => m._id === memberId);
         const currentMinistries = normalizeMemberMinistries(member);
         const nextMinistries = currentMinistries.filter(name => name !== ministryName);
-        const res = await fetch(`${API_BASE}/api/members/${memberId}`, {
+        const res = await authenticatedFetch(`${API_BASE}/api/members/${memberId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -204,7 +205,7 @@ const Ministries = ({ role, user }) => {
     try {
       const member = allMembers.find(m => m._id === memberId);
       const assistantName = `${member?.firstName || ''} ${member?.lastName || ''}`.trim();
-      const res = await fetch(`${API_BASE}/api/ministries/${ministryId}/assistants`, {
+      const res = await authenticatedFetch(`${API_BASE}/api/ministries/${ministryId}/assistants`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -226,7 +227,7 @@ const Ministries = ({ role, user }) => {
   const handleRemoveAssistant = async (ministryId, memberId) => {
     askConfirmation("Are you sure you want to remove this assistant?", async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/ministries/${ministryId}/assistants`, {
+        const res = await authenticatedFetch(`${API_BASE}/api/ministries/${ministryId}/assistants`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -271,7 +272,7 @@ const Ministries = ({ role, user }) => {
         bodyData.append('author', userName);
         bodyData.append('attachment', announcementFile);
 
-        res = await fetch(`${API_BASE}/api/ministries/${ministry._id}/announcement`, {
+        res = await authenticatedFetch(`${API_BASE}/api/ministries/${ministry._id}/announcement`, {
           method: 'POST',
           headers: {
             'x-user-role': role,
@@ -280,7 +281,7 @@ const Ministries = ({ role, user }) => {
           body: bodyData
         });
       } else {
-        res = await fetch(`${API_BASE}/api/ministries/${ministry._id}/announcement`, {
+        res = await authenticatedFetch(`${API_BASE}/api/ministries/${ministry._id}/announcement`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -307,7 +308,7 @@ const Ministries = ({ role, user }) => {
     if (!user || requestInProgress) return;
     setRequestInProgress(true);
     try {
-      const res = await fetch(`${API_BASE}/api/ministries/${ministry._id}/join-request`, {
+      const res = await authenticatedFetch(`${API_BASE}/api/ministries/${ministry._id}/join-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -332,7 +333,7 @@ const Ministries = ({ role, user }) => {
 
   const updateJoinRequest = async (ministryId, requestId, action) => {
     try {
-      const res = await fetch(`${API_BASE}/api/ministries/${ministryId}/join-request/${requestId}/${action}`, {
+      const res = await authenticatedFetch(`${API_BASE}/api/ministries/${ministryId}/join-request/${requestId}/${action}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

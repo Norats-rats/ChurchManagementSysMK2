@@ -25,6 +25,14 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+export const authenticatedFetch = (url, options = {}) => {
+  const token = localStorage.getItem('churchAccessToken')
+    || sessionStorage.getItem('churchAccessToken');
+  const headers = new Headers(options.headers || {});
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(url, { ...options, headers });
+};
+
 export const api = {
 
   // Inventory
