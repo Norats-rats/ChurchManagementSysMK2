@@ -255,6 +255,10 @@ const Session = mongoose.model('sessions', new mongoose.Schema({
 
 const createAccessToken = () => crypto.randomBytes(32).toString('base64url');
 const hashAccessToken = token => crypto.createHash('sha256').update(token).digest('hex');
+const isActiveVerifiedAccount = user => {
+  const status = String(user?.status || '').trim().toLowerCase();
+  return Boolean(user?.isVerified && (!status || status === 'active'));
+};
 
 const requireAuthentication = async (req, res, next) => {
   const authorization = req.get('authorization') || '';
@@ -274,7 +278,7 @@ const requireAuthentication = async (req, res, next) => {
 
     const user = await Member.findById(session.userId)
       .select('-password -otp -otpHash -otpExpiresAt');
-    if (!user || user.status !== 'Active' || !user.isVerified) {
+    if (!isActiveVerifiedAccount(user)) {
       await Session.deleteOne({ _id: session._id });
       return res.status(401).json({ error: 'An active, verified account is required.' });
     }
@@ -572,7 +576,7 @@ app.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
-if (user.status === 'Deactivated' || user.status === 'Inactive' || !user.isVerified) {
+if (!isActiveVerifiedAccount(user)) {
   return res.status(403).json({ 
     success: false, 
     message: "Your account is inactive, deactivated, or not yet verified." 
