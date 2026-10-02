@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../../api';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';
 import { canManageEvents, canUploadEventImages } from '../../permissions';
@@ -11,7 +11,7 @@ import {
 } from '../../utils/philippinesTime';
 import EventHistoryModal from './eventhistory';
 
-const EventTab = ({ role, userId, user }) => {
+const EventTab = ({ role, userId, user, searchRequest }) => {
   const [events, setEvents] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +19,9 @@ const EventTab = ({ role, userId, user }) => {
   const [hoveredEventId, setHoveredEventId] = useState(null);
   const [historyTarget, setHistoryTarget] = useState(null);
   const [historyPanel, setHistoryPanel] = useState('attendance');
+  const [searchFocusedEventId, setSearchFocusedEventId] = useState(null);
+  const handledSearchRequestRef = useRef(null);
+  const searchFocusTimerRef = useRef(null);
 
   const [currentCalendarDate, setCurrentCalendarDate] = useState(() => getPhTodayDateObject());
   const [selectedDate, setSelectedDate] = useState(() => getPhTodayDateObject());
@@ -372,6 +375,35 @@ const EventTab = ({ role, userId, user }) => {
     setHistoryTarget(event);
   };
 
+  useEffect(() => {
+    const eventId = searchRequest?.eventId;
+    const requestId = searchRequest?.requestId;
+    if (!eventId || !events.length || handledSearchRequestRef.current === requestId) return;
+    const event = events.find(item => String(item._id) === String(eventId));
+    if (!event) return;
+    handledSearchRequestRef.current = requestId;
+
+    const eventDate = normalizeDateString(event.date);
+    if (eventDate) {
+      const selected = new Date(`${eventDate}T00:00:00`);
+      setSelectedDate(selected);
+      setCurrentCalendarDate(new Date(selected.getFullYear(), selected.getMonth(), 1));
+    }
+
+    setSearchFocusedEventId(String(event._id));
+    if (['ended', 'archived'].includes(event.status)) {
+      openHistory(event, canManage ? 'attendance' : canUploadImages ? 'upload' : 'gallery');
+    }
+
+    window.clearTimeout(searchFocusTimerRef.current);
+    searchFocusTimerRef.current = window.setTimeout(() => {
+      document.getElementById(`event-card-${event._id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => setSearchFocusedEventId(null), 2200);
+    }, 100);
+  }, [searchRequest, events, canManage, canUploadImages]);
+
+  useEffect(() => () => window.clearTimeout(searchFocusTimerRef.current), []);
+
   const styles = {
     container: { padding: '20px', backgroundColor: '#f7fafc', minHeight: '100vh', display: 'flex', gap: '25px', alignItems: 'flex-start', flexWrap: 'wrap' },
     
@@ -660,11 +692,12 @@ const EventTab = ({ role, userId, user }) => {
               return (
                 <div
                   key={event._id}
+                  id={`event-card-${event._id}`}
                   style={styles.cardFrame}
                   onMouseEnter={() => setHoveredEventId(event._id)}
                   onMouseLeave={() => setHoveredEventId(prev => (prev === event._id ? null : prev))}
                 >
-                  <div style={styles.card(isUnavailable)}>
+                  <div style={{ ...styles.card(isUnavailable), ...(searchFocusedEventId === String(event._id) ? { outline: '3px solid #16a34a', outlineOffset: '3px' } : {}) }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <span style={styles.badge(event.category, isUnavailable)}>

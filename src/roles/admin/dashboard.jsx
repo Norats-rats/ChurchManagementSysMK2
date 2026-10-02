@@ -232,7 +232,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       kind: 'Ministry', title: item.name, detail: item.leader ? `Leader: ${item.leader}` : 'Ministry', route: '/ministry'
     })),
     ...searchIndex.events.filter(item => `${item.titleSelection || ''} ${item.title || ''} ${item.reservationName || ''} ${item.category || ''} ${item.room || ''} ${item.date || ''}`.toLowerCase().includes(searchTerm)).slice(0, 4).map(item => ({
-      kind: 'Event', title: item.titleSelection || item.title || item.reservationName || 'Church event', detail: [item.date, item.room].filter(Boolean).join(' · '), route: '/events'
+      kind: 'Event', id: item._id, title: item.titleSelection || item.title || item.reservationName || 'Church event', detail: [item.date, item.room].filter(Boolean).join(' · '), route: '/events'
     })),
     ...searchIndex.inventory.filter(item => `${item.itemName || ''} ${item.brand || ''} ${item.category || ''} ${item.location || ''} ${item.assignedTo || ''}`.toLowerCase().includes(searchTerm)).slice(0, 4).map(item => ({
       kind: 'Inventory', title: item.itemName, detail: [item.category, item.location].filter(Boolean).join(' · '), route: '/inventory'
@@ -245,6 +245,8 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
       sessionStorage.setItem('pendingBibleSearch', JSON.stringify(result.passage));
       window.dispatchEvent(new Event('bible-search-requested'));
       navigate('/bible');
+    } else if (result.kind === 'Event') {
+      navigate('/events', { state: { eventSearchRequest: { eventId: result.id, requestId: Date.now() } } });
     } else {
       navigate(result.route);
     }
@@ -1306,7 +1308,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           {currentTab === 'ebible' && <EBible userId={user._id} />}
           {currentTab === 'profile' && <Profile userId={user._id} currentUserId={user._id} />}
           {currentTab === 'members' && hasPermission(role, 'members') && <MemberForm />}
-          {currentTab === 'events' && hasPermission(role, 'events') && <EventTab role={role} userId={user._id} user={user} />}
+          {currentTab === 'events' && hasPermission(role, 'events') && <EventTab role={role} userId={user._id} user={user} searchRequest={location.state?.eventSearchRequest} />}
           {currentTab === 'attendance' && hasPermission(role, 'attendance') && <AttendanceTab role={role} userId={user._id} user={user} />}
           {currentTab === 'ministries' && hasPermission(role, 'ministries') && <Ministries role={role} user={user} />}
           {currentTab === 'prayers' && hasPermission(role, 'prayers') && <Prayers role={role} user={user} />}
