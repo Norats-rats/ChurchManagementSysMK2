@@ -26,7 +26,11 @@ const Ministries = ({ role, user }) => {
   
   const [requestInProgress, setRequestInProgress] = useState(false);
   const [editLeaderData, setEditLeaderData] = useState('');
+  const [leaderSearch, setLeaderSearch] = useState(null);
   const [selectedMemberId, setSelectedMemberId] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
+  const [selectedAssistantId, setSelectedAssistantId] = useState('');
+  const [assistantSearch, setAssistantSearch] = useState('');
   const { showFeedback, askConfirmation, FeedbackModal } = useFeedbackModal();
 
   const [formData, setFormData] = useState({ 
@@ -171,6 +175,7 @@ const Ministries = ({ role, user }) => {
       });
       if (res.ok) {
         setSelectedMemberId('');
+        setMemberSearch('');
         fetchInitialData();
         showFeedback('Member added to ministry successfully.');
       }
@@ -218,7 +223,8 @@ const Ministries = ({ role, user }) => {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || 'Failed to invite assistant');
       }
-      setSelectedMemberId('');
+      setSelectedAssistantId('');
+      setAssistantSearch('');
       fetchInitialData();
       showFeedback('Assistant invited successfully.');
     } catch (err) { showFeedback(err.message || "Failed to invite assistant"); }
@@ -530,23 +536,28 @@ const Ministries = ({ role, user }) => {
               <div style={{ ...cardStyle, marginBottom: '20px' }}>
                 <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#475569' }}>ADD NEW MEMBER</h4>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <select 
-                    style={{ ...selectStyle, flex: 1 }}
-                    value={selectedMemberId}
-                    onChange={e => setSelectedMemberId(e.target.value)}
-                  >
-                    <option value="">Select a member to add...</option>
-                    {allMembers
+                  <SearchableSelect
+                    options={allMembers
                       .filter(mem => {
                         const memberMinistries = normalizeMemberMinistries(mem);
                         return !memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
                       })
-                      .map(mem => (
-                        <option key={mem._id} value={mem._id}>
-                          {mem.firstName} {mem.lastName} ({mem.role || 'Member'})
-                        </option>
-                      ))}
-                  </select>
+                      .map(mem => ({
+                        value: mem._id,
+                        label: `${mem.firstName} ${mem.lastName} (${mem.role || 'Member'})`
+                      }))}
+                    value={selectedMemberId}
+                    searchTerm={memberSearch}
+                    placeholder="Search members to add..."
+                    onSearchTermChange={value => {
+                      setMemberSearch(value);
+                      setSelectedMemberId('');
+                    }}
+                    onSelect={option => {
+                      setSelectedMemberId(option.value);
+                      setMemberSearch(option.label);
+                    }}
+                  />
                   <button 
                     type="button"
                     onClick={() => handleAddMember(selectedMemberId, m.name)}
@@ -629,21 +640,27 @@ const Ministries = ({ role, user }) => {
                 <div style={{ marginBottom: '20px' }}>
                   <label style={labelStyle}>Update Leader</label>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                    <select 
-                      style={selectStyle} 
-                      value={editLeaderData || m.leader || ''} 
-                      onChange={e => setEditLeaderData(e.target.value)}
-                    >
-                      <option value="">Select a Leader</option>
-                      {leaderOptions.map(leader => (
-                        <option key={leader._id} value={`${leader.firstName} ${leader.lastName}`}>
-                          {leader.firstName} {leader.lastName}
-                        </option>
-                      ))}
-                    </select>
+                    <SearchableSelect
+                      options={leaderOptions.map(leader => ({
+                        value: `${leader.firstName} ${leader.lastName}`,
+                        label: `${leader.firstName} ${leader.lastName}`
+                      }))}
+                      value={editLeaderData}
+                      searchTerm={leaderSearch ?? (editLeaderData || m.leader || '')}
+                      placeholder="Search ministry leaders..."
+                      onSearchTermChange={value => {
+                        setLeaderSearch(value);
+                        setEditLeaderData('');
+                      }}
+                      onSelect={option => {
+                        setEditLeaderData(option.value);
+                        setLeaderSearch(option.label);
+                      }}
+                    />
                     <button 
                       onClick={() => handleUpdateLeader(m._id)}
                       style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary, #2563eb)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                      disabled={!editLeaderData}
                     >
                       Save Leader
                     </button>
@@ -658,29 +675,34 @@ const Ministries = ({ role, user }) => {
                     Invite a ministry member to help approve join requests and manage members.
                   </p>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <select 
-                      style={{ ...selectStyle, flex: 1 }}
-                      value={selectedMemberId}
-                      onChange={e => setSelectedMemberId(e.target.value)}
-                    >
-                      <option value="">Select a ministry member to invite...</option>
-                      {allMembers
+                    <SearchableSelect
+                      options={allMembers
                         .filter(mem => {
                           const memberMinistries = normalizeMemberMinistries(mem);
                           const isMember = memberMinistries.some(min => min && m.name && min.trim().toLowerCase() === m.name.trim().toLowerCase());
                           const isAlreadyAssistant = (m.assistants || []).some(a => a.userId === mem._id);
                           return isMember && !isAlreadyAssistant;
                         })
-                        .map(mem => (
-                          <option key={mem._id} value={mem._id}>
-                            {mem.firstName} {mem.lastName} ({mem.role || 'Member'})
-                          </option>
-                        ))}
-                    </select>
+                        .map(mem => ({
+                          value: mem._id,
+                          label: `${mem.firstName} ${mem.lastName} (${mem.role || 'Member'})`
+                        }))}
+                      value={selectedAssistantId}
+                      searchTerm={assistantSearch}
+                      placeholder="Search ministry members to invite..."
+                      onSearchTermChange={value => {
+                        setAssistantSearch(value);
+                        setSelectedAssistantId('');
+                      }}
+                      onSelect={option => {
+                        setSelectedAssistantId(option.value);
+                        setAssistantSearch(option.label);
+                      }}
+                    />
                     <button 
-                      onClick={() => handleAddAssistant(m._id, selectedMemberId)}
+                      onClick={() => handleAddAssistant(m._id, selectedAssistantId)}
                       style={{ padding: '10px 18px', backgroundColor: 'var(--color-primary, #2563eb)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-                      disabled={!selectedMemberId}
+                      disabled={!selectedAssistantId}
                     >
                       Invite
                     </button>
@@ -859,6 +881,76 @@ const Ministries = ({ role, user }) => {
         </div>
       )}
       <FeedbackModal />
+    </div>
+  );
+};
+
+const SearchableSelect = ({ options, value, searchTerm, placeholder, onSearchTermChange, onSelect }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredOptions = options.filter(option => option.label.toLowerCase().includes(normalizedSearch));
+
+  return (
+    <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+      <input
+        type="text"
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-autocomplete="list"
+        placeholder={placeholder}
+        value={searchTerm}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        onChange={event => onSearchTermChange(event.target.value)}
+        style={{ ...inputStyle, width: '100%' }}
+      />
+      {isOpen && (
+        <div
+          role="listbox"
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            maxHeight: '180px',
+            overflowY: 'auto',
+            backgroundColor: '#fff',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            boxShadow: '0 4px 10px rgba(15, 23, 42, 0.12)',
+            zIndex: 20
+          }}
+        >
+          {filteredOptions.length > 0 ? filteredOptions.map(option => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              onMouseDown={event => event.preventDefault()}
+              onClick={() => {
+                onSelect(option);
+                setIsOpen(false);
+              }}
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '9px 10px',
+                border: 'none',
+                borderBottom: '1px solid #f1f5f9',
+                backgroundColor: option.value === value ? '#eff6ff' : '#fff',
+                color: '#1e293b',
+                textAlign: 'left',
+                cursor: 'pointer'
+              }}
+            >
+              {option.label}
+            </button>
+          )) : (
+            <div style={{ padding: '10px', color: '#64748b', fontSize: '13px' }}>No matching results.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
