@@ -84,7 +84,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
   };
 
   return (
-    <div className="main-container">
+    <main className="main-container">
       <div className="login-card">
         <h3 className="welcome-text">{step === 1 ? "Forgot Password" : "Reset Password"}</h3>
         <p className="instruction-text">
@@ -94,8 +94,9 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
         {step === 1 ? (
           <form onSubmit={handleRequestReset}>
             <div className="input-group">
-              <label>Email Address</label>
+              <label htmlFor="reset-email">Email Address</label>
               <input 
+                id="reset-email"
                 type="email" 
                 placeholder="Enter your email"
                 value={email} 
@@ -108,8 +109,9 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
         ) : (
           <form onSubmit={handleResetSubmit}>
             <div className="input-group">
-              <label>Reset Code</label>
+              <label htmlFor="reset-code">Reset Code</label>
               <input 
+                id="reset-code"
                 type="text" 
                 placeholder="000000" 
                 onChange={(e) => setOtp(e.target.value)} 
@@ -117,8 +119,9 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
               />
             </div>
             <div className="input-group">
-              <label>New Password</label>
+              <label htmlFor="new-password">New Password</label>
               <input 
+                id="new-password"
                 type="password" 
                 placeholder="Min. 7 characters" 
                 value={newPassword}
@@ -145,7 +148,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
         </button>
         <FeedbackModal />
       </div>
-    </div>
+    </main>
   );
 };
 
@@ -176,7 +179,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
   };
 
   return (
-    <div className="main-container">
+    <main className="main-container">
       <div className="header-section">
         <div className="logo-circle">
           <img src={churchLogo} alt="Church Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} />
@@ -193,10 +196,11 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
 
         <form onSubmit={handleLogin}>
           <div className="input-group">
-            <label>Email Address</label>
+            <label htmlFor="login-email">Email Address</label>
             <div className="input-wrapper">
               <span className="input-icon">✉</span>
               <input 
+                id="login-email"
                 type="email" 
                 placeholder="Enter your email"
                 value={email} 
@@ -207,10 +211,12 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
           </div>
 
           <div className="input-group">
-            <label>Password</label>
+            <label htmlFor="login-password">Password</label>
             <div className="input-wrapper">
               <span className="input-icon">🔒</span>
               <input 
+                id="login-password"
+                className="password-input"
                 type={showPassword ? "text" : "password"} 
                 placeholder="Enter your password"
                 value={password} 
@@ -225,8 +231,10 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
                 type="button" 
                 className="toggle-password"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
               >
-                {showPassword ? '👁️‍🗨️' : '👁️'}
+                <span aria-hidden="true">{showPassword ? '👁️‍🗨️' : '👁️'}</span>
               </button>
             </div>
             {passwordError && (
@@ -260,7 +268,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
           </button>
         </p>
       </div>
-    </div>
+    </main>
   );
 };
 
