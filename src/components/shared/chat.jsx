@@ -184,6 +184,9 @@ const Chat = ({ user }) => {
     askConfirmation(confirmMessage, async () => {
       try {
         await api.deleteChatConversation(conversation._id, user._id);
+        setConversations(current => current.filter(item => String(item._id) !== String(conversation._id)));
+        setMessages([]);
+        setSelectedId(null);
         await loadConversations(false);
         showFeedback(successMessage);
       } catch (err) {
