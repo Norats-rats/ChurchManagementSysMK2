@@ -17,6 +17,22 @@ import {
   usePhClock
 } from '../../utils/philippinesTime';
 
+const QR_GRACE_PERIOD_MS = 60 * 60 * 1000;
+
+const getEventEndTime = (event) => {
+  const recordedEnd = event.endedAt ? new Date(event.endedAt).getTime() : NaN;
+  if (Number.isFinite(recordedEnd)) return recordedEnd;
+
+  const eventDate = normalizeDateString(event.date);
+  if (!eventDate) return 0;
+  const legacyTimes = String(event.time || '').split('-');
+  const startTime = event.timeStart || legacyTimes[0]?.trim();
+  const endTime = event.timeEnd || legacyTimes[1]?.trim() || '23:59';
+  const endAt = phWallClockToMillis(eventDate, endTime);
+  const startAt = startTime ? phWallClockToMillis(eventDate, startTime) : 0;
+  return startTime && endAt < startAt ? endAt + 24 * 60 * 60 * 1000 : endAt;
+};
+
 const AttendanceTab = ({ role, userId, user }) => {
   const [checkIns, setCheckIns] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
@@ -42,7 +58,7 @@ const AttendanceTab = ({ role, userId, user }) => {
 
   const canManage = canManageAttendance(role);
   const { showFeedback, FeedbackModal } = useFeedbackModal();
-  const { todayStr, timeStr: phClockTime } = usePhClock();
+  const { nowMs, todayStr, timeStr: phClockTime } = usePhClock();
   const todayLabel = formatPhDateObject(getPhTodayDateObject());
 
   const isPhTodayLog = (record) => {
@@ -85,8 +101,9 @@ const AttendanceTab = ({ role, userId, user }) => {
   const [selectedTodayEventId, setSelectedTodayEventId] = useState(null);
 
   const todaysEvents = upcomingEvents.filter(event => {
-    if (!event.date) return false;
-    return isSamePhDay(event.date, new Date());
+    if (!event.date || event.status === 'archived' || !isSamePhDay(event.date, new Date(nowMs))) return false;
+    const eventEndTime = getEventEndTime(event);
+    return eventEndTime > 0 && nowMs < eventEndTime + QR_GRACE_PERIOD_MS;
   });
 
   const [sidebarExpanded, setSidebarExpanded] = useState(false);

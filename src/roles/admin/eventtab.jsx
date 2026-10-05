@@ -7,9 +7,33 @@ import {
   formatPhDateObject,
   getPhDateString,
   getPhTodayDateObject,
-  normalizeDateString
+  normalizeDateString,
+  phWallClockToMillis
 } from '../../utils/philippinesTime';
 import EventHistoryModal from './eventhistory';
+
+const EVENT_HISTORY_GRACE_MS = 24 * 60 * 60 * 1000;
+
+const getEventEndedAt = (event) => {
+  const recordedEnd = event.endedAt ? new Date(event.endedAt) : null;
+  if (recordedEnd && !Number.isNaN(recordedEnd.getTime())) return recordedEnd;
+
+  const eventDate = normalizeDateString(event.date);
+  if (!eventDate) return null;
+  const legacyTimes = String(event.time || '').split('-');
+  const startTime = event.timeStart || legacyTimes[0]?.trim() || '00:00';
+  const endTime = event.timeEnd || legacyTimes[1]?.trim() || '23:59';
+  const startAt = phWallClockToMillis(eventDate, startTime);
+  const endAt = phWallClockToMillis(eventDate, endTime);
+  return new Date(endAt < startAt ? endAt + EVENT_HISTORY_GRACE_MS : endAt);
+};
+
+const isVisibleInEventHistory = (event) => {
+  if (event.status === 'archived') return true;
+  if (event.status !== 'ended') return false;
+  const endedAt = getEventEndedAt(event);
+  return endedAt && Date.now() - endedAt.getTime() >= EVENT_HISTORY_GRACE_MS;
+};
 
 const EventTab = ({ role, userId, user, searchRequest }) => {
   const [events, setEvents] = useState([]);
@@ -22,6 +46,11 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
   const [searchFocusedEventId, setSearchFocusedEventId] = useState(null);
   const [showEventHistory, setShowEventHistory] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyMonth, setHistoryMonth] = useState('all');
+  const [historyYear, setHistoryYear] = useState('all');
+  const [historyStatus, setHistoryStatus] = useState('all');
+  const [historyView, setHistoryView] = useState('grid');
   const handledSearchRequestRef = useRef(null);
   const searchFocusTimerRef = useRef(null);
   const HISTORY_ITEMS_PER_PAGE = 6;
@@ -397,12 +426,18 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
     setSearchFocusedEventId(String(event._id));
     if (['ended', 'archived'].includes(event.status)) {
       const historyIndex = events
-        .filter(item => ['ended', 'archived'].includes(item.status))
-        .sort((a, b) => new Date(normalizeDateString(b.date)) - new Date(normalizeDateString(a.date)))
+        .filter(isVisibleInEventHistory)
+        .sort((a, b) => getEventEndedAt(b) - getEventEndedAt(a))
         .findIndex(item => String(item._id) === String(event._id));
-      setShowEventHistory(true);
-      setHistoryPage(Math.floor(historyIndex / HISTORY_ITEMS_PER_PAGE) + 1);
-      openHistory(event, canManage ? 'attendance' : canUploadImages ? 'upload' : 'gallery');
+      if (historyIndex >= 0) {
+        setHistorySearch('');
+        setHistoryMonth('all');
+        setHistoryYear('all');
+        setHistoryStatus('all');
+        setShowEventHistory(true);
+        setHistoryPage(Math.floor(historyIndex / HISTORY_ITEMS_PER_PAGE) + 1);
+        openHistory(event, canManage ? 'attendance' : canUploadImages ? 'upload' : 'gallery');
+      }
     }
 
     window.clearTimeout(searchFocusTimerRef.current);
@@ -481,11 +516,24 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
     return sortOrder === 'furthest' ? bTime - aTime : aTime - bTime;
   });
   const historyEvents = events
-    .filter(event => ['ended', 'archived'].includes(event.status))
-    .sort((a, b) => new Date(normalizeDateString(b.date)) - new Date(normalizeDateString(a.date)));
-  const historyTotalPages = Math.max(1, Math.ceil(historyEvents.length / HISTORY_ITEMS_PER_PAGE));
+    .filter(isVisibleInEventHistory)
+    .sort((a, b) => getEventEndedAt(b) - getEventEndedAt(a));
+  const historyYears = [...new Set(historyEvents
+    .map(event => normalizeDateString(event.date).slice(0, 4))
+    .filter(Boolean))].sort((a, b) => Number(b) - Number(a));
+  const normalizedHistorySearch = historySearch.trim().toLowerCase();
+  const filteredHistoryEvents = historyEvents.filter(event => {
+    const eventDate = normalizeDateString(event.date);
+    const searchFields = [event.title, event.reservationName, event.room, event.category, event.role,
+      ...(Array.isArray(event.leadPeople) ? event.leadPeople : [])];
+    return (historyStatus === 'all' || event.status === historyStatus) &&
+      (historyMonth === 'all' || eventDate.slice(5, 7) === historyMonth) &&
+      (historyYear === 'all' || eventDate.slice(0, 4) === historyYear) &&
+      (!normalizedHistorySearch || searchFields.some(value => String(value || '').toLowerCase().includes(normalizedHistorySearch)));
+  });
+  const historyTotalPages = Math.max(1, Math.ceil(filteredHistoryEvents.length / HISTORY_ITEMS_PER_PAGE));
   const safeHistoryPage = Math.min(historyPage, historyTotalPages);
-  const paginatedHistoryEvents = historyEvents.slice(
+  const paginatedHistoryEvents = filteredHistoryEvents.slice(
     (safeHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
     safeHistoryPage * HISTORY_ITEMS_PER_PAGE
   );
@@ -720,32 +768,113 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
             <p style={{ fontSize: '14px', color: '#718096' }}>Loading event history...</p>
           ) : historyEvents.length === 0 ? (
             <div style={{ padding: '32px 16px', textAlign: 'center', background: 'white', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
-              <p style={{ color: '#64748b', margin: 0, fontSize: '14px' }}>No ended or archived events.</p>
+              <p style={{ color: '#64748b', margin: 0, fontSize: '14px' }}>No events have entered history yet.</p>
             </div>
           ) : (
             <>
-              <div style={{ ...styles.grid, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
-                {paginatedHistoryEvents.map(event => {
-                  const isArchived = event.status === 'archived';
-                  return (
-                    <article key={event._id} id={`event-card-${event._id}`} style={{ ...styles.card(true), opacity: 1, filter: 'none', outline: searchFocusedEventId === String(event._id) ? '3px solid #16a34a' : 'none' }}>
-                      <span style={{ ...styles.badge(event.category, true), alignSelf: 'flex-start' }}>{isArchived ? 'Archived' : 'Event Ended'}</span>
-                      <h3 style={{ margin: '10px 0 4px', fontSize: '16px', color: '#1a202c', overflowWrap: 'anywhere' }}>{event.title}</h3>
-                      <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>{formatPhDateObject(new Date(`${normalizeDateString(event.date)}T00:00:00`))}</p>
-                      <div style={styles.infoGrid}>
-                        <span>Time: {event.time || `${event.timeStart || 'N/A'} - ${event.timeEnd || 'N/A'}`}</span>
-                        <span>Location: {event.room || 'No location'}</span>
-                        <span>Attending: {event.attendees?.length || 0}</span>
-                      </div>
-                      <div style={styles.footer}>
-                        <button type="button" onClick={() => openHistory(event, canManage ? 'attendance' : canUploadImages ? 'upload' : 'gallery')} style={styles.historyFooterBtn}>
-                          View Event History
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px' }}>
+                <input
+                  type="search"
+                  aria-label="Search event history"
+                  placeholder="Search event history..."
+                  value={historySearch}
+                  onChange={event => { setHistorySearch(event.target.value); setHistoryPage(1); }}
+                  style={{ ...styles.input, flex: '1 1 220px' }}
+                />
+                <select aria-label="Filter by month" value={historyMonth} onChange={event => { setHistoryMonth(event.target.value); setHistoryPage(1); }} style={{ ...styles.input, flex: '1 1 140px' }}>
+                  <option value="all">All months</option>
+                  {monthNames.map((month, index) => <option key={month} value={String(index + 1).padStart(2, '0')}>{month}</option>)}
+                </select>
+                <select aria-label="Filter by year" value={historyYear} onChange={event => { setHistoryYear(event.target.value); setHistoryPage(1); }} style={{ ...styles.input, flex: '1 1 100px' }}>
+                  <option value="all">All years</option>
+                  {historyYears.map(year => <option key={year} value={year}>{year}</option>)}
+                </select>
+                <select aria-label="Filter by event status" value={historyStatus} onChange={event => { setHistoryStatus(event.target.value); setHistoryPage(1); }} style={{ ...styles.input, flex: '1 1 130px' }}>
+                  <option value="all">Ended and archived</option>
+                  <option value="ended">Ended</option>
+                  <option value="archived">Archived</option>
+                </select>
+                <div role="group" aria-label="History layout" style={{ display: 'flex', gap: '6px' }}>
+                  <button type="button" aria-pressed={historyView === 'grid'} onClick={() => setHistoryView('grid')} style={{ ...styles.historyFooterBtn, width: 'auto', background: historyView === 'grid' ? '#4f46e5' : '#fff', color: historyView === 'grid' ? '#fff' : '#334155' }}>Grid</button>
+                  <button type="button" aria-pressed={historyView === 'list'} onClick={() => setHistoryView('list')} style={{ ...styles.historyFooterBtn, width: 'auto', background: historyView === 'list' ? '#4f46e5' : '#fff', color: historyView === 'list' ? '#fff' : '#334155' }}>List</button>
+                </div>
               </div>
+
+              {filteredHistoryEvents.length === 0 ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', background: 'white', border: '1px dashed #cbd5e1' }}>
+                  <p style={{ color: '#64748b', margin: 0, fontSize: '14px' }}>No events match these filters.</p>
+                </div>
+              ) : historyView === 'grid' ? (
+                <div style={{ ...styles.grid, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
+                  {paginatedHistoryEvents.map(event => {
+                    const isArchived = event.status === 'archived';
+                    const isHovered = hoveredEventId === event._id;
+                    return (
+                      <div
+                        key={event._id}
+                        id={`event-card-${event._id}`}
+                        style={styles.cardFrame}
+                        onMouseEnter={() => setHoveredEventId(event._id)}
+                        onMouseLeave={() => setHoveredEventId(previous => previous === event._id ? null : previous)}
+                      >
+                        <article style={{ ...styles.card(true), opacity: 1, filter: 'none', outline: searchFocusedEventId === String(event._id) ? '3px solid #16a34a' : 'none' }}>
+                          <span style={{ ...styles.badge(event.category, true), alignSelf: 'flex-start' }}>{isArchived ? 'Archived' : 'Event Ended'}</span>
+                          <h3 style={{ margin: '10px 0 4px', fontSize: '16px', color: '#1a202c', overflowWrap: 'anywhere' }}>{event.title}</h3>
+                          <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>{formatPhDateObject(new Date(`${normalizeDateString(event.date)}T00:00:00`))}</p>
+                          <div style={styles.infoGrid}>
+                            <span>Time: {event.time || `${event.timeStart || 'N/A'} - ${event.timeEnd || 'N/A'}`}</span>
+                            <span>Location: {event.room || 'No location'}</span>
+                            <span>Attending: {event.attendees?.length || 0}</span>
+                          </div>
+                          <div style={styles.footer}>
+                            <button type="button" onClick={() => openHistory(event, canManage ? 'attendance' : canUploadImages ? 'upload' : 'gallery')} style={styles.historyFooterBtn}>
+                              View Event History
+                            </button>
+                          </div>
+                        </article>
+                        {isHovered && (
+                          <div style={styles.historyOverlay}>
+                            <span style={styles.historyOverlayTitle}>Event History</span>
+                            {canManage && <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'attendance')}>👥 View Event Attendance</button>}
+                            {canUploadImages && <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'upload')}>📤 Upload Event Images</button>}
+                            <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'gallery')}>🖼️ View Images</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto', background: '#fff', border: '1px solid #e2e8f0' }}>
+                  <table style={{ width: '100%', minWidth: '620px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>
+                        <th style={{ padding: '11px 12px' }}>Event</th>
+                        <th style={{ padding: '11px 12px' }}>Date</th>
+                        <th style={{ padding: '11px 12px' }}>Status</th>
+                        <th style={{ padding: '11px 12px' }}>Location</th>
+                        <th style={{ padding: '11px 12px' }}>Attending</th>
+                        <th style={{ padding: '11px 12px' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedHistoryEvents.map(event => (
+                        <tr key={event._id} id={`event-card-${event._id}`} style={{ borderTop: '1px solid #e2e8f0', outline: searchFocusedEventId === String(event._id) ? '2px solid #16a34a' : 'none' }}>
+                          <td style={{ padding: '11px 12px', color: '#1e293b', fontWeight: 600 }}>{event.title}</td>
+                          <td style={{ padding: '11px 12px', color: '#475569', whiteSpace: 'nowrap' }}>{formatPhDateObject(new Date(`${normalizeDateString(event.date)}T00:00:00`))}</td>
+                          <td style={{ padding: '11px 12px' }}>{event.status === 'archived' ? 'Archived' : 'Ended'}</td>
+                          <td style={{ padding: '11px 12px', color: '#475569' }}>{event.room || 'No location'}</td>
+                          <td style={{ padding: '11px 12px', color: '#475569' }}>{event.attendees?.length || 0}</td>
+                          <td style={{ padding: '11px 12px' }}>
+                            <button type="button" onClick={() => openHistory(event, canManage ? 'attendance' : canUploadImages ? 'upload' : 'gallery')} style={{ ...styles.historyFooterBtn, width: 'auto', whiteSpace: 'nowrap' }}>View history</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               {historyTotalPages > 1 && (
                 <nav aria-label="Event history pages" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '18px' }}>
                   <button
