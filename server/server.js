@@ -39,6 +39,19 @@ const allowedOrigins = [
     "https://ecclsync.org"
   ].filter(Boolean).map(origin => origin.replace(/\/$/, ''));
 
+const getFrontendBaseUrl = requestOrigin => {
+  const configuredUrl = process.env.FRONTEND_URL || process.env.MOBILE_URL;
+  if (configuredUrl) return configuredUrl.replace(/\/$/, '');
+
+  const normalizedOrigin = String(requestOrigin || '').replace(/\/$/, '');
+  const isEcclSyncOrigin = normalizedOrigin === 'https://ecclsync.org'
+    || normalizedOrigin === 'https://www.ecclsync.org'
+    || normalizedOrigin.endsWith('.ecclsync.org');
+  return allowedOrigins.includes(normalizedOrigin) || isEcclSyncOrigin
+    ? normalizedOrigin
+    : 'https://ecclsync.org';
+};
+
 app.use(cors({
   origin: (origin, callback) => {
     const normalizedOrigin = origin?.replace(/\/$/, '');
@@ -193,6 +206,38 @@ const sendOTPEmail = async (email, otp, firstName, isPasswordReset = false) => {
   }
 };
 
+const sendMemberActivationEmail = async (email, activationUrl, firstName) => {
+  try {
+    const safeFirstName = String(firstName || 'there').replace(/[&<>"']/g, character => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[character]);
+    const { data, error } = await resend.emails.send({
+      from: `FBCF Church <${process.env.EMAIL_FROM}>`,
+      to: [email],
+      subject: 'Activate Your Church Account',
+      html: `
+        <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #1e40af;">Welcome, ${safeFirstName}!</h2>
+          <p>Verify your email address to activate your church account.</p>
+          <p style="text-align: center; margin: 28px 0;">
+            <a href="${activationUrl}" style="display: inline-block; padding: 12px 20px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px;">Verify and Activate Account</a>
+          </p>
+          <p>This link expires in 24 hours and can only be used once.</p>
+        </div>
+      `
+    });
+
+    if (error) {
+      console.error('Resend API Error:', error);
+      return { success: false, error };
+    }
+    return { success: true, data };
+  } catch (err) {
+    console.error('Resend System Error:', err);
+    return { success: false, error: err.message };
+  }
+};
+
 let eventImageBucket = null;
 
 mongoose.connect(mongoURI)
@@ -247,6 +292,8 @@ const Member = mongoose.model('members', new mongoose.Schema({
   otp: { type: String, select: false },
   otpHash: { type: String, select: false },
   otpExpiresAt: { type: Date, select: false },
+  verificationTokenHash: { type: String, select: false },
+  verificationTokenExpiresAt: { type: Date, select: false },
   isVerified: { type: Boolean, default: false },
   status: { type: String, default: 'Inactive' }, 
   date: { type: Date, default: Date.now }
@@ -624,6 +671,35 @@ app.post('/verify-otp', async (req, res) => {
     res.json({ success: true, message: "Account verified successfully" });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Unable to verify account.' });
+  }
+});
+
+app.post('/verify-member', async (req, res) => {
+  try {
+    const token = String(req.body.token || '').trim();
+    if (!/^[A-Za-z0-9_-]{40,}$/.test(token)) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired verification link.' });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const member = await Member.findOneAndUpdate({
+      verificationTokenHash: tokenHash,
+      verificationTokenExpiresAt: { $gt: new Date() },
+      status: 'Inactive',
+      isVerified: false
+    }, {
+      $set: { isVerified: true, status: 'Active' },
+      $unset: { verificationTokenHash: '', verificationTokenExpiresAt: '' }
+    }, { new: true });
+
+    if (!member) {
+      return res.status(400).json({ success: false, message: 'This verification link is invalid, expired, or already used.' });
+    }
+
+    res.json({ success: true, message: 'Your account is verified and active.' });
+  } catch (error) {
+    console.error('Member verification failed:', error);
+    res.status(500).json({ success: false, message: 'Unable to verify this account.' });
   }
 });
 
@@ -1423,19 +1499,23 @@ try {
       status: 'Inactive',
       isVerified: false
     };
-    const generatedOtp = crypto.randomInt(100000, 1000000).toString();
-    data.otpHash = await bcrypt.hash(generatedOtp, 10);
-    data.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const verificationToken = crypto.randomBytes(32).toString('base64url');
+    data.verificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    data.verificationTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     data.isVerified = false;
     data.status = 'Inactive';
     const newMember = new Member(data);
     await newMember.save();
-    const emailResult = await sendOTPEmail(data.email, generatedOtp, data.firstName);
+    const activationUrl = new URL('/verify-member', getFrontendBaseUrl(req.get('origin')));
+    activationUrl.searchParams.set('token', verificationToken);
+    const emailResult = await sendMemberActivationEmail(data.email, activationUrl.toString(), data.firstName);
     const out = newMember.toObject();
     delete out.password; // never return password hash
     delete out.otp;
     delete out.otpHash;
     delete out.otpExpiresAt;
+    delete out.verificationTokenHash;
+    delete out.verificationTokenExpiresAt;
     res.status(201).json({ ...out, confirmationSent: emailResult.success });
   } catch (err) { res.status(400).json({ error: "Failed to create record" }); }
 });

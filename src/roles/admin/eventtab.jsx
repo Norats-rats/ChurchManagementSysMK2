@@ -20,8 +20,11 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
   const [historyTarget, setHistoryTarget] = useState(null);
   const [historyPanel, setHistoryPanel] = useState('attendance');
   const [searchFocusedEventId, setSearchFocusedEventId] = useState(null);
+  const [showEventHistory, setShowEventHistory] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
   const handledSearchRequestRef = useRef(null);
   const searchFocusTimerRef = useRef(null);
+  const HISTORY_ITEMS_PER_PAGE = 6;
 
   const [currentCalendarDate, setCurrentCalendarDate] = useState(() => getPhTodayDateObject());
   const [selectedDate, setSelectedDate] = useState(() => getPhTodayDateObject());
@@ -150,6 +153,7 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
   const getEventsForSelectedDate = () => {
     if (!selectedDate) return [];
     return events.filter(event => {
+      if (['ended', 'archived'].includes(event.status)) return false;
       const eventDateText = normalizeDateString(event.date);
       if (!eventDateText) return false;
       const eDate = new Date(`${eventDateText}T00:00:00`);
@@ -392,6 +396,12 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
 
     setSearchFocusedEventId(String(event._id));
     if (['ended', 'archived'].includes(event.status)) {
+      const historyIndex = events
+        .filter(item => ['ended', 'archived'].includes(item.status))
+        .sort((a, b) => new Date(normalizeDateString(b.date)) - new Date(normalizeDateString(a.date)))
+        .findIndex(item => String(item._id) === String(event._id));
+      setShowEventHistory(true);
+      setHistoryPage(Math.floor(historyIndex / HISTORY_ITEMS_PER_PAGE) + 1);
       openHistory(event, canManage ? 'attendance' : canUploadImages ? 'upload' : 'gallery');
     }
 
@@ -470,6 +480,15 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
     const bTime = parseTimeValue(b.timeStart || b.time || '00:00');
     return sortOrder === 'furthest' ? bTime - aTime : aTime - bTime;
   });
+  const historyEvents = events
+    .filter(event => ['ended', 'archived'].includes(event.status))
+    .sort((a, b) => new Date(normalizeDateString(b.date)) - new Date(normalizeDateString(a.date)));
+  const historyTotalPages = Math.max(1, Math.ceil(historyEvents.length / HISTORY_ITEMS_PER_PAGE));
+  const safeHistoryPage = Math.min(historyPage, historyTotalPages);
+  const paginatedHistoryEvents = historyEvents.slice(
+    (safeHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
+    safeHistoryPage * HISTORY_ITEMS_PER_PAGE
+  );
   const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
@@ -553,20 +572,43 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
 
       {/* RIGHT MAIN CONTENT */}
       <div style={styles.mainContent}>
-        <h2 style={styles.headerTitle}>Daily Schedule</h2>
+        <h2 style={styles.headerTitle}>{showEventHistory ? 'Event History' : 'Daily Schedule'}</h2>
         <p style={styles.headerSub}>
-          Events for {formatPhDateObject(selectedDate)} • {PH_TIMEZONE_LABEL}
+          {showEventHistory
+            ? `${historyEvents.length} ended or archived events`
+            : `Events for ${formatPhDateObject(selectedDate)} • ${PH_TIMEZONE_LABEL}`}
         </p>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: '600' }}>Sort Events:</span>
-          <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ ...styles.input, width: '170px' }}>
-            <option value="nearest">Nearest First</option>
-            <option value="furthest">Furthest First</option>
-          </select>
+        <div role="group" aria-label="Event display" style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            aria-pressed={!showEventHistory}
+            onClick={() => { setShowEventHistory(false); setHistoryPage(1); }}
+            style={{ ...styles.historyFooterBtn, width: 'auto', background: !showEventHistory ? '#4f46e5' : '#fff', color: !showEventHistory ? '#fff' : '#334155', borderColor: !showEventHistory ? '#4f46e5' : '#cbd5e1' }}
+          >
+            Daily Schedule
+          </button>
+          <button
+            type="button"
+            aria-pressed={showEventHistory}
+            onClick={() => { setShowEventHistory(true); setHistoryPage(1); }}
+            style={{ ...styles.historyFooterBtn, width: 'auto', background: showEventHistory ? '#4f46e5' : '#fff', color: showEventHistory ? '#fff' : '#334155', borderColor: showEventHistory ? '#4f46e5' : '#cbd5e1' }}
+          >
+            Event History ({historyEvents.length})
+          </button>
         </div>
 
-        {canManage && (
+        {!showEventHistory && (
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: '600' }}>Sort Events:</span>
+            <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ ...styles.input, width: '170px' }}>
+              <option value="nearest">Nearest First</option>
+              <option value="furthest">Furthest First</option>
+            </select>
+          </div>
+        )}
+
+        {canManage && !showEventHistory && (
           <div style={styles.formCard}>
             <h3 style={{ marginTop: 0, fontSize: '16px', color: '#1a202c' }}>
               {editingId ? "Edit Event" : "Schedule New Event"}
@@ -673,7 +715,63 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
           </div>
         )}
 
-        {loading ? (
+        {showEventHistory ? (
+          loading ? (
+            <p style={{ fontSize: '14px', color: '#718096' }}>Loading event history...</p>
+          ) : historyEvents.length === 0 ? (
+            <div style={{ padding: '32px 16px', textAlign: 'center', background: 'white', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+              <p style={{ color: '#64748b', margin: 0, fontSize: '14px' }}>No ended or archived events.</p>
+            </div>
+          ) : (
+            <>
+              <div style={{ ...styles.grid, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
+                {paginatedHistoryEvents.map(event => {
+                  const isArchived = event.status === 'archived';
+                  return (
+                    <article key={event._id} id={`event-card-${event._id}`} style={{ ...styles.card(true), opacity: 1, filter: 'none', outline: searchFocusedEventId === String(event._id) ? '3px solid #16a34a' : 'none' }}>
+                      <span style={{ ...styles.badge(event.category, true), alignSelf: 'flex-start' }}>{isArchived ? 'Archived' : 'Event Ended'}</span>
+                      <h3 style={{ margin: '10px 0 4px', fontSize: '16px', color: '#1a202c', overflowWrap: 'anywhere' }}>{event.title}</h3>
+                      <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>{formatPhDateObject(new Date(`${normalizeDateString(event.date)}T00:00:00`))}</p>
+                      <div style={styles.infoGrid}>
+                        <span>Time: {event.time || `${event.timeStart || 'N/A'} - ${event.timeEnd || 'N/A'}`}</span>
+                        <span>Location: {event.room || 'No location'}</span>
+                        <span>Attending: {event.attendees?.length || 0}</span>
+                      </div>
+                      <div style={styles.footer}>
+                        <button type="button" onClick={() => openHistory(event, canManage ? 'attendance' : canUploadImages ? 'upload' : 'gallery')} style={styles.historyFooterBtn}>
+                          View Event History
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              {historyTotalPages > 1 && (
+                <nav aria-label="Event history pages" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '18px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryPage(page => Math.max(1, page - 1))}
+                    disabled={safeHistoryPage === 1}
+                    style={{ ...styles.historyFooterBtn, width: 'auto', minWidth: '88px', opacity: safeHistoryPage === 1 ? 0.55 : 1 }}
+                  >
+                    Previous
+                  </button>
+                  <span aria-live="polite" style={{ color: '#475569', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                    {safeHistoryPage} / {historyTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryPage(page => Math.min(historyTotalPages, page + 1))}
+                    disabled={safeHistoryPage === historyTotalPages}
+                    style={{ ...styles.historyFooterBtn, width: 'auto', minWidth: '88px', opacity: safeHistoryPage === historyTotalPages ? 0.55 : 1 }}
+                  >
+                    Next
+                  </button>
+                </nav>
+              )}
+            </>
+          )
+        ) : loading ? (
           <p style={{ fontSize: '14px', color: '#718096' }}>Loading activities...</p>
         ) : sortedSelectedEvents.length === 0 ? (
           <div style={{ padding: '40px 20px', textAlign: 'center', background: 'white', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>

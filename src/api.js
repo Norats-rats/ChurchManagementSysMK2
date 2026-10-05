@@ -71,6 +71,7 @@ export const api = {
   logout: () => apiClient.post('/logout'),
   register: (formData) => apiClient.post('/register', formData),
   verifyOtp: (data) => apiClient.post('/verify-otp', data),
+  verifyMember: (data) => apiClient.post('/verify-member', data),
   forgotPassword: (data) => apiClient.post('/forgot-password', data),
   resetPassword: (data) => apiClient.post('/reset-password', data),
 

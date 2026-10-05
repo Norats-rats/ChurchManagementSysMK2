@@ -199,7 +199,7 @@ const MemberForm = () => {
       const response = await api.createMember({ ...form, ministry: form.ministries[0] || 'None' });
       setShowCreate(false);
       setForm(emptyForm);
-      showResult(response.data?.confirmationSent === false ? 'Account created, but the confirmation email could not be sent.' : 'Account created. A confirmation code was sent to the user.');
+      showResult(response.data?.confirmationSent === false ? 'Account created, but the activation email could not be sent.' : 'Account created. An activation link was emailed to the user.');
       await fetchMembers();
     } catch (error) { showResult(error?.response?.data?.error || 'Could not create this account.'); }
   };

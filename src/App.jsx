@@ -272,6 +272,46 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
   );
 };
 
+const MemberVerificationView = ({ onGoToLogin }) => {
+  const [status, setStatus] = useState('verifying');
+  const [message, setMessage] = useState('Verifying your account...');
+  const requestStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (requestStartedRef.current) return;
+    requestStartedRef.current = true;
+    const token = new URLSearchParams(window.location.search).get('token');
+    if (!token) {
+      setStatus('error');
+      setMessage('This verification link is invalid or incomplete.');
+      return;
+    }
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    api.verifyMember({ token })
+      .then(response => {
+        setStatus('success');
+        setMessage(response.data?.message || 'Your account is verified and active.');
+      })
+      .catch(error => {
+        setStatus('error');
+        setMessage(error.response?.data?.message || 'This verification link is invalid or expired.');
+      });
+  }, []);
+
+  return (
+    <main className="main-container">
+      <div className="login-card" role="status" aria-live="polite">
+        <h3 className="welcome-text">{status === 'success' ? 'Account Activated' : status === 'error' ? 'Verification Failed' : 'Verifying Account'}</h3>
+        <p className="instruction-text">{message}</p>
+        {status !== 'verifying' && (
+          <button type="button" onClick={onGoToLogin} className="signin-button">Go to Sign In</button>
+        )}
+      </div>
+    </main>
+  );
+};
+
 export default function App() {
   const navigate = useNavigate();
   const navigateRef = useRef(navigate);
@@ -428,6 +468,7 @@ export default function App() {
           />
         } />
         <Route path="/signup" element={<Signup onGoToLogin={() => navigate('/login')} />} />
+        <Route path="/verify-member" element={<MemberVerificationView onGoToLogin={() => navigate('/login')} />} />
         <Route path="/forgot-password" element={<ForgotPasswordView onGoToLogin={() => navigate('/login')} />} />
         <Route path="/home" element={dashboardElement} />
         <Route path="/chat" element={dashboardElement} />
