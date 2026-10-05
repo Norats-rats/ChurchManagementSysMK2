@@ -1470,7 +1470,7 @@ app.get('/api/members/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/members', requireRoles('Admin'), async (req, res) => {
+app.post('/api/members', requireRoles('Admin', 'Ministry Leader'), async (req, res) => {
 try {
     const role = String(req.body.role || 'Member');
     if (!['Admin', 'Ministry Leader', 'Staff', 'Member'].includes(role)) {
