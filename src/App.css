@@ -931,7 +931,11 @@ body, .App {
 
 .dashboard-intro {
   margin: 0 0 18px;
-  padding: 2px 2px 0;
+  padding: 16px 20px;
+  border: 1px solid #dfe8e3;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(24, 55, 43, .06);
 }
 
 .dashboard-intro h1 {
@@ -1047,6 +1051,7 @@ body, .App {
 
 .theme-dark .dashboard-intro h1,
 .theme-dark .dashboard-quick-access-heading h2 { color: #e6eef8; }
+.theme-dark .dashboard-intro { background: #0b1220; border-color: rgba(255,255,255,.08); }
 .theme-dark .dashboard-eyebrow { color: #93c5aa; }
 .theme-dark .dashboard-intro-copy { color: #b4c3bc; }
 .theme-dark .dashboard-quick-access { background: #0b1220; border-color: rgba(255,255,255,.08); }
