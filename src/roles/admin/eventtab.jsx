@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useEffect, useRef, useState } from 'react';
 import api from '../../api';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';

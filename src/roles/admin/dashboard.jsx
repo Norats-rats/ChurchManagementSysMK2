@@ -170,6 +170,26 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
   ];
 
   const visibleTabs = navigationConfig.filter(tab => hasPermission(role, tab.permission));
+  const dashboardShortcutConfig = [
+    { id: 'members', label: 'Members', description: 'View your church community', permission: 'members', route: '/members' },
+    { id: 'events', label: 'Events', description: 'Browse upcoming gatherings', permission: 'events', route: '/events' },
+    { id: 'attendance', label: 'Attendance', description: 'Open service attendance', permission: 'attendance', route: '/attendance' },
+    { id: 'inventory', label: 'Inventory', description: 'Check church resources', permission: 'inventory', route: '/inventory' },
+    { id: 'ministries', label: 'Ministries', description: 'Explore ministry groups', permission: 'ministries', route: '/ministry' },
+    { id: 'chat', label: 'Community chat', description: 'Connect with one another', permission: 'chat', route: '/chat' },
+    { id: 'ebible', label: 'Read the Bible', description: 'Continue in scripture', permission: 'bible', route: '/bible' },
+    { id: 'prayers', label: 'Prayer requests', description: 'Share and view prayer needs', permission: 'prayers', route: '/prayers' },
+    { id: 'finances', label: 'Finances', description: 'Review church finances', permission: 'finances', route: '/finances' }
+  ];
+  const shortcutOrderByRole = {
+    Admin: ['members', 'events', 'attendance', 'inventory'],
+    'Ministry Leader': ['events', 'attendance', 'ministries', 'members'],
+    Staff: ['attendance', 'events', 'inventory', 'finances'],
+    Member: ['events', 'chat', 'ebible', 'prayers']
+  };
+  const dashboardShortcuts = (shortcutOrderByRole[role] || shortcutOrderByRole.Member)
+    .map(id => dashboardShortcutConfig.find(item => item.id === id))
+    .filter(item => item && hasPermission(role, item.permission));
 
   useEffect(() => {
     let cancelled = false;
@@ -1184,6 +1204,15 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
         <div className="view-container">
           {currentTab === 'dashboard' && (
             <>
+              <header className="dashboard-intro">
+                <div>
+                  <p className="dashboard-eyebrow">Church community</p>
+                  <h1>Welcome back, {user?.firstName || 'friend'}</h1>
+                  <p className="dashboard-intro-copy">
+                    {isLeader ? 'Your church operations and community updates.' : role === 'Staff' ? 'Your team tools and the latest church updates.' : 'Stay connected with your community, events, and faith.'}
+                  </p>
+                </div>
+              </header>
               <div className="bulletin-board">
                 {isLeader && (
                   <>
@@ -1291,6 +1320,30 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                         <p style={{ color: '#64748b' }}>Stay tuned for upcoming events!</p>
                       )}
                     </div>
+                    <section className="dashboard-quick-access" aria-labelledby="dashboard-quick-access-title">
+                      <div className="dashboard-quick-access-heading">
+                        <div>
+                          <p className="dashboard-eyebrow">Your workspace</p>
+                          <h2 id="dashboard-quick-access-title">Quick access</h2>
+                        </div>
+                      </div>
+                      <div className="dashboard-quick-links">
+                        {dashboardShortcuts.map(shortcut => (
+                          <button
+                            type="button"
+                            className="dashboard-quick-link"
+                            key={shortcut.id}
+                            onClick={() => navigate(shortcut.route)}
+                          >
+                            <span>
+                              <strong>{shortcut.label}</strong>
+                              <small>{shortcut.description}</small>
+                            </span>
+                            <span className="dashboard-quick-link-arrow" aria-hidden="true">→</span>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
                     {isLeader && <div className="dashboard-chart-grid">
                       <div className="dashboard-chart-card dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('attendance')} onKeyDown={(event) => handleRecordCardKeyDown('attendance', event)}><span>Attendance Rate</span><strong>{dashboardMetrics.attendanceRate}%</strong><div className="dashboard-progress"><i style={{ width: `${dashboardMetrics.attendanceRate}%` }} /></div></div>
                       <div className="dashboard-chart-card dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('inventory')} onKeyDown={(event) => handleRecordCardKeyDown('inventory', event)}><span>Monthly Inventory Activity</span><strong>{dashboardMetrics.inventoryUsed + dashboardMetrics.inventoryAdded}</strong><div className="dashboard-inventory-breakdown"><small>Used {dashboardMetrics.inventoryUsed}</small><small>Added {dashboardMetrics.inventoryAdded}</small></div><div className="dashboard-progress inventory"><i style={{ width: `${dashboardMetrics.inventoryUsage}%` }} /></div></div>
