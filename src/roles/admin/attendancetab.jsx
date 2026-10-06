@@ -1,5 +1,6 @@
 import { QRCodeCanvas } from 'qrcode.react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { api } from '../../api';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';
@@ -34,6 +35,7 @@ const getEventEndTime = (event) => {
 };
 
 const AttendanceTab = ({ role, userId, user }) => {
+  const navigate = useNavigate();
   const [checkIns, setCheckIns] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -240,9 +242,9 @@ const AttendanceTab = ({ role, userId, user }) => {
   }
 
   return (
-    <div style={styles.container}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '24px' }}>
-        <div style={{ ...styles.card, padding: '14px', minWidth: sidebarExpanded ? '300px' : '160px', transition: 'min-width 0.25s ease' }}>
+    <div className="attendance-tab" style={styles.container}>
+      <div className="attendance-layout">
+        <div className={`attendance-event-panel ${sidebarExpanded ? 'is-expanded' : 'is-collapsed'}`} style={{ ...styles.card, padding: '14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             {sidebarExpanded ? (
               <div>
@@ -287,8 +289,15 @@ const AttendanceTab = ({ role, userId, user }) => {
 
           <div style={{ ...styles.eventSidebar, ...(sidebarExpanded ? styles.sidebarExpanded : styles.sidebarCollapsed) }}>
             {filteredTodaysEvents.length === 0 ? (
-              <div style={styles.noEventCard}>
-                <p style={{ margin: 0, color: '#475569' }}>{eventFilter || eventTypeFilter !== 'all' ? 'No events match these filters.' : 'No events scheduled for today.'}</p>
+              <div className="attendance-empty-events" style={styles.noEventCard}>
+                <span className="attendance-empty-icon" aria-hidden="true">◷</span>
+                <strong>{eventFilter || eventTypeFilter !== 'all' ? 'No matching events' : 'No events today'}</strong>
+                <p>{eventFilter || eventTypeFilter !== 'all' ? 'Try changing or clearing your filters.' : 'Events available for check-in will appear here.'}</p>
+                {(eventFilter || eventTypeFilter !== 'all') && (
+                  <button type="button" className="attendance-clear-filters" onClick={() => { setEventFilter(''); setEventTypeFilter('all'); }}>
+                    Clear filters
+                  </button>
+                )}
               </div>
             ) : (
               filteredTodaysEvents.map((event) => {
@@ -327,7 +336,7 @@ const AttendanceTab = ({ role, userId, user }) => {
           </div>
         </div>
 
-        <div style={styles.card}>
+        <div className="attendance-checkin-panel" style={styles.card}>
           <div style={styles.headerRow}>
             <div>
               <h3 style={styles.cardTitle}>Selected Event Check-In</h3>
@@ -336,14 +345,14 @@ const AttendanceTab = ({ role, userId, user }) => {
                 🕒 {PH_TIMEZONE_LABEL} • {todayLabel} • {toDisplayTime(phClockTime)}
               </p>
             </div>
-            <button style={{ ...styles.exportBtn, background: 'var(--color-primary)', borderColor: 'transparent' }} onClick={exportToExcel} disabled={!selectedTodayEvent || selectedEventAttendees.length === 0}>
+            <button className="attendance-export-button" type="button" style={{ ...styles.exportBtn, background: 'var(--color-primary)', borderColor: 'transparent' }} onClick={exportToExcel} disabled={!selectedTodayEvent || selectedEventAttendees.length === 0}>
               📥 Export Sheet
             </button>
           </div>
 
           {selectedTodayEvent ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '22px', marginTop: '18px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', padding: '18px', borderRadius: '20px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div className="attendance-qr-panel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', padding: '18px', borderRadius: '20px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                 <QRCodeCanvas 
                   value={qrValueForEvent(selectedTodayEvent)}
                   size={260}
@@ -356,7 +365,7 @@ const AttendanceTab = ({ role, userId, user }) => {
                 </div>
               </div>
 
-              <div style={{ padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
+              <div className="attendance-history-panel" style={{ padding: '18px', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
                 <div style={styles.historyHeader}>
                   <h4 style={{ margin: 0, color: '#0f172a' }}>Attendance History</h4>
                   <div style={styles.sortControls}>
@@ -375,7 +384,7 @@ const AttendanceTab = ({ role, userId, user }) => {
                 ) : (
                   <div style={styles.historyTable}>
                     {sortedSelectedEventAttendees.map((att, idx) => (
-                      <div key={`${selectedTodayEvent._id || selectedTodayEvent.id}-${idx}`} style={styles.historyRow}>
+                      <div className="attendance-history-row" key={`${selectedTodayEvent._id || selectedTodayEvent.id}-${idx}`} style={styles.historyRow}>
                         <span>{att.name || att.userName || att.userId}</span>
                         <span>{toDisplayTime(att.time) || att.time || '--'}</span>
                       </div>
@@ -385,8 +394,15 @@ const AttendanceTab = ({ role, userId, user }) => {
               </div>
             </div>
           ) : (
-            <div style={{ padding: '40px', borderRadius: '20px', background: '#f8fafc', border: '1px dashed #cbd5e0', textAlign: 'center' }}>
-              <p style={{ margin: 0, color: '#475569', fontSize: '15px' }}>Select an event from the left sidebar to display its QR code, attendance summary, and event-specific log.</p>
+            <div className="attendance-empty-checkin" aria-live="polite">
+              <span className="attendance-empty-icon" aria-hidden="true">▦</span>
+              <strong>{todaysEvents.length ? 'Choose an event to begin check-in' : 'Check-in is waiting for today’s events'}</strong>
+              <p>{todaysEvents.length ? 'Select an event from the list to view its QR code and attendance.' : 'When an event is scheduled for today, its QR code and attendance log will appear here.'}</p>
+              {todaysEvents.length === 0 && (
+                <button type="button" className="attendance-view-events" onClick={() => navigate('/events')}>
+                  View Events
+                </button>
+              )}
             </div>
           )}
         </div>
