@@ -36,12 +36,15 @@ const isVisibleInEventHistory = (event) => {
   return endedAt && Date.now() - endedAt.getTime() >= EVENT_HISTORY_GRACE_MS;
 };
 
+const formatLocalDateInput = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
 const EventTab = ({ role, userId, user, searchRequest }) => {
   const [events, setEvents] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
-  const [hoveredEventId, setHoveredEventId] = useState(null);
+  const [formOpen, setFormOpen] = useState(false);
   const [historyTarget, setHistoryTarget] = useState(null);
   const [historyPanel, setHistoryPanel] = useState('attendance');
   const [searchFocusedEventId, setSearchFocusedEventId] = useState(null);
@@ -95,10 +98,10 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
   useEffect(() => {
     fetchEvents();
     fetchLocations();
-    fetchLeaderOptions();
+    if (canManage) fetchLeaderOptions();
     const lifecycleRefresh = setInterval(fetchEvents, 60 * 1000);
     return () => clearInterval(lifecycleRefresh);
-  }, []);
+  }, [canManage]);
 
   const fetchLocations = async () => {
     try {
@@ -159,8 +162,7 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
     const newSelected = new Date(currentYear, currentMonth, day);
     setSelectedDate(newSelected);
 
-    const localDate = `${newSelected.getFullYear()}-${String(newSelected.getMonth() + 1).padStart(2, '0')}-${String(newSelected.getDate()).padStart(2, '0')}`;
-    setFormData(prev => ({ ...prev, date: localDate }));
+    setFormData(prev => ({ ...prev, date: formatLocalDateInput(newSelected) }));
   };
 
   const hasEventsOnDate = (day) => {
@@ -230,7 +232,7 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
     if (!aiSuggestion || !aiSuggestion.suggestion) return;
 
     const dateMatch = aiSuggestion.suggestion.match(/\d{4}-\d{2}-\d{2}/);
-    const timeMatch = aiSuggestion.suggestion.match(/(0\d|1[0-2]):[0-5]\d\s?(AM|PM)/i);
+    const timeMatch = aiSuggestion.suggestion.match(/\b(0?\d|1\d|2[0-3]):([0-5]\d)\s*(AM|PM)?\b/i);
 
     const roomKeywords = ["Sanctuary", "Main Hall", "Room A", "Room B", "Fellowship Hall", "Youth Room", "Chapel"];
     const foundRoom = roomKeywords.find(room => 
@@ -238,16 +240,39 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
     );
 
     const newDate = dateMatch ? dateMatch[0] : formData.date;
-    
+    let suggestedStartTime = formData.timeStart;
+    let suggestedEndTime = formData.timeEnd;
+
+    if (timeMatch) {
+      let suggestedHour = Number(timeMatch[1]);
+      const suggestedMinute = Number(timeMatch[2]);
+      const meridiem = timeMatch[3]?.toUpperCase();
+      if (meridiem) {
+        suggestedHour %= 12;
+        if (meridiem === 'PM') suggestedHour += 12;
+      }
+
+      const [startHour, startMinute] = formData.timeStart.split(':').map(Number);
+      const [endHour, endMinute] = formData.timeEnd.split(':').map(Number);
+      const currentDuration = (endHour * 60 + endMinute - startHour * 60 - startMinute + 1440) % 1440 || 60;
+      const suggestedStartMinutes = suggestedHour * 60 + suggestedMinute;
+      const suggestedEndMinutes = (suggestedStartMinutes + currentDuration) % 1440;
+      const formatTime = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+      suggestedStartTime = formatTime(suggestedStartMinutes);
+      suggestedEndTime = formatTime(suggestedEndMinutes);
+    }
+
     setFormData(prev => ({
       ...prev,
       date: newDate,
-      time: timeMatch ? timeMatch[0].toUpperCase() : prev.time,
+      timeStart: suggestedStartTime,
+      timeEnd: suggestedEndTime,
       room: foundRoom ? foundRoom : prev.room
     }));
 
     if (dateMatch) {
-      const aiDateObj = new Date(newDate);
+      const [year, month, day] = newDate.split('-').map(Number);
+      const aiDateObj = new Date(year, month - 1, day);
       setCurrentCalendarDate(aiDateObj);
       setSelectedDate(aiDateObj);
     }
@@ -356,6 +381,7 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
         await api.createEvent(submissionData);
       }
       setEditingId(null);
+      setFormOpen(false);
       setAiSuggestion(null);
       setFormData({
         titleSelection: 'Worship Service',
@@ -409,6 +435,14 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
     setHistoryTarget(event);
   };
 
+  const renderHistoryActions = (event) => (
+    <div className="event-card-actions">
+      {canManage && <button type="button" className="event-action-button primary" onClick={() => openHistory(event, 'attendance')}>Attendance</button>}
+      {canUploadImages && <button type="button" className="event-action-button" onClick={() => openHistory(event, 'upload')}>Upload photos</button>}
+      <button type="button" className="event-action-button" onClick={() => openHistory(event, 'gallery')}>View photos</button>
+    </div>
+  );
+
   useEffect(() => {
     const eventId = searchRequest?.eventId;
     const requestId = searchRequest?.requestId;
@@ -453,24 +487,14 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
   const styles = {
     container: { padding: '20px', backgroundColor: '#f7fafc', minHeight: '100vh', display: 'flex', gap: '25px', alignItems: 'flex-start', flexWrap: 'wrap' },
     
-    sidebar: { flex: '0 0 300px', backgroundColor: '#18181b', padding: '15px', borderRadius: '12px', color: '#f4f4f5', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
+    sidebar: { flex: '0 0 300px', backgroundColor: '#ffffff', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '12px', color: '#1f2937', boxShadow: '0 4px 12px rgba(15,23,42,0.05)' },
     calHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' },
-    calNavBtn: { background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '16px', padding: '5px 10px' },
+    calNavBtn: { background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '16px', padding: '5px 10px' },
     calTitle: { margin: 0, fontSize: '18px', fontWeight: '600', cursor: 'pointer' },
     calGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center' },
-    calDayHeader: { fontSize: '12px', fontWeight: 'bold', color: '#a1a1aa', paddingBottom: '6px' },
-    calDayCell: (day, isSelected) => ({
-      padding: '6px 0',
-      cursor: day ? 'pointer' : 'default',
-      borderRadius: '6px',
-      backgroundColor: isSelected ? '#4f46e5' : 'transparent',
-      color: isSelected ? 'white' : (day ? '#f4f4f5' : 'transparent'),
-      fontSize: '14px',
-      position: 'relative',
-      transition: 'background-color 0.2s',
-      ':hover': { backgroundColor: day && !isSelected ? '#27272a' : '' }
-    }),
-    eventDot: { height: '4px', width: '4px', backgroundColor: '#10b981', borderRadius: '50%', position: 'absolute', bottom: '1px', left: '50%', transform: 'translateX(-50%)' },
+    calDayHeader: { fontSize: '12px', fontWeight: 'bold', color: '#64748b', paddingBottom: '6px' },
+    calDayCell: { width: '100%', minHeight: '34px', padding: '6px 0', border: 0, borderRadius: '6px', backgroundColor: 'transparent', color: '#334155', fontSize: '14px', cursor: 'pointer', position: 'relative', transition: 'background-color 0.2s' },
+    eventDot: { display: 'block', height: '4px', width: '4px', backgroundColor: '#10b981', borderRadius: '50%', position: 'absolute', bottom: '1px', left: '50%', transform: 'translateX(-50%)' },
 
     mainContent: { flex: '1', minWidth: '300px' },
     headerTitle: { margin: '0 0 5px 0', color: '#2d3748', fontSize: '24px' },
@@ -480,24 +504,21 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' },
     card: (isArchived) => ({ 
       background: 'white', padding: '15px', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', 
-      display: 'flex', flexDirection: 'column', borderLeft: isArchived ? '4px solid #94a3b8' : '4px solid #4f46e5',
+      display: 'flex', flexDirection: 'column', borderLeft: isArchived ? '4px solid #94a3b8' : '4px solid #15803d',
       opacity: isArchived ? 0.6 : 1, filter: isArchived ? 'grayscale(0.5)' : 'none'
     }),
     cardFrame: { position: 'relative' },
-    historyOverlay: { position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.9)', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', zIndex: 3 },
-    historyOverlayTitle: { color: '#ffffff', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' },
-    historyOverlayBtn: { width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.12)', color: '#ffffff', fontSize: '12px', fontWeight: '700', cursor: 'pointer' },
     historyFooterBtn: { width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#334155', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' },
     badge: (cat, isArchived) => ({
       padding: '4px 10px', borderRadius: '15px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase',
-      backgroundColor: isArchived ? '#e2e8f0' : (cat === 'Worship' ? '#e0e7ff' : '#fef3c7'),
-      color: isArchived ? '#475569' : (cat === 'Worship' ? '#4338ca' : '#92400e')
+      backgroundColor: isArchived ? '#e2e8f0' : (cat === 'Worship' ? '#dcfce7' : '#fef3c7'),
+      color: isArchived ? '#475569' : (cat === 'Worship' ? '#166534' : '#92400e')
     }),
     infoGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: '6px', marginTop: '12px', fontSize: '13px', color: '#4a5568' },
     footer: { marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #edf2f7', display: 'flex', gap: '8px' },
-    submitBtn: { padding: '10px 20px', backgroundColor: '#4f46e5', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
+    submitBtn: { padding: '10px 20px', backgroundColor: '#15803d', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
     aiBtn: { padding: '10px 20px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
-    input: { padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' },
+    input: { padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#1f2937', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' },
     attendBtn: (isAttending) => ({ width: '100%', padding: '10px', backgroundColor: isAttending ? '#ef4444' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' })
   };
 
@@ -541,7 +562,7 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
   const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
-    <div style={styles.container}>
+    <div className="event-tab" style={styles.container}>
       
       {/* LEFT SIDEBAR */}
       <div style={styles.sidebar}>
@@ -602,21 +623,36 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
             
             const hasEvent = hasEventsOnDate(day);
 
+            if (!day) return <span key={`day-${idx}`} aria-hidden="true" />;
             return (
-              <div 
-                key={`day-${idx}`} 
-                style={{
-                  ...styles.calDayCell(day, isSelected),
-                  ...(day && !isSelected ? { ':hover': { backgroundColor: '#27272a' } } : {})
-                }}
+              <button
+                type="button"
+                key={`day-${idx}`}
+                className={`event-calendar-day${isSelected ? ' selected' : ''}${hasEvent ? ' has-event' : ''}`}
+                aria-label={`Select ${monthNames[currentMonth]} ${day}, ${currentYear}`}
+                aria-pressed={Boolean(isSelected)}
+                style={styles.calDayCell}
                 onClick={() => handleDateSelect(day)}
               >
-                {day || ''}
-                {hasEvent && <div style={styles.eventDot} />}
-              </div>
+                {day}
+                {hasEvent && <span className="event-calendar-dot" aria-hidden="true" />}
+              </button>
             );
           })}
         </div>
+        <section className="event-selected-day" aria-label="Selected date summary">
+          <div className="event-selected-day-heading">
+            <strong>{formatPhDateObject(selectedDate)}</strong>
+            <span>{selectedEvents.length} {selectedEvents.length === 1 ? 'event' : 'events'}</span>
+          </div>
+          {sortedSelectedEvents.length ? sortedSelectedEvents.slice(0, 2).map(event => (
+            <div className="event-selected-day-item" key={event._id}>
+              <span>{event.title || event.titleSelection || event.reservationName || 'Church event'}</span>
+              <small>{event.time || `${event.timeStart || 'Time TBD'} - ${event.timeEnd || ''}`}</small>
+            </div>
+          )) : <p className="event-selected-day-empty">No events scheduled.</p>}
+          {selectedEvents.length > 2 && <small className="event-selected-day-more">+{selectedEvents.length - 2} more in the schedule</small>}
+        </section>
       </div>
 
       {/* RIGHT MAIN CONTENT */}
@@ -633,7 +669,7 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
             type="button"
             aria-pressed={!showEventHistory}
             onClick={() => { setShowEventHistory(false); setHistoryPage(1); }}
-            style={{ ...styles.historyFooterBtn, width: 'auto', background: !showEventHistory ? '#4f46e5' : '#fff', color: !showEventHistory ? '#fff' : '#334155', borderColor: !showEventHistory ? '#4f46e5' : '#cbd5e1' }}
+            style={{ ...styles.historyFooterBtn, width: 'auto', background: !showEventHistory ? '#15803d' : '#fff', color: !showEventHistory ? '#fff' : '#334155', borderColor: !showEventHistory ? '#15803d' : '#cbd5e1' }}
           >
             Daily Schedule
           </button>
@@ -641,7 +677,7 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
             type="button"
             aria-pressed={showEventHistory}
             onClick={() => { setShowEventHistory(true); setHistoryPage(1); }}
-            style={{ ...styles.historyFooterBtn, width: 'auto', background: showEventHistory ? '#4f46e5' : '#fff', color: showEventHistory ? '#fff' : '#334155', borderColor: showEventHistory ? '#4f46e5' : '#cbd5e1' }}
+            style={{ ...styles.historyFooterBtn, width: 'auto', background: showEventHistory ? '#15803d' : '#fff', color: showEventHistory ? '#fff' : '#334155', borderColor: showEventHistory ? '#15803d' : '#cbd5e1' }}
           >
             Event History ({historyEvents.length})
           </button>
@@ -657,13 +693,37 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
           </div>
         )}
 
-        {canManage && !showEventHistory && (
-          <div style={styles.formCard}>
-            <h3 style={{ marginTop: 0, fontSize: '16px', color: '#1a202c' }}>
-              {editingId ? "Edit Event" : "Schedule New Event"}
-            </h3>
+        {canManage && !showEventHistory && !formOpen && (
+          <button type="button" className="event-primary-action" onClick={() => {
+            setEditingId(null);
+            setFormData({
+              titleSelection: 'Worship Service',
+              reservationName: '',
+              category: 'Worship',
+              date: formatLocalDateInput(selectedDate),
+              timeStart: '08:00',
+              timeEnd: '09:00',
+              room: '',
+              role: '',
+              leadPeople: [],
+              status: 'active'
+            });
+            setFormOpen(true);
+          }}>
+            <span aria-hidden="true">+</span> Schedule event
+          </button>
+        )}
+
+        {canManage && !showEventHistory && formOpen && (
+          <div className="event-scheduler-card" style={styles.formCard}>
+            <div className="event-form-header">
+              <h3 style={{ margin: 0, fontSize: '16px', color: '#1a202c' }}>
+                {editingId ? "Edit Event" : "Schedule New Event"}
+              </h3>
+              <button type="button" className="event-form-close" onClick={() => setFormOpen(false)}>Close</button>
+            </div>
             <form onSubmit={handleCreateOrUpdate}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              <div className="event-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                 <select style={styles.input} value={formData.titleSelection} onChange={e => setFormData({...formData, titleSelection: e.target.value})}>
                   <option value="Jail Preaching">Jail Preaching</option>
                   <option value="Wedding">Wedding</option>
@@ -688,7 +748,7 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
                     <option key={location._id} value={location.name}>{location.name}</option>
                   ))}
                 </select>
-                <div style={{ gridColumn: '1 / -1', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
+                <div className="event-leader-selector" style={{ gridColumn: '1 / -1', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
                   <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>
                       Lead persons (select 2-3 ministry leaders)
@@ -711,7 +771,7 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
                         const fullName = `${leader.firstName || ''} ${leader.lastName || ''}`.trim();
                         const checked = formData.leadPeople.includes(fullName);
                         return (
-                          <label key={leader._id || fullName} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', background: '#fff', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                          <label className="event-leader-option" key={leader._id || fullName} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', background: '#fff', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                             <input
                               type="checkbox"
                               checked={checked}
@@ -738,14 +798,14 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+              <div className="event-form-actions" style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
                 <button type="submit" style={styles.submitBtn}>{editingId ? "Update Event" : "Create Event"}</button>
                 {!editingId && (
                   <button type="button" onClick={handleAIRecommendation} disabled={aiLoading} style={styles.aiBtn}>
                     {aiLoading ? "Thinking..." : "✨ AI Suggest"}
                   </button>
                 )}
-                {editingId && <button type="button" onClick={() => setEditingId(null)} style={{...styles.submitBtn, backgroundColor: '#a0aec0'}}>Cancel</button>}
+                {editingId && <button type="button" onClick={() => { setEditingId(null); setFormOpen(false); }} style={{...styles.submitBtn, backgroundColor: '#64748b'}}>Cancel</button>}
               </div>
             </form>
 
@@ -796,8 +856,8 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
                   <option value="archived">Archived</option>
                 </select>
                 <div role="group" aria-label="History layout" style={{ display: 'flex', gap: '6px' }}>
-                  <button type="button" aria-pressed={historyView === 'grid'} onClick={() => setHistoryView('grid')} style={{ ...styles.historyFooterBtn, width: 'auto', background: historyView === 'grid' ? '#4f46e5' : '#fff', color: historyView === 'grid' ? '#fff' : '#334155' }}>Grid</button>
-                  <button type="button" aria-pressed={historyView === 'list'} onClick={() => setHistoryView('list')} style={{ ...styles.historyFooterBtn, width: 'auto', background: historyView === 'list' ? '#4f46e5' : '#fff', color: historyView === 'list' ? '#fff' : '#334155' }}>List</button>
+                  <button type="button" aria-pressed={historyView === 'grid'} onClick={() => setHistoryView('grid')} style={{ ...styles.historyFooterBtn, width: 'auto', background: historyView === 'grid' ? '#15803d' : '#fff', color: historyView === 'grid' ? '#fff' : '#334155', borderColor: historyView === 'grid' ? '#15803d' : '#cbd5e1' }}>Grid</button>
+                  <button type="button" aria-pressed={historyView === 'list'} onClick={() => setHistoryView('list')} style={{ ...styles.historyFooterBtn, width: 'auto', background: historyView === 'list' ? '#15803d' : '#fff', color: historyView === 'list' ? '#fff' : '#334155', borderColor: historyView === 'list' ? '#15803d' : '#cbd5e1' }}>List</button>
                 </div>
               </div>
 
@@ -806,41 +866,28 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
                   <p style={{ color: '#64748b', margin: 0, fontSize: '14px' }}>No events match these filters.</p>
                 </div>
               ) : historyView === 'grid' ? (
-                <div style={{ ...styles.grid, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
+                <div className="event-card-grid" style={{ ...styles.grid, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
                   {paginatedHistoryEvents.map(event => {
                     const isArchived = event.status === 'archived';
-                    const isHovered = hoveredEventId === event._id;
                     return (
                       <div
                         key={event._id}
                         id={`event-card-${event._id}`}
                         style={styles.cardFrame}
-                        onMouseEnter={() => setHoveredEventId(event._id)}
-                        onMouseLeave={() => setHoveredEventId(previous => previous === event._id ? null : previous)}
                       >
-                        <article style={{ ...styles.card(true), opacity: 1, filter: 'none', outline: searchFocusedEventId === String(event._id) ? '3px solid #16a34a' : 'none' }}>
+                        <article className="event-card" style={{ ...styles.card(true), opacity: 1, filter: 'none', outline: searchFocusedEventId === String(event._id) ? '3px solid #16a34a' : 'none' }}>
                           <span style={{ ...styles.badge(event.category, true), alignSelf: 'flex-start' }}>{isArchived ? 'Archived' : 'Event Ended'}</span>
-                          <h3 style={{ margin: '10px 0 4px', fontSize: '16px', color: '#1a202c', overflowWrap: 'anywhere' }}>{event.title}</h3>
+                          <h3 className="event-card-title" style={{ margin: '10px 0 4px', fontSize: '16px', color: '#1a202c', overflowWrap: 'anywhere' }}>{event.title}</h3>
                           <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>{formatPhDateObject(new Date(`${normalizeDateString(event.date)}T00:00:00`))}</p>
-                          <div style={styles.infoGrid}>
+                          <div className="event-info-grid" style={styles.infoGrid}>
                             <span>Time: {event.time || `${event.timeStart || 'N/A'} - ${event.timeEnd || 'N/A'}`}</span>
                             <span>Location: {event.room || 'No location'}</span>
                             <span>Attending: {event.attendees?.length || 0}</span>
                           </div>
                           <div style={styles.footer}>
-                            <button type="button" onClick={() => openHistory(event, canManage ? 'attendance' : canUploadImages ? 'upload' : 'gallery')} style={styles.historyFooterBtn}>
-                              View Event History
-                            </button>
+                            {renderHistoryActions(event)}
                           </div>
                         </article>
-                        {isHovered && (
-                          <div style={styles.historyOverlay}>
-                            <span style={styles.historyOverlayTitle}>Event History</span>
-                            {canManage && <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'attendance')}>👥 View Event Attendance</button>}
-                            {canUploadImages && <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'upload')}>📤 Upload Event Images</button>}
-                            <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'gallery')}>🖼️ View Images</button>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -908,47 +955,42 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
             <p style={{ color: '#94a3b8', margin: 0, fontSize: '15px' }}>No events scheduled for this day.</p>
           </div>
         ) : (
-          <div style={styles.grid}>
+          <div className="event-card-grid" style={styles.grid}>
             {sortedSelectedEvents.map((event) => {
               const isAttending = event.attendees?.includes(userId);
               
               const isArchived = event.status === 'archived';
               const isEnded = event.status === 'ended';
               const isUnavailable = isArchived || isEnded;
-              const isHovered = hoveredEventId === event._id;
 
               return (
                 <div
                   key={event._id}
                   id={`event-card-${event._id}`}
                   style={styles.cardFrame}
-                  onMouseEnter={() => setHoveredEventId(event._id)}
-                  onMouseLeave={() => setHoveredEventId(prev => (prev === event._id ? null : prev))}
                 >
-                  <div style={{ ...styles.card(isUnavailable), ...(searchFocusedEventId === String(event._id) ? { outline: '3px solid #16a34a', outlineOffset: '3px' } : {}) }}>
+                  <div className="event-card" style={{ ...styles.card(isUnavailable), ...(searchFocusedEventId === String(event._id) ? { outline: '3px solid #16a34a', outlineOffset: '3px' } : {}) }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <span style={styles.badge(event.category, isUnavailable)}>
                         {isArchived ? 'Archived' : isEnded ? 'Event Ended' : event.category}
                       </span>
                     </div>
-                    <h4 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#1a202c' }}>{event.title}</h4>
-                    <p style={{ fontSize: '12px', color: '#718096', margin: 0 }}>
+                    <h4 className="event-card-title" style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#1a202c' }}>{event.title}</h4>
+                    <p className="event-card-lead" style={{ fontSize: '12px', color: '#718096', margin: 0 }}>
                       Lead: {Array.isArray(event.leadPeople) && event.leadPeople.length > 0 ? event.leadPeople.join(', ') : (event.role || 'N/A')}
                     </p>
 
-                    <div style={styles.infoGrid}>
+                    <div className="event-info-grid" style={styles.infoGrid}>
                       <span>🕒 {event.time || `${event.timeStart || 'N/A'} - ${event.timeEnd || 'N/A'}`}</span>
                       <span>📍 {event.room || 'No location'}</span>
-                      <span style={{ color: '#4f46e5', fontWeight: '600' }}>👥 {event.attendees?.length || 0} Attending</span>
+                      <span style={{ color: '#15803d', fontWeight: '600' }}>👥 {event.attendees?.length || 0} Attending</span>
                     </div>
                   </div>
 
                   <div style={styles.footer}>
                     {isUnavailable ? (
-                      <button type="button" onClick={() => openHistory(event, canManage ? 'attendance' : (canUploadImages ? 'upload' : 'gallery'))} style={styles.historyFooterBtn}>
-                        📂 View Event History
-                      </button>
+                      renderHistoryActions(event)
                     ) : (
                       canManage ? (
                         <>
@@ -960,6 +1002,7 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
                             timeEnd: event.timeEnd || (event.time ? event.time.split('-')[1]?.trim() : '09:00'),
                             leadPeople: Array.isArray(event.leadPeople) ? event.leadPeople : (event.role ? [event.role] : [])
                           });
+                          setFormOpen(true);
                         }}>Edit</button>
                           <button style={{ border: 'none', background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} onClick={() => archiveEvent(event._id)}>End Event</button>
                         </>
@@ -971,24 +1014,6 @@ const EventTab = ({ role, userId, user, searchRequest }) => {
                     )}
                   </div>
                 </div>
-                  {isUnavailable && isHovered && (
-                    <div style={styles.historyOverlay}>
-                      <span style={styles.historyOverlayTitle}>Event History</span>
-                      {canManage && (
-                        <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'attendance')}>
-                          👥 View Event Attendance
-                        </button>
-                      )}
-                      {canUploadImages && (
-                        <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'upload')}>
-                          📤 Upload Event Images
-                        </button>
-                      )}
-                      <button type="button" style={styles.historyOverlayBtn} onClick={() => openHistory(event, 'gallery')}>
-                        🖼️ View Images
-                      </button>
-                    </div>
-                  )}
                 </div>
               );
             })}
