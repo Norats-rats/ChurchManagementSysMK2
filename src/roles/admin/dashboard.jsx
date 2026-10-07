@@ -191,6 +191,21 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
     .map(id => dashboardShortcutConfig.find(item => item.id === id))
     .filter(item => item && hasPermission(role, item.permission));
 
+  const dashboardOverviewCards = (isAdmin
+    ? [
+        { id: 'members', label: 'Members', value: stats.memberCount, record: 'members' },
+        { id: 'ministries', label: 'Ministries', value: stats.ministryCount, record: 'ministries' },
+        { id: 'events', label: 'Events', value: stats.eventCount, record: 'events' },
+        { id: 'attendance', label: 'Attendance', value: stats.attendanceCount, record: 'attendance' }
+      ]
+    : [
+        { id: 'ministries', label: 'Ministries', value: stats.ministryCount, record: 'ministries' },
+        { id: 'events', label: 'Events', value: stats.eventCount, record: 'events' },
+        { id: 'attendance', label: 'Attendance', value: stats.attendanceCount, record: 'attendance' },
+        { id: 'members', label: 'Members', value: stats.memberCount, record: 'members' }
+      ]
+  );
+
   useEffect(() => {
     let cancelled = false;
     const requests = [
@@ -1216,33 +1231,22 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
               <div className="bulletin-board">
                 {isLeader && (
                   <>
-                    <div className="responsive-kpi-grid">
-                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('members')} aria-label="Open member records">
-                        <div style={kpiLabelStyle}>TOTAL MEMBERS</div>
-                        <div style={kpiValueStyle}>{stats.memberCount}</div>
-                      </button>
-                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('ministries')} aria-label="Open ministry records">
-                        <div style={kpiLabelStyle}>ACTIVE MINISTRIES</div>
-                        <div style={kpiValueStyle}>{stats.ministryCount}</div>
-                      </button>
-                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('events')} aria-label="Open event records">
-                        <div style={kpiLabelStyle}>TOTAL EVENTS</div>
-                        <div style={kpiValueStyle}>{stats.eventCount}</div>
-                      </button>
-                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('calendar')} aria-label="Open upcoming calendar events">
-                        <div style={kpiLabelStyle}>UPCOMING CALENDAR</div>
-                        <div style={kpiValueStyle}>{stats.calendarCount}</div>
-                      </button>
-                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('attendance')} aria-label="Open attendance records">
-                        <div style={kpiLabelStyle}>TOTAL ATTENDANCE</div>
-                        <div style={kpiValueStyle}>{stats.attendanceCount}</div>
-                      </button>
-                      <button type="button" className="kpi-card" style={kpiCardStyle} onClick={() => setRecordPanel('inventory')} aria-label="Open inventory activity">
-                        <div style={kpiLabelStyle}>INVENTORY UPDATES</div>
-                        <div style={kpiValueStyle}>{stats.inventoryActivityCount}</div>
-                      </button>
+                    <div className="responsive-kpi-grid" aria-label="Dashboard overview">
+                      {dashboardOverviewCards.map((card) => (
+                        <button
+                          key={card.id}
+                          type="button"
+                          className="kpi-card"
+                          style={kpiCardStyle}
+                          onClick={() => setRecordPanel(card.record)}
+                          aria-label={`Open ${card.label.toLowerCase()} overview`}
+                        >
+                          <div style={kpiLabelStyle}>{card.label.toUpperCase()}</div>
+                          <div style={kpiValueStyle}>{card.value}</div>
+                        </button>
+                      ))}
                     </div>
-                  
+
                     <div className="leader-input-card" style={leaderInputCard}>
                       <h4 style={{ margin: '0 0 10px 0', color: '#1e40af' }}>📢 Update Bulletin Announcement</h4>
                       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -1320,36 +1324,6 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                         <p style={{ color: '#64748b' }}>Stay tuned for upcoming events!</p>
                       )}
                     </div>
-                    <section className="dashboard-quick-access" aria-labelledby="dashboard-quick-access-title">
-                      <div className="dashboard-quick-access-heading">
-                        <div>
-                          <p className="dashboard-eyebrow">Your workspace</p>
-                          <h2 id="dashboard-quick-access-title">Quick access</h2>
-                        </div>
-                      </div>
-                      <div className="dashboard-quick-links">
-                        {dashboardShortcuts.map(shortcut => (
-                          <button
-                            type="button"
-                            className="dashboard-quick-link"
-                            key={shortcut.id}
-                            onClick={() => navigate(shortcut.route)}
-                          >
-                            <span>
-                              <strong>{shortcut.label}</strong>
-                              <small>{shortcut.description}</small>
-                            </span>
-                            <span className="dashboard-quick-link-arrow" aria-hidden="true">→</span>
-                          </button>
-                        ))}
-                      </div>
-                    </section>
-                    {isLeader && <div className="dashboard-chart-grid">
-                      <div className="dashboard-chart-card dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('attendance')} onKeyDown={(event) => handleRecordCardKeyDown('attendance', event)}><span>Attendance Rate</span><strong>{dashboardMetrics.attendanceRate}%</strong><div className="dashboard-progress"><i style={{ width: `${dashboardMetrics.attendanceRate}%` }} /></div></div>
-                      <div className="dashboard-chart-card dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('inventory')} onKeyDown={(event) => handleRecordCardKeyDown('inventory', event)}><span>Monthly Inventory Activity</span><strong>{dashboardMetrics.inventoryUsed + dashboardMetrics.inventoryAdded}</strong><div className="dashboard-inventory-breakdown"><small>Used {dashboardMetrics.inventoryUsed}</small><small>Added {dashboardMetrics.inventoryAdded}</small></div><div className="dashboard-progress inventory"><i style={{ width: `${dashboardMetrics.inventoryUsage}%` }} /></div></div>
-                      <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('attendance')} onKeyDown={(event) => handleRecordCardKeyDown('attendance', event)}><span>Attendance by Event Category</span>{dashboardMetrics.attendanceByCategory.length ? dashboardMetrics.attendanceByCategory.slice(0, 4).map(item => <div className="dashboard-bar-row" key={item.name}><small>{item.name}</small><div><i style={{ width: `${Math.max(8, Math.round((item.value / dashboardMetrics.attendanceByCategory[0].value) * 100))}%` }} /></div><b>{item.value}</b></div>) : <small className="dashboard-muted">No attendance data yet.</small>}</div>
-                      <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('members')} onKeyDown={(event) => handleRecordCardKeyDown('members', event)}><span>Recent User Activity</span>{dashboardMetrics.recentUsers.length ? dashboardMetrics.recentUsers.map(item => <div className="dashboard-user-row" key={`${item.name}-${item.role}`}><span>{item.name}</span><small>{item.role}</small></div>) : <small className="dashboard-muted">No recent user activity yet.</small>}</div>
-                    </div>}
                   </div>
                 </div>
               </div>
