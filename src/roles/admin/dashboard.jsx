@@ -1336,21 +1336,21 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                           <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
                             <div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginBottom: '5px' }}>
-                                <span>Event pipeline</span>
+                                <span>Upcoming events</span>
                                 <strong>{Math.min(100, Math.round((stats.calendarCount / Math.max(stats.eventCount || 1, 1)) * 100))}%</strong>
                               </div>
                               <div className="dashboard-progress"><i style={{ width: `${Math.min(100, Math.round((stats.calendarCount / Math.max(stats.eventCount || 1, 1)) * 100))}%` }} /></div>
                             </div>
                             <div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginBottom: '5px' }}>
-                                <span>Inventory usage</span>
+                                <span>Inventory used</span>
                                 <strong>{dashboardMetrics.inventoryUsage}%</strong>
                               </div>
                               <div className="dashboard-progress inventory"><i style={{ width: `${dashboardMetrics.inventoryUsage}%` }} /></div>
                             </div>
                             <div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginBottom: '5px' }}>
-                                <span>Participation</span>
+                                <span>Member Attendance</span>
                                 <strong>{dashboardMetrics.attendanceRate}%</strong>
                               </div>
                               <div className="dashboard-progress"><i style={{ width: `${dashboardMetrics.attendanceRate}%` }} /></div>
