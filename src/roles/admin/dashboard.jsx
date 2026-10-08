@@ -1230,37 +1230,19 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
               </header>
               <div className="bulletin-board">
                 {isLeader && (
-                  <>
-                    <div className="responsive-kpi-grid" aria-label="Dashboard overview">
-                      {dashboardOverviewCards.map((card) => (
-                        <button
-                          key={card.id}
-                          type="button"
-                          className="kpi-card"
-                          style={kpiCardStyle}
-                          onClick={() => setRecordPanel(card.record)}
-                          aria-label={`Open ${card.label.toLowerCase()} overview`}
-                        >
-                          <div style={kpiLabelStyle}>{card.label.toUpperCase()}</div>
-                          <div style={kpiValueStyle}>{card.value}</div>
-                        </button>
-                      ))}
+                  <div className="leader-input-card" style={leaderInputCard}>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#1e40af' }}>📢 Update Bulletin Announcement</h4>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <input 
+                        className="leader-input"
+                        style={{ ...inputStyle, flex: '1 1 420px', minWidth: '0' }}
+                        placeholder="Type a message for all members..." 
+                        value={newAnnouncement}
+                        onChange={(e) => setNewAnnouncement(e.target.value)}
+                      />
+                      <button className="post-btn" onClick={postAnnouncement} style={postBtnStyle}>Sync Bulletin</button>
                     </div>
-
-                    <div className="leader-input-card" style={leaderInputCard}>
-                      <h4 style={{ margin: '0 0 10px 0', color: '#1e40af' }}>📢 Update Bulletin Announcement</h4>
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <input 
-                          className="leader-input"
-                          style={{ ...inputStyle, flex: '1 1 420px', minWidth: '0' }}
-                          placeholder="Type a message for all members..." 
-                          value={newAnnouncement}
-                          onChange={(e) => setNewAnnouncement(e.target.value)}
-                        />
-                        <button className="post-btn" onClick={postAnnouncement} style={postBtnStyle}>Sync Bulletin</button>
-                      </div>
-                    </div>
-                  </>
+                  </div>
                 )}
 
                 <div className="dashboard-spotlight-grid">
