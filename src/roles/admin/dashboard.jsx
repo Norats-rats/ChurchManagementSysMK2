@@ -1347,6 +1347,30 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                               <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px', color: '#0f172a' }}>{stats.inventoryActivityCount}</strong>
                             </div>
                           </div>
+
+                          <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginBottom: '5px' }}>
+                                <span>Event pipeline</span>
+                                <strong>{Math.min(100, Math.round((stats.calendarCount / Math.max(stats.eventCount || 1, 1)) * 100))}%</strong>
+                              </div>
+                              <div className="dashboard-progress"><i style={{ width: `${Math.min(100, Math.round((stats.calendarCount / Math.max(stats.eventCount || 1, 1)) * 100))}%` }} /></div>
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginBottom: '5px' }}>
+                                <span>Inventory usage</span>
+                                <strong>{dashboardMetrics.inventoryUsage}%</strong>
+                              </div>
+                              <div className="dashboard-progress inventory"><i style={{ width: `${dashboardMetrics.inventoryUsage}%` }} /></div>
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginBottom: '5px' }}>
+                                <span>Participation</span>
+                                <strong>{dashboardMetrics.attendanceRate}%</strong>
+                              </div>
+                              <div className="dashboard-progress"><i style={{ width: `${dashboardMetrics.attendanceRate}%` }} /></div>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('members')} onKeyDown={(event) => handleRecordCardKeyDown('members', event)}>
