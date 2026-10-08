@@ -1309,8 +1309,11 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
 
                     {isLeader && (
                       <div className="dashboard-chart-grid">
-                        <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('inventory')} onKeyDown={(event) => handleRecordCardKeyDown('inventory', event)}>
-                          <span>Operations Snapshot</span>
+                        <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('inventory')} onKeyDown={(event) => handleRecordCardKeyDown('inventory', event)} style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '12px' }}>
+                            <span>Operations Snapshot</span>
+                            <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Live</small>
+                          </div>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', marginTop: '4px' }}>
                             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px' }}>
                               <small style={{ display: 'block', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ministries</small>
@@ -1355,10 +1358,13 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                           </div>
                         </div>
 
-                        <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('members')} onKeyDown={(event) => handleRecordCardKeyDown('members', event)}>
-                          <span>Recently Joined Members</span>
+                        <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('members')} onKeyDown={(event) => handleRecordCardKeyDown('members', event)} style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '12px' }}>
+                            <span>Recently Joined Members</span>
+                            <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{dashboardMetrics.recentUsers.length || 0} new</small>
+                          </div>
                           {dashboardMetrics.recentUsers.length ? dashboardMetrics.recentUsers.map(item => (
-                            <div className="dashboard-user-row" key={`${item.name}-${item.role}`}>
+                            <div className="dashboard-user-row" key={`${item.name}-${item.role}`} style={{ background: '#f8fafc', padding: '8px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                               <span>{item.name}</span>
                               <small>{item.role}</small>
                             </div>

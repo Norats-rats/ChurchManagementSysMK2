@@ -83,6 +83,7 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
   const [eventsError, setEventsError] = useState(false);
   const [currentCalendarDate, setCurrentCalendarDate] = useState(() => getPhTodayDateObject());
   const [selectedDate, setSelectedDate] = useState(() => getPhDateString());
+  const [agendaPage, setAgendaPage] = useState(1);
   const touchStartX = useRef(null);
 
   useEffect(() => {
@@ -184,6 +185,15 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
       return eventDate === selectedDate || (overnight && addOneDay(eventDate) === selectedDate);
     })
     .sort((first, second) => (first.timeStart || first.time || '').localeCompare(second.timeStart || second.time || ''));
+
+  const eventsPerPage = 4;
+  const agendaPageCount = Math.max(1, Math.ceil(selectedEvents.length / eventsPerPage));
+  const safeAgendaPage = Math.min(agendaPage, agendaPageCount);
+  const paginatedSelectedEvents = selectedEvents.slice((safeAgendaPage - 1) * eventsPerPage, safeAgendaPage * eventsPerPage);
+
+  useEffect(() => {
+    setAgendaPage(1);
+  }, [selectedDate]);
 
   const selectCalendarDate = (day) => {
     if (day) setSelectedDate(makeDateString(currentYear, currentMonth, day));
@@ -396,7 +406,7 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
               <p style={styles.agendaMessage}>No events scheduled for this day.</p>
             ) : (
               <div>
-                {selectedEvents.map((event) => {
+                {paginatedSelectedEvents.map((event) => {
                   const isOvernightCarryover = normalizeDateString(event.date) !== selectedDate;
                   return (
                     <article key={event._id} style={styles.agendaEvent}>
@@ -412,6 +422,28 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
                     </article>
                   );
                 })}
+
+                {selectedEvents.length > eventsPerPage && (
+                  <div style={styles.paginationRow}>
+                    <button
+                      type="button"
+                      style={{ ...styles.paginationButton, ...(safeAgendaPage === 1 ? styles.paginationButtonDisabled : {}) }}
+                      onClick={() => setAgendaPage((page) => Math.max(1, page - 1))}
+                      disabled={safeAgendaPage === 1}
+                    >
+                      Previous
+                    </button>
+                    <span style={styles.paginationLabel}>Page {safeAgendaPage} of {agendaPageCount}</span>
+                    <button
+                      type="button"
+                      style={{ ...styles.paginationButton, ...(safeAgendaPage === agendaPageCount ? styles.paginationButtonDisabled : {}) }}
+                      onClick={() => setAgendaPage((page) => Math.min(agendaPageCount, page + 1))}
+                      disabled={safeAgendaPage === agendaPageCount}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -774,6 +806,33 @@ const styles = {
     marginTop: '0.25rem',
     color: '#64748b',
     fontSize: '0.85rem'
+  },
+  paginationRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    marginTop: '18px',
+    paddingTop: '12px',
+    borderTop: '1px solid #e5e7eb'
+  },
+  paginationButton: {
+    background: '#ffffff',
+    color: '#0f172a',
+    border: '1px solid #cbd5e1',
+    borderRadius: '999px',
+    padding: '8px 14px',
+    cursor: 'pointer',
+    fontWeight: 600
+  },
+  paginationButtonDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed'
+  },
+  paginationLabel: {
+    fontSize: '12px',
+    color: '#64748b',
+    fontWeight: 600
   },
   serviceCard: {
     background: '#ffffff',
