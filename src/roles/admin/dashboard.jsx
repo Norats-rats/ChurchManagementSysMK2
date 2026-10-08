@@ -1324,6 +1324,42 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
                         <p style={{ color: '#64748b' }}>Stay tuned for upcoming events!</p>
                       )}
                     </div>
+
+                    {isLeader && (
+                      <div className="dashboard-chart-grid">
+                        <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('inventory')} onKeyDown={(event) => handleRecordCardKeyDown('inventory', event)}>
+                          <span>Operations Snapshot</span>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', marginTop: '4px' }}>
+                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px' }}>
+                              <small style={{ display: 'block', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ministries</small>
+                              <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px', color: '#0f172a' }}>{stats.ministryCount}</strong>
+                            </div>
+                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px' }}>
+                              <small style={{ display: 'block', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Events</small>
+                              <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px', color: '#0f172a' }}>{stats.eventCount}</strong>
+                            </div>
+                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px' }}>
+                              <small style={{ display: 'block', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Calendar</small>
+                              <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px', color: '#0f172a' }}>{stats.calendarCount}</strong>
+                            </div>
+                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px' }}>
+                              <small style={{ display: 'block', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inventory</small>
+                              <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px', color: '#0f172a' }}>{stats.inventoryActivityCount}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="dashboard-chart-card dashboard-chart-wide dashboard-record-trigger" role="button" tabIndex={0} onClick={() => setRecordPanel('members')} onKeyDown={(event) => handleRecordCardKeyDown('members', event)}>
+                          <span>Recently Joined Members</span>
+                          {dashboardMetrics.recentUsers.length ? dashboardMetrics.recentUsers.map(item => (
+                            <div className="dashboard-user-row" key={`${item.name}-${item.role}`}>
+                              <span>{item.name}</span>
+                              <small>{item.role}</small>
+                            </div>
+                          )) : <small className="dashboard-muted">No recent member activity yet.</small>}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
