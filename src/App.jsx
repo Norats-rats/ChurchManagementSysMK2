@@ -85,7 +85,7 @@ const ForgotPasswordView = ({ onGoToLogin }) => {
   };
 
   return (
-    <main className="main-container">
+    <main className="main-container" id="main-content" tabIndex="-1">
       <div className="login-card">
         <h3 className="welcome-text">{step === 1 ? "Forgot Password" : "Reset Password"}</h3>
         <p className="instruction-text">
@@ -180,7 +180,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToSignup, onGoToForgot }) => {
   };
 
   return (
-    <main className="main-container">
+    <main className="main-container" id="main-content" tabIndex="-1">
       <div className="header-section">
         <div className="logo-circle">
           <img src={churchLogo} alt="Church Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} />
@@ -301,7 +301,7 @@ const MemberVerificationView = ({ onGoToLogin }) => {
   }, []);
 
   return (
-    <main className="main-container">
+    <main className="main-container" id="main-content" tabIndex="-1">
       <div className="login-card" role="status" aria-live="polite">
         <h3 className="welcome-text">{status === 'success' ? 'Account Activated' : status === 'error' ? 'Verification Failed' : 'Verifying Account'}</h3>
         <p className="instruction-text">{message}</p>
@@ -456,6 +456,7 @@ export default function App() {
 
   return (
     <div className="App">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <Routes>
         <Route
           path="/"

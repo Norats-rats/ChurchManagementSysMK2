@@ -224,6 +224,7 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
         </div>
       </nav>
 
+      <main id="main-content" tabIndex="-1">
       <header
         style={{
           ...styles.hero,
@@ -449,6 +450,7 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
           </div>
         </div>
       </section>
+      </main>
 
       <footer id="contact" style={styles.footer}>
         <div style={styles.footerContent}>
@@ -495,13 +497,16 @@ const styles = {
     border: 'none',
     color: '#fff',
     fontSize: '1rem',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    minHeight: '44px',
+    padding: '0 0.5rem'
   },
   joinBtn: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#0056b3',
     color: '#fff',
     border: 'none',
     padding: '0.5rem 1rem',
+    minHeight: '44px',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: 'bold'
@@ -536,10 +541,11 @@ const styles = {
     justifyContent: 'center'
   },
   primaryHeroBtn: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#0056b3',
     color: '#fff',
     border: 'none',
     padding: '0.75rem 1.5rem',
+    minHeight: '48px',
     borderRadius: '4px',
     fontSize: '1.1rem',
     cursor: 'pointer'
@@ -549,6 +555,7 @@ const styles = {
     color: '#fff',
     border: '2px solid #fff',
     padding: '0.75rem 1.5rem',
+    minHeight: '48px',
     borderRadius: '4px',
     fontSize: '1.1rem',
     cursor: 'pointer'
@@ -637,18 +644,17 @@ const styles = {
     padding: '0 2.5rem'
   },
   carouselDot: {
-    width: '10px',
-    height: '10px',
+    width: '24px',
+    height: '24px',
     borderRadius: '50%',
     border: 'none',
     padding: 0,
-    background: 'rgba(255, 255, 255, 0.55)',
+    background: 'radial-gradient(circle, rgba(255, 255, 255, 0.65) 5px, transparent 6px)',
     cursor: 'pointer',
     transition: 'background 0.2s ease, transform 0.2s ease'
   },
   carouselDotActive: {
-    background: '#ffffff',
-    transform: 'scale(1.25)'
+    background: 'radial-gradient(circle, #ffffff 6px, transparent 7px)'
   },
   carouselCounter: {
     position: 'absolute',
@@ -694,8 +700,8 @@ const styles = {
     textAlign: 'center'
   },
   calendarNavButton: {
-    width: '36px',
-    height: '36px',
+    width: '44px',
+    height: '44px',
     border: '1px solid #cbd5d1',
     borderRadius: '6px',
     background: '#fff',
@@ -703,7 +709,7 @@ const styles = {
     cursor: 'pointer'
   },
   todayButton: {
-    minHeight: '36px',
+    minHeight: '44px',
     padding: '0 0.7rem',
     border: '1px solid #176b55',
     borderRadius: '6px',
@@ -715,7 +721,7 @@ const styles = {
   calendarGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-    gap: '4px',
+    gap: '8px',
     textAlign: 'center'
   },
   calendarDayHeader: {
@@ -727,6 +733,7 @@ const styles = {
   calendarDay: {
     position: 'relative',
     aspectRatio: '1',
+    minHeight: '44px',
     border: '0',
     borderRadius: '6px',
     background: 'transparent',
@@ -822,6 +829,7 @@ const styles = {
     border: '1px solid #cbd5e1',
     borderRadius: '999px',
     padding: '8px 14px',
+    minHeight: '44px',
     cursor: 'pointer',
     fontWeight: 600
   },

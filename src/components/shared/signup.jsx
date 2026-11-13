@@ -63,7 +63,7 @@ const response = await api.verifyOtp({
 
   if (step === 'otp') {
     return (
-      <div className="main-container">
+      <main className="main-container" id="main-content" tabIndex="-1">
         <div className="header-section">
           <h1>Verify Your Email</h1>
           <p className="subtitle">Enter the code sent to {formData.email}</p>
@@ -84,12 +84,12 @@ const response = await api.verifyOtp({
             <button type="submit" className="signin-button">Verify & Activate</button>
           </form>
         </div>
-      </div>
+      </main>
     );
   }
   
   return (
-    <div className="main-container">
+    <main className="main-container" id="main-content" tabIndex="-1">
       <div className="header-section">
         <div className="logo-circle">
           <img src={churchLogo} alt="Church Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} />
@@ -191,7 +191,7 @@ const response = await api.verifyOtp({
       <footer className="footer-text">
         © 2026 Free Believers in Christ Fellowship Inc. • Taguig City
       </footer>
-    </div>
+    </main>
   );
 };
 

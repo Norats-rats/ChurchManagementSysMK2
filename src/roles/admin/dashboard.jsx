@@ -1003,7 +1003,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
     return trivias[dayOfYear % trivias.length];
   };
     
-  if (!user) return <div className="loading-screen">Authenticating...</div>;
+  if (!user) return <main className="loading-screen" id="main-content" tabIndex="-1">Authenticating...</main>;
   return (
     <div className="dashboard-wrapper">
       <nav className="top-nav">
@@ -1216,7 +1216,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           ))}
         </div>
 
-        <div className="view-container">
+        <main className="view-container" id="main-content" tabIndex="-1">
           {currentTab === 'dashboard' && (
             <>
               <header className="dashboard-intro">
@@ -1391,7 +1391,7 @@ const Dashboard = ({ user, role: rawRole, onLogout, theme, onToggleTheme }) => {
           {currentTab === 'finances' && hasPermission(role, 'finances') && <Finances role={role} userId={user._id} user={user} />}
           {currentTab === 'analytics' && canViewAnalytics(role) && <Analytics role={role} user={user} />}
           {currentTab === 'inventory' && canViewInventory(role) && <InventoryForm user={user} role={role} />}
-        </div>
+        </main>
       </div>
       {recordPanel && (
         <div style={recordOverlayStyle} onClick={() => setRecordPanel(null)}>
@@ -1464,7 +1464,7 @@ const recordDialogStyle = { width: 'min(780px, 100%)', height: 'min(82vh, 760px)
 const recordDialogHeaderStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', padding: '20px 22px 14px', borderBottom: '1px solid #e2e8f0', textAlign: 'left' };
 const recordDialogTitleStyle = { margin: 0, color: '#0f172a', fontSize: '20px' };
 const recordDialogSubtitleStyle = { margin: '4px 0 0', color: '#64748b', fontSize: '13px' };
-const recordCloseStyle = { width: '36px', height: '36px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', color: '#334155', fontSize: '24px', lineHeight: 1, cursor: 'pointer' };
+const recordCloseStyle = { width: '44px', height: '44px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', color: '#334155', fontSize: '24px', lineHeight: 1, cursor: 'pointer' };
 const recordTabsStyle = { display: 'flex', gap: '6px', overflowX: 'auto', padding: '12px 20px', borderBottom: '1px solid #e2e8f0' };
 const recordTabStyle = { flex: '0 0 auto', padding: '8px 12px', border: '1px solid transparent', borderRadius: '6px', background: 'transparent', color: '#475569', cursor: 'pointer', font: 'inherit', fontSize: '13px', fontWeight: 600 };
 const recordTabActiveStyle = { borderColor: '#bbf7d0', background: '#f0fdf4', color: '#166534' };
@@ -1487,7 +1487,9 @@ const notificationToggleButtonStyle = {
   borderRadius: '14px',
   background: '#ffffff',
   color: '#0f172a',
-  padding: '10px 14px',
+  minWidth: '44px',
+  minHeight: '44px',
+  padding: '8px',
   fontSize: '16px',
   cursor: 'pointer',
   position: 'relative'
@@ -1523,8 +1525,8 @@ const notificationPopoverStyle = {
   padding: '16px'
 };
 const notificationHeaderStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' };
-const notificationSmallButtonStyle = { border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a', padding: '6px 10px', borderRadius: '10px', fontSize: '13px', cursor: 'pointer' };
-const notificationCloseButtonStyle = { border: 'none', background: 'transparent', color: '#64748b', fontSize: '18px', cursor: 'pointer' };
+const notificationSmallButtonStyle = { border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a', padding: '6px 10px', minHeight: '44px', borderRadius: '10px', fontSize: '13px', cursor: 'pointer' };
+const notificationCloseButtonStyle = { border: 'none', background: 'transparent', color: '#475569', fontSize: '18px', minWidth: '44px', minHeight: '44px', cursor: 'pointer' };
 const notificationEmptyStyle = { color: '#64748b', padding: '18px 0', textAlign: 'center' };
 const notificationItemStyle = { borderRadius: '16px', border: '1px solid transparent', padding: '14px', marginBottom: '12px', cursor: 'pointer' };
 const notificationItemActiveStyle = { background: '#f8fafc', borderColor: '#cbd5e1' };
