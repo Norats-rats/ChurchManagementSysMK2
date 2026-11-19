@@ -22,7 +22,11 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "html5-qrcode": "^2.3.8",
+<<<<<<< HEAD
     "mongoose": "^9.12.1",
+=======
+    "mongoose": "^9.11.4",
+>>>>>>> 3bacce2a6f204175bf95277006cf2800a57364af
     "multer": "^2.5.0",
     "openai": "^6.38.0",
     "qrcode.react": "^4.2.0",
