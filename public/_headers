@@ -6,4 +6,4 @@
   Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=()
   Cross-Origin-Opener-Policy: same-origin-allow-popups
   Cross-Origin-Embedder-Policy: credentialless
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https://quickchart.io; connect-src 'self' https://bible-api.com https://quickchart.io https://*.ecclsync.org https://churchmanagementsysmk2-production.up.railway.app; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https://quickchart.io; connect-src 'self' https://bible-api.com https://quickchart.io https://*.ecclsync.org https://cloudflareinsights.com https://churchmanagementsysmk2-production.up.railway.app; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:
