@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api';
-import { canManageAdvising, canSubmitAdvising } from '../../permissions';
+import { canSubmitAdvising } from '../../permissions';
 import { useFeedbackModal } from './feedbackmodal';
 
 const Advising = ({ user, role }) => {
@@ -22,7 +22,6 @@ const Advising = ({ user, role }) => {
   const isLeader = role === 'Ministry Leader';
   const isAdmin = role === 'Admin';
   const canSubmit = canSubmitAdvising(role);
-  const canManage = canManageAdvising(role);
   const userDisplayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Guest';
 
   useEffect(() => {

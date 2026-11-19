@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import api from '../../api';
@@ -24,10 +25,6 @@ const Finances = ({ role, userId, user }) => {
   const [newType, setNewType] = useState('Income');
   const { showFeedback, FeedbackModal } = useFeedbackModal();
 
-  useEffect(() => {
-    fetchFinances();
-  }, [role, userId]);
-
   const fetchFinances = async () => {
     try {
       const response = await api.getFinances(userId, role);
@@ -48,6 +45,10 @@ const Finances = ({ role, userId, user }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchFinances();
+  }, [role, userId]);
 
   
 

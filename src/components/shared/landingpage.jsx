@@ -191,12 +191,11 @@ const LandingPage = ({ onOpenAuth, contactInfo = {} }) => {
   const safeAgendaPage = Math.min(agendaPage, agendaPageCount);
   const paginatedSelectedEvents = selectedEvents.slice((safeAgendaPage - 1) * eventsPerPage, safeAgendaPage * eventsPerPage);
 
-  useEffect(() => {
-    setAgendaPage(1);
-  }, [selectedDate]);
-
   const selectCalendarDate = (day) => {
-    if (day) setSelectedDate(makeDateString(currentYear, currentMonth, day));
+    if (day) {
+      setSelectedDate(makeDateString(currentYear, currentMonth, day));
+      setAgendaPage(1);
+    }
   };
 
   const goToToday = () => {

@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import api from './api';
 import './App.css';
@@ -9,8 +9,9 @@ import { useFeedbackModal } from './components/shared/feedbackmodal';
 import LandingPage from './components/shared/landingpage';
 import Signup from './components/shared/signup';
 import { normalizeRole } from './permissions';
-import Dashboard from './roles/admin/dashboard';
 import { getPhDateString, getPhTimeString } from './utils/philippinesTime';
+
+const Dashboard = lazy(() => import('./roles/admin/dashboard'));
 
 const loadStoredAuth = () => {
   const hasRememberedSession = Boolean(
@@ -444,13 +445,15 @@ export default function App() {
       role={userRole}
       userName={`${userData.firstName || ''} ${userData.lastName || ''}`.trim()}
     >
-      <Dashboard
-        role={userRole}
-        user={userData}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        onLogout={handleLogout}
-      />
+      <Suspense fallback={<div style={{ minHeight: '100vh' }} aria-label="Loading dashboard" />}>
+        <Dashboard
+          role={userRole}
+          user={userData}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onLogout={handleLogout}
+        />
+      </Suspense>
     </BackgroundProvider>
   ) : <Navigate to="/login" replace />;
 

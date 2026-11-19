@@ -55,14 +55,17 @@ const BackgroundCustomizer = () => {
   useEffect(() => {
     if (!visible || !loadedFromBackend) return;
     const p = preference || DEFAULT_BACKGROUND_PREFERENCE;
-    setLocalPref({
-      mode: p.mode || DEFAULT_BACKGROUND_PREFERENCE.mode,
-      customImage: p.customImage || null,
-      customUrl: p.customUrl || '',
-      solidColor: p.solidColor || '#0f172a',
-      dim: p.dim !== false,
-      zoom: Number.isFinite(p.zoom) ? p.zoom : DEFAULT_ZOOM
+    const frame = window.requestAnimationFrame(() => {
+      setLocalPref({
+        mode: p.mode || DEFAULT_BACKGROUND_PREFERENCE.mode,
+        customImage: p.customImage || null,
+        customUrl: p.customUrl || '',
+        solidColor: p.solidColor || '#0f172a',
+        dim: p.dim !== false,
+        zoom: Number.isFinite(p.zoom) ? p.zoom : DEFAULT_ZOOM
+      });
     });
+    return () => window.cancelAnimationFrame(frame);
   }, [visible, loadedFromBackend, preference]);
 
   const handleFile = (e) => {

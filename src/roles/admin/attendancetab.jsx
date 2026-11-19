@@ -8,7 +8,6 @@ import { canManageAttendance } from '../../permissions';
 import {
   PH_TIMEZONE_LABEL,
   formatPhDateObject,
-  getPhDateString,
   getPhTodayDateObject,
   isSamePhDay,
   normalizeDateString,
@@ -34,32 +33,18 @@ const getEventEndTime = (event) => {
   return startTime && endAt < startAt ? endAt + 24 * 60 * 60 * 1000 : endAt;
 };
 
-const AttendanceTab = ({ role, userId, user }) => {
+const AttendanceTab = ({ role, userId }) => {
   const navigate = useNavigate();
   const [checkIns, setCheckIns] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
-  const [showCreateEventModal, setShowCreateEventModal] = useState(false);
-  const [creatingEvent, setCreatingEvent] = useState(false);
   const [eventFilter, setEventFilter] = useState('');
   const [eventTypeFilter, setEventTypeFilter] = useState('all');
   const [attendanceSortField, setAttendanceSortField] = useState('time');
   const [attendanceSortDirection, setAttendanceSortDirection] = useState('asc');
-  const [newEventData, setNewEventData] = useState({
-    titleSelection: 'Worship Service',
-    reservationName: 'New Session',
-    category: 'Worship',
-    date: getPhDateString(),
-    time: '08:00 AM',
-    room: 'Main Sanctuary',
-    type: 'Once',
-    role: '',
-    status: 'active'
-  });
-
   const canManage = canManageAttendance(role);
-  const { showFeedback, FeedbackModal } = useFeedbackModal();
+  const { FeedbackModal } = useFeedbackModal();
   const { nowMs, todayStr, timeStr: phClockTime } = usePhClock();
   const todayLabel = formatPhDateObject(getPhTodayDateObject());
 
@@ -174,24 +159,6 @@ const AttendanceTab = ({ role, userId, user }) => {
     if (directed !== 0) return directed;
     return getAttendeeName(firstRecord).localeCompare(getAttendeeName(secondRecord));
   });
-
-  const handleCreateEvent = async (e) => {
-    e.preventDefault();
-    if (creatingEvent) return;
-    setCreatingEvent(true);
-    try {
-      await api.createEvent(newEventData);
-      setShowCreateEventModal(false);
-      setNewEventData(prev => ({ ...prev, titleSelection: 'Worship Service', reservationName: 'New Session', room: 'Main Sanctuary', time: '08:00 AM' }));
-      await fetchInitialData();
-      showFeedback('Event QR screen created successfully.');
-    } catch (err) {
-      console.error('Error creating event:', err);
-      showFeedback('Unable to create event QR screen.');
-    } finally {
-      setCreatingEvent(false);
-    }
-  };
 
   const exportToExcel = () => {
     const targetRecords = selectedTodayEvent ? selectedEventAttendees : checkIns;

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react';
 import api from '../../api';
 import { useFeedbackModal } from '../../components/shared/feedbackmodal';
@@ -23,7 +24,6 @@ const InventoryForm = ({ user, role }) => {
     const [location, setLocation] = useState("");
     const [assignedTo, setAssignedTo] = useState("");
     const [lastMaintenance, setLastMaintenance] = useState("");
-    const [category, setCategory] = useState("others");
     const [categoryKey, setCategoryKey] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [condition, setCondition] = useState("Good");
@@ -46,16 +46,7 @@ const InventoryForm = ({ user, role }) => {
     const ITEMS_PER_PAGE = 20;
     const { showFeedback, FeedbackModal } = useFeedbackModal();
 
-    useEffect(() => {
-        fetchInventory(showArchived);
-        fetchArchivedCount();
-    }, [showArchived]);
-
-    useEffect(() => {
-        fetchMinistries();
-    }, [role]);
-
-    const fetchMinistries = async () => {
+    async function fetchMinistries() {
         try {
             const response = await api.getMinistries(role);
             if (Array.isArray(response.data)) {
@@ -64,7 +55,7 @@ const InventoryForm = ({ user, role }) => {
         } catch (err) {
             console.error("Failed to load ministries:", err);
         }
-    };
+    }
 
     const getNextCategoryId = (prefix) => {
         if (!prefix) return `${prefix}-000`;
@@ -78,7 +69,7 @@ const InventoryForm = ({ user, role }) => {
         return `${prefix}-${String(next).padStart(3, '0')}`;
     };
 
-    const fetchInventory = async (archived = false) => {
+    async function fetchInventory(archived = false) {
         setLoading(true);
         try {
             const response = await api.getInventory(archived ? 'Archived' : 'Active');
@@ -90,9 +81,9 @@ const InventoryForm = ({ user, role }) => {
             console.error("Failed to fetch inventory:", err);
             setLoading(false);
         }
-    };
+    }
 
-    const fetchArchivedCount = async () => {
+    async function fetchArchivedCount() {
         try {
             const response = await api.getInventory('Archived');
             if (Array.isArray(response.data)) {
@@ -101,7 +92,16 @@ const InventoryForm = ({ user, role }) => {
         } catch (err) {
             console.error("Failed to fetch archived inventory count:", err);
         }
-    };
+    }
+
+    useEffect(() => {
+        fetchInventory(showArchived);
+        fetchArchivedCount();
+    }, [showArchived]);
+
+    useEffect(() => {
+        fetchMinistries();
+    }, [role]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -144,7 +144,7 @@ const InventoryForm = ({ user, role }) => {
 
     const resetForm = () => {
         setItem(""); setQuantity(""); setLocation(""); setAssignedTo(""); setLastMaintenance("");
-        setCategory('others'); setCategoryKey('others'); setCategoryId(''); setCondition("Good"); setBrand(""); setRepairStatus("None");
+        setCategoryKey('others'); setCategoryId(''); setCondition("Good"); setBrand(""); setRepairStatus("None");
         setIsEditing(false); setEditId(null);
     };
 
@@ -161,11 +161,9 @@ const InventoryForm = ({ user, role }) => {
             const found = CATEGORY_MAP.find(c => c.prefix === prefix);
             setCategoryKey(found ? found.key : 'others');
             setCategoryId(m.categoryId);
-            setCategory(found ? found.key : 'others');
         } else {
             setCategoryKey(m.category || 'others');
             setCategoryId(m.categoryId || getNextCategoryId((CATEGORY_MAP.find(c => c.key === (m.category || 'others')) || CATEGORY_MAP[CATEGORY_MAP.length-1]).prefix));
-            setCategory(m.category || 'others');
         }
         setCondition(m.condition || "Good");
         setBrand(m.brand || "");
@@ -253,7 +251,6 @@ const InventoryForm = ({ user, role }) => {
                     const map = CATEGORY_MAP.find(c => c.key === key) || CATEGORY_MAP.find(c => c.key === 'others');
                     const nextId = getNextCategoryId(map.prefix);
                     setCategoryId(nextId);
-                    setCategory(key);
                 }} style={{ minWidth: '160px' }}>
                     {CATEGORY_MAP.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
                 </select>
